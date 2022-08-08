@@ -213,6 +213,11 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 
       if (l==number_of_wetting_fronts && layer_number_below != layer_num && number_of_wetting_fronts ==  number_of_layers) {
 	//printf("case 3: number of WF = #layers \n");
+
+	/*
+	  this prior and updated water mass in the system should be done, if doable/reasonable, out of here in some subroutines. (AJK)
+	 */
+	
 	double vg_a1, vg_m1, vg_n1, Ks_cm_per_s1;
 	double theta_e1, theta_r1;
 	  
@@ -228,28 +233,32 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 	
 	double psi_cm = current->psi_cm;
 	double psi_cm_below = 0.0; //next->psi_cm;
-	
+
+	//printf("A1 = %6.12f %d \n",psi_cm_old,wf_free_drainage_demand);
 	double prior_mass = (current_old->depth_cm - cum_layer_thickness_cm[layer_num-1]) * (current_old->theta-0.0);//next_old->theta);
 	
 	double new_mass = (depth_cm_x - cum_layer_thickness_cm[layer_num-1]) * (current->theta-0.0); //next->theta);
 
-	//printf("M1 = %d %lf %lf %lf %lf \n",layer_num, prior_mass,new_mass, depth_cm_x,cum_layer_thickness_cm[layer_num-1]);
+	//printf("M1 = %6.12f %.12e \n", precip_mass_to_add, actual_ET_demand);
 
+	//printf ("prior_mass_layer = %6.12f \n", prior_mass);
+	double x_vec = 0.0;
 	for (int k=1; k<layer_num; k++) {
 	  //printf("looping .. %d \n",k);
-	  theta_e1 = soil_properties[soil_num-k].theta_e;
-	  theta_r1 = soil_properties[soil_num-k].theta_r;
-	  vg_a1    = soil_properties[soil_num-k].vg_alpha_per_cm;
-	  vg_m1    = soil_properties[soil_num-k].vg_m;
-	  vg_n1    = soil_properties[soil_num-k].vg_n;
-	  
+	  int soil_numA  = soil_type[k];
+	  theta_e1 = soil_properties[soil_numA].theta_e;
+	  theta_r1 = soil_properties[soil_numA].theta_r;
+	  vg_a1    = soil_properties[soil_numA].vg_alpha_per_cm;
+	  vg_m1    = soil_properties[soil_numA].vg_m;
+	  vg_n1    = soil_properties[soil_numA].vg_n;
+	  //printf("vg = %d %d %6.12f \n", k, soil_numA, vg_n1);
 	  double theta_old = calc_theta_from_h(psi_cm_old, vg_a1, vg_m1, vg_n1, theta_e1,theta_r1);
 	  double theta_below_old = 0.0;//calc_theta_from_h(psi_cm_below_old, vg_a1, vg_m1, vg_n1, theta_e1, theta_r1);
 	  double local_delta_theta_old = theta_old - theta_below_old;
 	  double layer_thickness = (cum_layer_thickness_cm[k] - cum_layer_thickness_cm[k-1]);
 	  
 	  prior_mass += (layer_thickness * local_delta_theta_old);
-	  
+	  x_vec = (layer_thickness * local_delta_theta_old);
 	  //-------------------------------------------
 	  // do the same for current state
 	  double theta = calc_theta_from_h(psi_cm, vg_a1, vg_m1, vg_n1, theta_e1, theta_r1);
@@ -260,10 +269,12 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 	  //printf("Mx = %lf %lf \n", layer_thickness, local_delta_theta_old);
 	  //printf("My = %lf %lf \n", layer_thickness, (theta - theta_below));
 	  //printf("M2 = %lf %lf \n",(layer_thickness * local_delta_theta_old), layer_thickness * (theta - theta_below));
+	  //printf ("mass_vec = %6.12f \n", x_vec*10);
 	  delta_thetas[k] = theta_below;
 	  delta_thickness[k] = layer_thickness;
 	}
 	
+	//double xx = lgar_calc_mass_bal(0,cum_layer_thickness_cm);
 	delta_thetas[layer_num] = 0.0; //next->theta;
 	delta_thickness[layer_num] = depth_cm_x - cum_layer_thickness_cm[layer_num-1];
 	
@@ -271,22 +282,24 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 	double free_drainage_demand = 0;
 	//double actual_ET_demand = 0;
 	//printf("wf = %d %d %lf \n", wf_free_drainage_demand, l, prior_mass);
+	//printf ("prior_mass = %6.12f %6.12f \n", prior_mass, xx);
 	
 	if (wf_free_drainage_demand == l)
 	    prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
 	
-	//printf("NEW: prior/new mass = %lf %lf %lf \n", prior_mass*10, new_mass*10,actual_ET_demand*10);
+	//printf("NEW: prior/new mass = %6.12f %6.12f %6.12f \n", prior_mass*10, new_mass*10,actual_ET_demand*10);
 	//abort();
 	//double delta_theta[] = {theta_of_wf_below_in_layer1_above, theta_of_wf_below_in_layer2_above, theta_below};
 	
 	//printf("NewA = %lf %lf \n",  depth_cm_x , cum_layer_thickness_cm[layer_num-1]);
-	new_mass = lgar_theta_mass_balance_2(layer_num, soil_num, psi_cm, new_mass, prior_mass, current->depth_cm, delta_thetas, delta_thickness, soil_properties);
 	
-	current->theta = fmin(new_mass, theta_e);
+	double new_theta = lgar_theta_mass_balance_2(layer_num, soil_num, psi_cm, new_mass, prior_mass, current->depth_cm, delta_thetas, delta_thickness, soil_type, soil_properties);
+	
+	current->theta = fmin(new_theta, theta_e);
 
 	double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
 	current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-	//printf("new mass after balance = %lf %lf \n", new_mass, current->psi_cm);
+	//printf("new mass after balance = %6.12f %6.12f %6.12f %6.12f\n", prior_mass*10, new_mass*10, current->psi_cm, current->theta);
 	//abort();
 	//current->depth_cm=depth_x;
       
@@ -471,7 +484,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 	  //double delta_theta[] = {theta_of_wf_below_in_layer1_above, theta_of_wf_below_in_layer2_above, theta_below};
 
 	  //printf("U2 = %lf %lf \n",  depth_cm_x , cum_layer_thickness_cm[layer_num-1]);
-	  new_mass = lgar_theta_mass_balance_2(layer_num, soil_num, psi_cm, new_mass, prior_mass, current->depth_cm, delta_thetas, delta_thickness, soil_properties);
+	  new_mass = lgar_theta_mass_balance_2(layer_num, soil_num, psi_cm, new_mass, prior_mass, current->depth_cm, delta_thetas, delta_thickness, soil_type, soil_properties);
 
 	  current->theta = fmin(new_mass, theta_e);
 	  //printf("new mass after balance = %lf \n", new_mass);
@@ -835,6 +848,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
   }
   //listPrint();
   // adjust AET based on updated mass balance
+  //printf("AET (before) = %0.6e %0.6e \n", *AET_demand_cm , mass_change);
   if (*AET_demand_cm >0 && mass_change !=0) {
     if (mass_change > 0)
       *AET_demand_cm -= mass_change;
@@ -844,6 +858,8 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
       abort();
     }
   }
+  //printf("AET (after) = %0.6e %0.6e \n", *AET_demand_cm , mass_change);
+
   // make sure all psi values are updated
   current = head;
   
@@ -1718,7 +1734,7 @@ extern double lgar_theta_mass_balance_3(double current_mass, double old_mass, do
   
 }
 */
-extern double lgar_theta_mass_balance_2(int layer_num, int soil_num, double psi_cm, double new_mass, double prior_mass, double depth_cm_old, double *delta_theta, double *delta_thickness, struct soil_properties_ *soil_properties)
+extern double lgar_theta_mass_balance_2(int layer_num, int soil_num, double psi_cm, double new_mass, double prior_mass, double depth_cm_old, double *delta_theta, double *delta_thickness, int *soil_type, struct soil_properties_ *soil_properties)
 {
 
   double x = psi_cm;
@@ -1727,7 +1743,7 @@ extern double lgar_theta_mass_balance_2(int layer_num, int soil_num, double psi_
   //printf ("In mass balance (before): %lf %lf \n", new_mass, prior_mass);
 
 
-  double factor = 1.0;
+  double factor = 1.0;// * delta_mass;
   bool switched = false;
 
   double theta_of_wf_in_layer1_above, theta_of_wf_in_layer2_above;
@@ -1741,8 +1757,9 @@ extern double lgar_theta_mass_balance_2(int layer_num, int soil_num, double psi_
     return theta;
   }
 
-  //printf("_2 = %d %lf %lf \n", layer_num,delta_thickness[layer_num], delta_thickness[1]);
-  
+  //printf("_2 = %d %lf %lf %0.6e\n", layer_num,delta_thickness[layer_num], delta_thickness[1], delta_mass);
+  //abort();
+  //printf("in mass balance = %d \n", soil_num);
   while (delta_mass > tolerance) {
     
     if (new_mass>prior_mass) {
@@ -1757,7 +1774,7 @@ extern double lgar_theta_mass_balance_2(int layer_num, int soil_num, double psi_
       x = x - 0.1 * factor;
 
     }
-
+    //printf("factor = %.6e \n", factor);
     //x = fmax(x,0.0);
     double theta_layer;
     double mass_layers= 0.0;
@@ -1767,7 +1784,10 @@ extern double lgar_theta_mass_balance_2(int layer_num, int soil_num, double psi_
     //printf("theta1 = %lf %lf %lf %lf %lf \n", theta, delta_theta[layer_num], delta_thickness[layer_num], (theta - delta_theta[layer_num]), mass_layers );
     
     for (int k=1; k<layer_num; k++) {
-      theta_layer = calc_theta_from_h(x, soil_properties[soil_num-k].vg_alpha_per_cm, soil_properties[soil_num-k].vg_m, soil_properties[soil_num-k].vg_n,soil_properties[soil_num-k].theta_e,soil_properties[soil_num-k].theta_r);
+      int soil_numA =  soil_type[k];
+      //theta_layer = calc_theta_from_h(x, soil_properties[soil_num-k].vg_alpha_per_cm, soil_properties[soil_num-k].vg_m, soil_properties[soil_num-k].vg_n,soil_properties[soil_num-k].theta_e,soil_properties[soil_num-k].theta_r);
+
+      theta_layer = calc_theta_from_h(x, soil_properties[soil_numA].vg_alpha_per_cm, soil_properties[soil_numA].vg_m, soil_properties[soil_numA].vg_n,soil_properties[soil_numA].theta_e,soil_properties[soil_numA].theta_r);
 
       mass_layers += delta_thickness[k] * (theta_layer - delta_theta[k]);
       //printf("thetaA = %d %lf \n", k, delta_thickness[k] * (theta - delta_theta[k]));
@@ -1781,7 +1801,7 @@ extern double lgar_theta_mass_balance_2(int layer_num, int soil_num, double psi_
     
   }
  
-  //printf ("****************** In mass balance (after) : %lf %lf %lf \n", new_mass, prior_mass, theta);
+  //printf ("**** In mass balance (after) : %6.15f %6.15f %0.6e \n", new_mass, prior_mass, delta_mass);
   return theta;
   
 }

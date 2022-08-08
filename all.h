@@ -138,7 +138,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 
 extern double lgar_theta_mass_balance_2(int layer_num, int soil_num, double psi_cm, double new_mass, double prior_mass,
 					double depth_cm_old, double *delta_theta,
-					double *layer_thickness_cm, struct soil_properties_ *soil_properties);
+					double *layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
 
 extern int wetting_front_free_drainage();
 /********************************************************************/

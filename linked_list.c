@@ -30,7 +30,7 @@ printf("\n[ ");
 //start from the beginning
 while(current != NULL)
   {
-  printf("(%lf,%lf,%d,%d,%d, %e, %lf %lf)\n",current->depth_cm, current->theta, current->layer_num,current->front_num, 
+  printf("(%lf,%6.14f,%d,%d,%d, %e, %lf %6.14f)\n",current->depth_cm, current->theta, current->layer_num,current->front_num, 
 	 current->to_bottom, current->dzdt_cm_per_s, current->K_cm_per_s, current->psi_cm);
   current = current->next;
   }

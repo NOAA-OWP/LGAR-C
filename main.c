@@ -51,9 +51,9 @@
 //#####################################################################################################################
 
 // Global run-time option flags
-bool debug_flag=FALSE;//TRUE;         // TODO set to TRUE to enable screen printing debugging info
+bool debug_flag=FALSE; //TRUE;         // TODO set to TRUE to enable screen printing debugging info
 bool quiet_flag=FALSE;         // TODO set to TRUE to have code print nothing to screen
-bool illiterate_flag=TRUE; //FALSE;    // TODO set to TRUE to make code write nothing to disk
+bool illiterate_flag=TRUE;//FALSE;    // TODO set to TRUE to make code write nothing to disk
 
 
 
@@ -455,8 +455,6 @@ ponded_depth_cm=0.0;   // always start simulation with no ponded depth
 	 if(debug_flag)
 	     fprintf(stderr,"Time = %d %d %d %d %d %lf %lf\n",yr,mo,da,hr,mi,precip_mm_per_15min,PET_mm_per_15min);
 	 
-	 if (debug_flag)
-	   printf("Time = %d %d %d %d %d %lf \n ", yr, mo, da, hr, mi, precip_mm_per_15min);
        }
      
      if(!is_epsilon_less_than(precip_mm_per_15min, 1.0e-06))
@@ -470,7 +468,9 @@ ponded_depth_cm=0.0;   // always start simulation with no ponded depth
      precip_timestep_cm = precip_mm_per_15min/forcing_interval * mm_s_to_cm_hr;  // 10 converts from mm to cm
      PET_timestep_cm    = PET_mm_per_15min/forcing_interval * mm_s_to_cm_hr;     // 10 converts from mm to cm
 
-
+     
+     if (debug_flag)
+       printf("per timestep (precip, pet) = (%lf, %lf) \n ", precip_timestep_cm,PET_timestep_cm );
      double AET_timestep_temp_cm = 0.0;
      //printf("Pr, Pr_timestep, PET, dt = %lf,  %lf, %lf\n", precip_mm_per_15min, precip_timestep_cm*10, PET_mm_per_15min);
      // printf("xx = %d \n",is_epsilon_less_than(precip_mm_per_15min, 1.0e-06) );
@@ -503,7 +503,7 @@ ponded_depth_cm=0.0;   // always start simulation with no ponded depth
      AET_timestep_cm = calc_aet(PET_timestep_cm, time_step_h, wilting_point_psi_cm, soil_properties, soil_type_by_layer, AET_thresh_Theta, AET_expon);
 
      // this part needs to be tested....
-     //printf("AET = %lf %lf %lf \n", PET_mm_per_15min, PET_timestep_cm, AET_timestep_cm);
+     //printf("AET = %lf %lf %0.6e \n", PET_mm_per_15min, PET_timestep_cm, AET_timestep_cm);
      //abort();
      }
      else
@@ -680,7 +680,7 @@ ponded_depth_cm=0.0;   // always start simulation with no ponded depth
 	 //double local_mb = volstart + total_mass_added*0 - volin - volrunoff - AET_this_timestep_cm - volon -volrech_cm -volend_timestep;
 
      if(debug_flag) {
-       printf("local mass balance = %lf %lf %lf %lf %lf %lf \n", local_mb, volstart_timestep_cm,volprecip_timestep_cm, volrunoff_timestep_cm,AET_timestep_cm, volend_timestep_cm);
+       printf("local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_timestep_cm,volprecip_timestep_cm, volrunoff_timestep_cm,AET_timestep_cm, volend_timestep_cm);
      }
      if (local_mb >1e-7) {
        printf("Local mass balance (in this timestep) is %.6e, larger than expected, needs some debugging...\n ",local_mb);
@@ -882,7 +882,7 @@ extern double calc_aet(double PET_timestep_cm, double time_step_h, double wiltin
   //printf("theta_fc = %lf \n", theta_fc);
   double wp_head_theta = calc_theta_from_h(wilting_point_psi_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
   
-  theta_wp = (theta_fc-wp_head_theta)*1/2+wp_head_theta;
+  theta_wp = (theta_fc-wp_head_theta)*1/2+wp_head_theta; // theta_50 in python
   //printf("theta_50 = %lf %lf %lf \n", theta_wp, wilting_point_psi_cm,wp_head_theta);
 
   Se = calc_Se_from_theta(theta_wp,theta_e,theta_r);
@@ -890,16 +890,17 @@ extern double calc_aet(double PET_timestep_cm, double time_step_h, double wiltin
   //printf("psi_50 = %lf %lf \n", psi_wp_cm,current->psi_cm);
 
   double h_ratio = 1+pow(current->psi_cm/psi_wp_cm, 3.0);
-  actual_ET_demand = PET_timestep_cm*(1/h_ratio)*time_step_h;
-  //printf("AET.. = %lf %lf %lf \n", actual_ET_demand,(1/h_ratio), time_step_h);
 
+  actual_ET_demand = PET_timestep_cm*(1/h_ratio)*time_step_h;
+  
+  //printf("AET.. = %lf %lf %lf \n", PET_timestep_cm, actual_ET_demand,(1/h_ratio), time_step_h);
 
   if (actual_ET_demand<0)
     actual_ET_demand=0.0;
   else if (actual_ET_demand>(PET_timestep_cm*time_step_h))
     actual_ET_demand = PET_timestep_cm*time_step_h;
 
-		  
+  //printf("AET.... = %0.6e %lf %lf \n", actual_ET_demand,(1/h_ratio), time_step_h);		  
   return actual_ET_demand;
   /*
 do
