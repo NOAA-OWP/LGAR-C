@@ -211,7 +211,7 @@ extern struct wetting_front* listDeleteFront(int front_num)
   bool front_found = false;
   while(current != NULL) {
     if (current->front_num == front_num) {
-      printf("Deleting front found....! %d \n", front_num);
+      //printf("Deleting front found....! %d \n", front_num);
       front_found = true;
     }
     current = current->next;

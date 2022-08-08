@@ -569,14 +569,14 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
     double column_depth = cum_layer_thickness_cm[number_of_layers];
     //printf("column_depth = %lf \n", column_depth);
     if (next != NULL) {
-      printf("Merging time ............ \n");
+      //printf("Merging time ............ \n");
       //listPrint();
       struct wetting_front *next_to_next = listFindFront(l+2,NULL);
-      printf("main part: merging = %lf %lf %lf \n", current->depth_cm, next->depth_cm,cum_layer_thickness_cm[layer_num]);
+      // printf("main part: merging = %lf %lf %lf \n", current->depth_cm, next->depth_cm,cum_layer_thickness_cm[layer_num]);
 
       // fronts passing within a layer
       if ( (current->depth_cm > next->depth_cm) && (current->layer_num == next->layer_num) && !next->to_bottom) {
-	printf("A1: merging ............ \n");
+	//printf("A1: merging ............ \n");
 	//struct wetting_front *next_to_next = listFindFront(l+2);
 	double current_mass_this_layer = current->depth_cm * (current->theta - next->theta) + next->depth_cm*(next->theta - next_to_next->theta);
 	current->depth_cm = current_mass_this_layer / (current->theta - next_to_next->theta);
@@ -593,7 +593,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 	
 	//current->K_cm_per_s = soil_properties[soil_num].Ksat_cm_per_s;
 	current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m); // AJ - K_temp in python version for 1st layer
-	printf("A10 \n");
+
 	listDeleteFront(next->front_num);
 	//listPrint();
       }
@@ -601,7 +601,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
       // wetting front reached layer depth
       // or use next_to_next != NULL
       if (current->depth_cm > cum_layer_thickness_cm[layer_num] && current->depth_cm < column_depth) {
-	printf("A2: merging time ............ %lf %lf \n",current->depth_cm, cum_layer_thickness_cm[layer_num]);
+	//printf("A2: merging time ............ %lf %lf \n",current->depth_cm, cum_layer_thickness_cm[layer_num]);
 	//abort();
 	//if (current->depth_cm)
 	//struct wetting_front *next_to_next = listFindFront(l+2);
@@ -632,7 +632,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 	double mbal_Z_correction = mbal_correction/(theta_new - next_to_next->theta);
 
 	next->theta = current->theta;
-     	printf("A20 \n");
+     	
 	listDeleteFront(current->front_num);
 	int num_fronts = listLength();
 	//printf("M3 = %lf %lf %lf \n", theta_new, current->psi_cm*10,cum_layer_thickness_cm[layer_num]+mbal_Z_correction);
@@ -652,7 +652,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
       }
 
       else if (current->depth_cm < next->depth_cm && current->to_bottom == false) {
-	printf("A3: merging time ............ %lf \n",cum_layer_thickness_cm[layer_num]);
+	//printf("A3: merging time ............ %lf \n",cum_layer_thickness_cm[layer_num]);
 	// wetting front moving within a layer; update values
 	double theta_e   = soil_properties[soil_num].theta_e;
 	double theta_r   = soil_properties[soil_num].theta_r;
@@ -667,7 +667,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
       }
 
       else if (current->to_bottom == true) {
-	printf("A4: merging time ............ %lf \n",cum_layer_thickness_cm[layer_num]);
+	//printf("A4: merging time ............ %lf \n",cum_layer_thickness_cm[layer_num]);
 	//listPrint();
 	// wetting front moving within a layer; update values
 	double theta_e   = soil_properties[soil_num].theta_e;
@@ -715,7 +715,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 	double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
 	next->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
 	next->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m);
-	printf("A30 \n");
+	//printf("A30 \n");
 	listDeleteFront(current->front_num);
       }
 
@@ -785,7 +785,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 	}*/
       // this part fixes thetas when AET caused upper wetting front drier than the lower wetting front
       if ( (current->theta < next->theta) && (current->layer_num == next->layer_num)) {
-	listPrint();
+	//listPrint();
 	//int num_soil_layers = 3; // hacked
 	double mass_before=lgar_calc_mass_bal(0,cum_layer_thickness_cm);
 	//double current_mass_this_layer = next->depth_cm * (next->theta - current->theta) + current->depth_cm*(current->theta - next_to_next->theta);
@@ -800,10 +800,10 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 	  double vg_n      = soil_properties[soil_numA].vg_n;
 	  double Ksat_cm_per_s  = soil_properties[soil_numA].Ksat_cm_per_s;
 	  double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	  printf("A4_theta = %lf \n", current->psi_cm);
+	  //printf("A4_theta = %lf \n", current->psi_cm);
 	  current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-	  printf("A5_theta = %lf \n", current->psi_cm);
-	  abort();
+	  //printf("A5_theta = %lf \n", current->psi_cm);
+	  //abort();
 	  struct wetting_front *current_local = head;
 	  //struct wetting_front current_local = current;
 	  while (current_local->layer_num < current->layer_num) {
@@ -826,14 +826,14 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 	mass_change += fabs(mass_after - mass_before);
 
 	// note: mass_before is less when we have wetter front over drier front condition, however, lgar_calc_mass_bal returns mass_before > mass_after due to fabs(theta_current - theta_next); for mass_before the functions compuates more than the actual mass; removing fabs in that function might be one option, but for now we are adding fabs to mass_change to make sure we added extra water back to AET after deleting the drier front
-	printf("Mass change = %lf %lf %lf \n", mass_change, mass_after, mass_before);
+	//printf("Mass change = %lf %lf %lf \n", mass_change, mass_after, mass_before);
 	
       }
       current = current->next;
       next = current->next;
     }
   }
-  listPrint();
+  //listPrint();
   // adjust AET based on updated mass balance
   if (*AET_demand_cm >0 && mass_change !=0) {
     if (mass_change > 0)

@@ -51,9 +51,9 @@
 //#####################################################################################################################
 
 // Global run-time option flags
-bool debug_flag=TRUE;         // TODO set to TRUE to enable screen printing debugging info
+bool debug_flag=FALSE;//TRUE;         // TODO set to TRUE to enable screen printing debugging info
 bool quiet_flag=FALSE;         // TODO set to TRUE to have code print nothing to screen
-bool illiterate_flag=FALSE;    // TODO set to TRUE to make code write nothing to disk
+bool illiterate_flag=TRUE; //FALSE;    // TODO set to TRUE to make code write nothing to disk
 
 
 
@@ -203,7 +203,7 @@ d_alloc(&cum_layer_thickness_cm,MAX_NUM_SOIL_LAYERS);
 //###############################
 // run-time options
 
- debug_flag=TRUE;//FALSE;                 // set to TRUE to print lots of debugging output to the screen.
+//debug_flag=FALSE;                 // set to TRUE to print lots of debugging output to the screen.
  int num_time_steps= 90001;//68804; //41020; //24700; //90001;           // total simulation time is this number times the time_step_s
 // int num_time_steps= 2;//288;          // total simulation time is this number times the time_step_s
 nint=120;                         // the number of trapezoids used in integrating the Geff function
