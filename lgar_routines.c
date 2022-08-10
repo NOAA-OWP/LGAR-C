@@ -519,7 +519,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
       double mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand+free_drainage_demand);
       //printf("checking1 = %lf %lf %lf %lf %lf \n ", current_old->theta , theta_eB1, wf_free_drainage->theta, theta_eB2, wf_free_drainage->depth_cm);
       
-      if (current_old->theta < theta_eB1 && wf_free_drainage->theta == theta_eB2) {
+      if (wf_free_drainage->theta == theta_eB2) {
 	//current_mass = calc_mass_bal(self.current_states)
 	double current_mass = lgar_calc_mass_bal(0,cum_layer_thickness_cm);
 	//double mass_balance_error = current_mass - mass_timestep;
