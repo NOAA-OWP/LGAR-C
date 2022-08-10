@@ -51,9 +51,9 @@
 //#####################################################################################################################
 
 // Global run-time option flags
-bool debug_flag=FALSE; //TRUE;         // TODO set to TRUE to enable screen printing debugging info
+bool debug_flag=TRUE;         // TODO set to TRUE to enable screen printing debugging info
 bool quiet_flag=FALSE;         // TODO set to TRUE to have code print nothing to screen
-bool illiterate_flag=TRUE;//FALSE;    // TODO set to TRUE to make code write nothing to disk
+bool illiterate_flag=FALSE;    // TODO set to TRUE to make code write nothing to disk
 
 
 
@@ -355,7 +355,7 @@ if(illiterate_flag==FALSE)
 //if((in_forcing_fptr=fopen("forcing_data_syn_case3.txt","r"))==NULL)
 // if((in_forcing_fptr=fopen("forcing_data_syn_case4.txt","r"))==NULL)
 //if((in_forcing_fptr=fopen("Phillipsburg_data1.txt","r"))==NULL)
- if((in_forcing_fptr=fopen("Phillipsburg_data1_PET.txt","r"))==NULL)
+ if((in_forcing_fptr=fopen("Phillipsburg_data2_PET.txt","r"))==NULL)
 
   {printf("Problem opening forcing_data_syn.txt input file. Program stopped.\n"); exit(0);}
 
@@ -509,7 +509,7 @@ ponded_depth_cm=0.0;   // always start simulation with no ponded depth
      else
        AET_timestep_cm = 0.0;
 
-     //printf("AET = %lf %lf %6.10f \n", PET_mm_per_15min, PET_timestep_cm, AET_timestep_cm);
+     // printf("AET = %lf %lf %6.10f \n", PET_mm_per_15min, PET_timestep_cm, AET_timestep_cm);
      // mass balance
      volprecip += precip_timestep_cm * time_step_h;
      volstart_timestep_cm = lgar_calc_mass_bal(num_soil_layers,cum_layer_thickness_cm);
@@ -580,7 +580,7 @@ ponded_depth_cm=0.0;   // always start simulation with no ponded depth
 
      }
      else {
-
+       //printf("wetting front created = %lf %d \n", ponded_depth_cm ,!create_surficial_front );
        double hp_cm_max = 0.0; //h_p_max = 0.0;
 	
        if (ponded_depth_cm < hp_cm_max) {
@@ -590,14 +590,14 @@ ponded_depth_cm=0.0;   // always start simulation with no ponded depth
 	 volrunoff_timestep_cm=0.0;
        }
        else {
+	 volrunoff_timestep_cm=(ponded_depth_cm - hp_cm_max);
 	 volrunoff += (ponded_depth_cm - hp_cm_max);
 	 volon = hp_cm_max;
 	 ponded_depth_cm = hp_cm_max;
-	 volrunoff_timestep_cm=(ponded_depth_cm - hp_cm_max);
-
+	 
        }
      }
-
+     //printf("Runoff = %6.12f \n",volrunoff_timestep_cm);
      //printf("LGAR MAIN ******************* potential infiltration ........%lf \n", ponded_depth_cm);
      //lgar_potential_infiltration(time_step_s, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
 
@@ -682,7 +682,7 @@ ponded_depth_cm=0.0;   // always start simulation with no ponded depth
      if(debug_flag) {
        printf("local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_timestep_cm,volprecip_timestep_cm, volrunoff_timestep_cm,AET_timestep_cm, volend_timestep_cm);
      }
-     if (local_mb >1e-7) {
+     if (fabs(local_mb) >1e-7) {
        printf("Local mass balance (in this timestep) is %.6e, larger than expected, needs some debugging...\n ",local_mb);
        abort();
      }

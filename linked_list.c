@@ -255,9 +255,10 @@ extern struct wetting_front* listDeleteFront(int front_num)
   //bypass the current link
       previous->next = current->next;
       previous = current->next;
-      //printf("deleting (current != head) .... %lf %lf \n",current->depth_cm, previous->depth_cm);
+      // printf("deleting (current != head) .... %lf %lf \n",current->depth_cm, previous->depth_cm);
       
     }
+  current = previous;
   //listPrint();
   //  previous = head;
   while(previous != NULL)  // decrement all front numbers
@@ -268,7 +269,10 @@ extern struct wetting_front* listDeleteFront(int front_num)
       previous = previous->next;  
     }
   //listPrint();
-  //printf("deleted .................... \n");
+  
+  if (current != NULL)
+    //printf("deleted .................... %lf \n", current->depth_cm);
+  
   return current;
 }
 
