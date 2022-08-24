@@ -1,4 +1,4 @@
-#include "all.h"  // <--- This header file contains all function prototypes and other global definitions.
+#include "../include/all.h"  // <--- This header file contains all function prototypes and other global definitions.
 
 
 /* this is a block comment, that starts with a slash-star, and runs until the next star-slash (see two lines down)
@@ -128,10 +128,11 @@ double volend    = 0.0;   //  volume of water in the soil at the end of the simu
 double volin     = 0.0;   //  volume of precip added to the ponded depth
 double volrunoff = 0.0;   //  volume of water removed from the surface as runoff
 double volon     = 0.0;   //  volume of water remaining on the surface at the end of the sim.
-double volET     = 0.0;   //  cumulative amount of actual ET
+double volAET     = 0.0;   //  cumulative amount of actual ET
+double volPET    = 0.0;   //  cumulative amount of potential ET
 double volrech   = 0.0;   //  cumulative amount of water leaving the bottom of the soil
 // note: at the end of each time step the following must be true (assuming volon=0 at t=0):
-// volstart+volprecip-volET-volin-volrunoff-volon-volrech-volend = 0.0
+// volstart+volprecip-volAET-volin-volrunoff-volon-volrech-volend = 0.0
  
 bool error;
 
@@ -207,7 +208,7 @@ d_alloc(&cum_layer_thickness_cm,MAX_NUM_SOIL_LAYERS);
  int num_time_steps= 90001;//68804; //41020; //24700; //90001;           // total simulation time is this number times the time_step_s
 // int num_time_steps= 2;//288;          // total simulation time is this number times the time_step_s
 nint=120;                         // the number of trapezoids used in integrating the Geff function
-strcpy(vG_param_file_name,"vG_default_params.dat");  // the name of the soil parameter input file
+strcpy(vG_param_file_name,"data/vG_default_params.dat");  // the name of the soil parameter input file
  //double forcing_resolution_s=300.0;  // 15 minute data
 double forcing_resolution_s=3600.0;  // 15 minute data
 
@@ -229,7 +230,7 @@ root_zone_bottom_layer = 2; // example, iff set to 2, then the root zone is in l
  if (sim_test == 0)
    initial_psi_cm= 50.0;        // cm
  else
-   initial_psi_cm=2000;// 50.0;        // cm - phillipsburg
+   initial_psi_cm=2000;       // cm - phillipsburg
  
 AET_thresh_Theta = 0.85;    // scaled soil moisture (0-1) above which AET=PET
 AET_expon = 1.0;            // exponent that allows curvature of the rising portion of the Budyko curve
@@ -331,8 +332,8 @@ if(debug_flag==TRUE)   // this stuff is all demo/test code.
     //listPrint();
   // note in the next line, using the file print function (fprintf), with arg. "stdout" causes write to screen
   fprintf(stdout,"Initial depth of water stored in soil: %lf cm\n",volstart);
-  fprintf(stdout,"Should be equal to:                    %lf cm\n",27.275360744581491);  // a kind of unit test.
-  fprintf(stdout,"difference:                            %e cm\n",volstart-27.275360744581491);
+  fprintf(stdout,"Should be equal to:                    %lf cm\n",39.1658320808);  // a kind of unit test.
+  fprintf(stdout,"difference:                            %e cm\n",volstart-39.1658320808);
   printf("Initial linked list of wetting fronts:\n");
   printf("after calculating dzdt for %d fronts.\n",num_dzdt_calculated); 
   printf("depth,theta,layer,front,to_bottom,dzdt ");
@@ -348,14 +349,13 @@ if(illiterate_flag==FALSE)
     {printf("Problem opening output file. Program stopped.\n"); exit(0);}
   // add headings to variables forcing file
   fprintf(outd_fptr,"precip(mm),AET(mm),runoff(mm),ponded_depth(mm),storage(mm),bottom_flux(mm),mass_bal_err(mm)\n");
-  //fprintf(out_fptr,"Hello world, we have %d fronts.\n",listLength());
   }
 
 // open the forcing file ffor reading
 //if((in_forcing_fptr=fopen("forcing_data_syn_case3.txt","r"))==NULL)
 // if((in_forcing_fptr=fopen("forcing_data_syn_case4.txt","r"))==NULL)
 //if((in_forcing_fptr=fopen("Phillipsburg_data1.txt","r"))==NULL)
- if((in_forcing_fptr=fopen("Phillipsburg_data2_PET.txt","r"))==NULL)
+ if((in_forcing_fptr=fopen("forcing/Phillipsburg_data2_PET.txt","r"))==NULL)
 
   {printf("Problem opening forcing_data_syn.txt input file. Program stopped.\n"); exit(0);}
 
@@ -405,10 +405,10 @@ if(PLOT)
 // volin    
 // volrunoff
 // volon    
-// volET    
+// volAET    
 // volrech 
 // note: at the start and end of each time step the following must be true (assuming volon=0 at t=0):
-// volstart+volprecip-volET-volin-volrunoff-volon-volrech-volend = 0.0 
+// volstart+volprecip-volAET-volin-volrunoff-volon-volrech-volend = 0.0 
 
 
 // sum up the initial depth of water stored in the soil
@@ -416,66 +416,63 @@ volstart=lgar_calc_mass_bal(num_soil_layers,cum_layer_thickness_cm);
 
 ponded_depth_cm=0.0;   // always start simulation with no ponded depth
 
- if(debug_flag)
-   printf("\n ************ ************ TIME STEPPING NOW ****************** \n");
- double mm_s_to_cm_hr = 1. * (1.0/10.); // mm per sec to cm per hour conversion
+if(debug_flag)
+  printf("\n ************ ************ TIME STEPPING NOW ****************** \n");
+double mm_s_to_cm_hr = 1. * (1.0/10.); // mm per sec to cm per hour conversion
 
- double volend_timestep_cm;
- double volstart_timestep_cm;
- double volrech_timestep_cm;
- double volprecip_timestep_cm;
- //double total_mass_added = 0.0;
- double volin_timestep_cm = 0.0;
- double volrunoff_timestep_cm = 0.0;
+double volend_timestep_cm;
+double volstart_timestep_cm;
+double volrech_timestep_cm;
+double volprecip_timestep_cm;
+double volin_timestep_cm = 0.0;
+double volrunoff_timestep_cm = 0.0;
 
- time_t result = time(NULL);
- // double elapsedTime;
- clock_t start_time, end_time;
- double elapsed;
- start_time = clock();
- for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
-   {
+time_t result = time(NULL);
+clock_t start_time, end_time;
+double elapsed;
+start_time = clock();
 
-     if(debug_flag) {
-       printf("\n-------------------------------TS start----------------------------------------------- \n");
-       printf(" ************ time step %d ******** \n",time_step_num);
-     }
-     state_previous = NULL;
-     state_previous = listCopy(head);
-     if(debug_flag) {
-       //printf("Previous state : \n");
-       //listPrintC(*state_previous);
-     }
+for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
+  {
+
+    if(debug_flag) {
+      printf("\n-------------------------------TS start----------------------------------------------- \n");
+      printf(" ************ time step %d ******** \n",time_step_num);
+    }
+    
+    state_previous = NULL;
+    state_previous = listCopy(head);
+    
+    if(debug_flag) {
+      //printf("Previous state : \n");
+      //listPrintC(*state_previous);
+    }
      
-     // ----------------- read forcing data (precip and PET) -----------------------
-     if(time_step_num % forcing_interval == 0)  // necessary because model and forcing timesteps differ
-       {
-	 fscanf(in_forcing_fptr,"%d %d %d %d %d %lf %lf",&yr,&mo,&da,&hr,&mi,
-		&precip_mm_per_15min,&PET_mm_per_15min);
-	 if(debug_flag)
-	     fprintf(stderr,"Time = %d %d %d %d %d %lf %lf\n",yr,mo,da,hr,mi,precip_mm_per_15min,PET_mm_per_15min);
+    // ----------------- read forcing data (precip and PET) -----------------------
+    if(time_step_num % forcing_interval == 0)  // necessary because model and forcing timesteps differ
+      {
+	fscanf(in_forcing_fptr,"%d %d %d %d %d %lf %lf",&yr,&mo,&da,&hr,&mi,
+	       &precip_mm_per_15min,&PET_mm_per_15min);
+	if(debug_flag)
+	  fprintf(stderr,"Time = %d %d %d %d %d %lf %lf\n",yr,mo,da,hr,mi,precip_mm_per_15min,PET_mm_per_15min);
 	 
-       }
+      }
      
-     if(!is_epsilon_less_than(precip_mm_per_15min, 1.0e-06))
-       {
-	 error=0;
-       }
-     
-     //precip_this_timestep_cm = precip_mm_per_15min*time_step_s/forcing_resolution_s/10.0;  // 10 converts from mm to cm
-     //PET_this_timestep_cm    = PET_mm_per_15min*time_step_s/forcing_resolution_s/10.0;     // 10 converts from mm to cm
-
-     precip_timestep_cm = precip_mm_per_15min/forcing_interval * mm_s_to_cm_hr;  // 10 converts from mm to cm
-     PET_timestep_cm    = PET_mm_per_15min/forcing_interval * mm_s_to_cm_hr;     // 10 converts from mm to cm
+    if(!is_epsilon_less_than(precip_mm_per_15min, 1.0e-06))
+      {
+	error=0;
+      }
+    
+    precip_timestep_cm = precip_mm_per_15min/forcing_interval * mm_s_to_cm_hr;  // 10 converts from mm to cm
+    PET_timestep_cm    = PET_mm_per_15min/forcing_interval * mm_s_to_cm_hr;     // 10 converts from mm to cm
 
      
-     if (debug_flag)
-       printf("per timestep (precip, pet) = (%lf, %lf) \n ", precip_timestep_cm,PET_timestep_cm );
-     double AET_timestep_temp_cm = 0.0;
-     //printf("Pr, Pr_timestep, PET, dt = %lf,  %lf, %lf\n", precip_mm_per_15min, precip_timestep_cm*10, PET_mm_per_15min);
-     // printf("xx = %d \n",is_epsilon_less_than(precip_mm_per_15min, 1.0e-06) );
-     // ------------------ iff raining, take some or all of the PET from rainfall depending on rain rate --------------
-     /*
+    if (debug_flag)
+      printf("per timestep (precip, pet) = (%lf, %lf) \n ", precip_timestep_cm,PET_timestep_cm );
+    double AET_timestep_temp_cm = 0.0;
+    
+    // ------------------ iff raining, take some or all of the PET from rainfall depending on rain rate --------------
+    /*
      if(!is_epsilon_less_than(precip_mm_per_15min, 1.0e-06))  // in essence, iff rainrate != 0, note ! negates return val.
        {
 	 //abort();
@@ -494,130 +491,120 @@ ponded_depth_cm=0.0;   // always start simulation with no ponded depth
 	   }
        }
      */
-     //if (PET_mm_per_15min > 0) {
-     if (PET_timestep_cm>0) {
-     // Calculate AET from PET and root zone soil moisture.  Note PET was reduced iff raining
-     //AET_timestep_cm = calc_aet(PET_mm_per_15min, time_step_s, root_zone_bottom_layer, forcing_resolution_s,
-       //				     soil_properties, soil_type_by_layer, AET_thresh_Theta, AET_expon);
-
-     AET_timestep_cm = calc_aet(PET_timestep_cm, time_step_h, wilting_point_psi_cm, soil_properties, soil_type_by_layer, AET_thresh_Theta, AET_expon);
-
-     // this part needs to be tested....
+     
+    if (PET_timestep_cm>0) {
+      // Calculate AET from PET and root zone soil moisture.  Note PET was reduced iff raining
+      volPET+= PET_timestep_cm;
+      
+      AET_timestep_cm = calc_aet(PET_timestep_cm, time_step_h, wilting_point_psi_cm, soil_properties, soil_type_by_layer, AET_thresh_Theta, AET_expon);
+      
+      // this part needs to be tested....
      //printf("AET = %lf %lf %0.6e \n", PET_mm_per_15min, PET_timestep_cm, AET_timestep_cm);
      //abort();
-     }
-     else
-       AET_timestep_cm = 0.0;
+    }
+    else
+      AET_timestep_cm = 0.0;
 
-     // printf("AET = %lf %lf %6.10f \n", PET_mm_per_15min, PET_timestep_cm, AET_timestep_cm);
-     // mass balance
-     volprecip += precip_timestep_cm * time_step_h;
-     volstart_timestep_cm = lgar_calc_mass_bal(num_soil_layers,cum_layer_thickness_cm);
-     volprecip_timestep_cm = precip_timestep_cm * time_step_h;
-
-     // -------------------- add incoming precip to ponded_depth_cm ---------------------------
-     //    printf("---- Ponded depth = %lf %lf \n ", ponded_depth_cm, precip_timestep_cm * time_step_h);
-     //if (ponded_depth_cm>0) abort();
-     ponded_depth_cm += precip_timestep_cm * time_step_h;
-     
-     int wf_free_drainage_demand = wetting_front_free_drainage();
-
-     //printf("wf_free_drainage_demand = %d \n", wf_free_drainage_demand);
-     //bool surficial_wf_created = false;
-
-     volin_timestep_cm =0.0;
-     //total_mass_added += precip_timestep_cm * time_step_h;
-
-     int soil_num = soil_type_by_layer[head->layer_num];
-      
-     double theta_e = soil_properties[soil_num].theta_e;  // rhs of the new front, assumes theta_e as per Peter
+    // printf("AET = %lf %lf %6.10f \n", PET_mm_per_15min, PET_timestep_cm, AET_timestep_cm);
+    // mass balance
+    volprecip += precip_timestep_cm * time_step_h;
+    volstart_timestep_cm = lgar_calc_mass_bal(num_soil_layers,cum_layer_thickness_cm);
+    volprecip_timestep_cm = precip_timestep_cm * time_step_h;
     
-     bool is_top_wf_saturated = head->theta >= theta_e ? true : false;
-     bool create_surficial_front = (precip_previous_timestep_cm == 0.0 && precip_timestep_cm >0.0);
+    // -------------------- add incoming precip to ponded_depth_cm ---------------------------
+    //    printf("---- Ponded depth = %lf %lf \n ", ponded_depth_cm, precip_timestep_cm * time_step_h);
+    //if (ponded_depth_cm>0) abort();
+    ponded_depth_cm += precip_timestep_cm * time_step_h;
      
-     double mass_source_to_soil_timestep = 0.0;
-     //printf ("__**___Surficial front create? = %d %d %lf %lf \n ",  create_surficial_front, is_top_wf_saturated, head->theta, theta_e);
-     //     if( (ponded_depth_cm > 0.0 && head->to_bottom == TRUE) || create_surficial_front)
+    int wf_free_drainage_demand = wetting_front_free_drainage();
 
-     if(create_surficial_front && !is_top_wf_saturated)  
-       //  This means that there is no wetting front in the top layer to accept the water, must create one.
-       {
-	 double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
+    //printf("wf_free_drainage_demand = %d \n", wf_free_drainage_demand);
+    //bool surficial_wf_created = false;
+    
+    volin_timestep_cm =0.0;
+    //total_mass_added += precip_timestep_cm * time_step_h;
+    
+    int soil_num = soil_type_by_layer[head->layer_num];
+    
+    double theta_e = soil_properties[soil_num].theta_e;  // rhs of the new front, assumes theta_e as per Peter
+    
+    bool is_top_wf_saturated = head->theta >= theta_e ? true : false;
+    bool create_surficial_front = (precip_previous_timestep_cm == 0.0 && precip_timestep_cm >0.0);
+    
+    double mass_source_to_soil_timestep = 0.0;
+    //printf ("__**___Surficial front create? = %d %d %lf %lf \n ",  create_surficial_front, is_top_wf_saturated, head->theta, theta_e);
+    
+    if(create_surficial_front && !is_top_wf_saturated)  
+      //  This means that there is no wetting front in the top layer to accept the water, must create one.
+      {
+	double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
 	 
-	 lgar_move_fronts(&temp_pd,time_step_h, wf_free_drainage_demand, volend_timestep_cm, &AET_timestep_cm, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
-	 //listPrint();
-	 dry_depth = lgar_calc_dry_depth(nint, time_step_h, soil_type_by_layer, soil_properties, cum_layer_thickness_cm,&delta_theta);
-	 //printf("SF = %lf %lf ",AET_timestep_cm, dry_depth);
-	 theta1 = head->theta;
-	 lgar_create_surfacial_front(&ponded_depth_cm, &volin_timestep_cm, dry_depth, theta1, soil_type_by_layer, soil_properties, cum_layer_thickness_cm, nint, time_step_h);
-	 
-	 //listPrint();
-	 state_previous = NULL;
-	 state_previous = listCopy(head);
-	 
-	 volin += volin_timestep_cm;
-	 //volrunoff += ponded_depth_cm;
-	 //printf("surfical front created and ponded depth = %lf %lf %lf \n", ponded_depth_cm, volrunoff, volin_timestep_cm);
-	 //if (ponded_depth_cm >0)
-	 //listPrint();
-	 // abort();
-       }
-
-
-     //     if (time_step_num >= 0 && precip_this_timestep_cm >0 && precip_previous_timestep_cm >0) {
-     if (ponded_depth_cm > 0 && !create_surficial_front) {
-       //printf("--- LGAR MAIN **** insert water........ %lf, %d \n", ponded_depth_cm, create_surficial_front);
-       volrunoff_timestep_cm = lgar_insert_water(&ponded_depth_cm, &volin_timestep_cm, precip_timestep_cm, dry_depth, nint, time_step_h, wf_free_drainage_demand, soil_type_by_layer, soil_properties, cum_layer_thickness_cm);
-       
-       //volin_this_timestep = ponded_depth_cm;
-       volin += volin_timestep_cm;
-       volrunoff += volrunoff_timestep_cm;
-       volrech_timestep_cm = volin_timestep_cm; // water leaving thru the bottom
-       volon = ponded_depth_cm;
-       //printf("Mass in = %lf %lf %lf \n", volin, ponded_depth_cm, runoff_timestep);
-       if (volrunoff_timestep_cm < 0)
-	 abort();
-
-     }
-     else {
-       //printf("wetting front created = %lf %d \n", ponded_depth_cm ,!create_surficial_front );
-       double hp_cm_max = 0.0; //h_p_max = 0.0;
+	lgar_move_fronts(&temp_pd,time_step_h, wf_free_drainage_demand, volend_timestep_cm, &AET_timestep_cm, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
+	//listPrint();
+	dry_depth = lgar_calc_dry_depth(nint, time_step_h, soil_type_by_layer, soil_properties, cum_layer_thickness_cm,&delta_theta);
+	//printf("SF = %lf %lf ",AET_timestep_cm, dry_depth);
+	theta1 = head->theta;
+	lgar_create_surfacial_front(&ponded_depth_cm, &volin_timestep_cm, dry_depth, theta1, soil_type_by_layer, soil_properties, cum_layer_thickness_cm, nint, time_step_h);
 	
-       if (ponded_depth_cm < hp_cm_max) {
-	 volrunoff += 0.0;
-	 volon = ponded_depth_cm;
-	 ponded_depth_cm = 0.0;
-	 volrunoff_timestep_cm=0.0;
-       }
-       else {
-	 volrunoff_timestep_cm=(ponded_depth_cm - hp_cm_max);
-	 volrunoff += (ponded_depth_cm - hp_cm_max);
-	 volon = hp_cm_max;
-	 ponded_depth_cm = hp_cm_max;
-	 
-       }
+	//listPrint();
+	state_previous = NULL;
+	state_previous = listCopy(head);
+	
+	volin += volin_timestep_cm;
+	//volrunoff += ponded_depth_cm;
+	//printf("surfical front created and ponded depth = %lf %lf %lf \n", ponded_depth_cm, volrunoff, volin_timestep_cm);
+	//if (ponded_depth_cm >0)
+	//listPrint();
+	// abort();
+      }
+
+
+    //     if (time_step_num >= 0 && precip_this_timestep_cm >0 && precip_previous_timestep_cm >0) {
+    if (ponded_depth_cm > 0 && !create_surficial_front) {
+      //printf("--- LGAR MAIN **** insert water........ %lf, %d \n", ponded_depth_cm, create_surficial_front);
+      volrunoff_timestep_cm = lgar_insert_water(&ponded_depth_cm, &volin_timestep_cm, precip_timestep_cm, dry_depth, nint, time_step_h, wf_free_drainage_demand, soil_type_by_layer, soil_properties, cum_layer_thickness_cm);
+      
+      //volin_this_timestep = ponded_depth_cm;
+      volin += volin_timestep_cm;
+      volrunoff += volrunoff_timestep_cm;
+      volrech_timestep_cm = volin_timestep_cm; // water leaving thru the bottom
+      volon = ponded_depth_cm;
+      //printf("Mass in = %lf %lf %lf \n", volin, ponded_depth_cm, runoff_timestep);
+      if (volrunoff_timestep_cm < 0)
+	abort();
+      
+    }
+    else {
+      //printf("wetting front created = %lf %d \n", ponded_depth_cm ,!create_surficial_front );
+      double hp_cm_max = 0.0; //h_p_max = 0.0;
+      
+      if (ponded_depth_cm < hp_cm_max) {
+	volrunoff += 0.0;
+	volon = ponded_depth_cm;
+	ponded_depth_cm = 0.0;
+	volrunoff_timestep_cm=0.0;
+      }
+      else {
+	volrunoff_timestep_cm=(ponded_depth_cm - hp_cm_max);
+	volrunoff += (ponded_depth_cm - hp_cm_max);
+	volon = hp_cm_max;
+	ponded_depth_cm = hp_cm_max;
+	
+      }
      }
-     //printf("Runoff = %6.12f \n",volrunoff_timestep_cm);
-     //printf("LGAR MAIN ******************* potential infiltration ........%lf \n", ponded_depth_cm);
-     //lgar_potential_infiltration(time_step_s, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
-
-     if (!create_surficial_front) {
-       //printf("LGAR MAIN ******************* move wetting front ........%lf %lf \n", ponded_depth_cm, volin_this_timestep);
-       //lgar_move_fronts(&ponded_depth_cm,time_step_h, wf_free_drainage_demand, volend_timestep, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
-
-       lgar_move_fronts(&volin_timestep_cm,time_step_h, wf_free_drainage_demand, volend_timestep_cm, &AET_timestep_cm, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
-
-       // this is the volume of water leaving through the bottom
-       volrech_timestep_cm = volin_timestep_cm;
-     }
-
-
-
-     // volon = ponded_depth_cm;
-     //listPrint();
-     //abort();
-     
-     
+    //printf("Runoff = %6.12f \n",volrunoff_timestep_cm);
+    //printf("LGAR MAIN ******************* potential infiltration ........%lf \n", ponded_depth_cm);
+    //lgar_potential_infiltration(time_step_s, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
+    
+    if (!create_surficial_front) {
+      //printf("LGAR MAIN ******************* move wetting front ........%lf %lf \n", ponded_depth_cm, volin_this_timestep);
+      //lgar_move_fronts(&ponded_depth_cm,time_step_h, wf_free_drainage_demand, volend_timestep, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
+      
+      lgar_move_fronts(&volin_timestep_cm,time_step_h, wf_free_drainage_demand, volend_timestep_cm, &AET_timestep_cm, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
+      
+      // this is the volume of water leaving through the bottom
+      volrech_timestep_cm = volin_timestep_cm;
+    }
      
 #ifdef XWINDOWS
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -640,33 +627,33 @@ ponded_depth_cm=0.0;   // always start simulation with no ponded depth
 
      //printf("Calling dz/dt from main.... \n");
      // calculate dzdt for each front : derivs in python
-
+     
      //listPrint();
      int num_dzdt_calculated = lgar_dzdt_calc(nint, soil_type_by_layer, soil_properties, cum_layer_thickness_cm,
 					      ponded_depth_cm);
      if(debug_flag)
        listPrint();
-
+     
      
      // keep a copy of the previous LL (needed?)
      previous = head;
-
+     
      // move fronts
      //     collisions with layers
      //     mergers of overtaking fronts
-
-     volET += AET_timestep_cm;
-
+     
+     volAET += AET_timestep_cm;
+     
      volrech += volrech_timestep_cm; 
        
      volend_timestep_cm = lgar_calc_mass_bal(num_soil_layers,cum_layer_thickness_cm);
-     // volstart+volprecip-volET-volin-volrunoff-volon-volrech-volend = 0.0
+     // volstart+volprecip-volAET-volin-volrunoff-volon-volrech-volend = 0.0
      //volend+= volend_timestep;
      //printf("mass balance = %lf %lf %lf %lf %lf \n", volstart, volin, volin_timestep_cm, volstart+volin, volend_timestep_cm);
      //printf ("mass balance = %lf %lf \n ", volrech, volrech_timestep_cm);
      precip_previous_timestep_cm = precip_timestep_cm;
      //fprintf(out_fptr,"#TS = %5d %7.6f %7.6f\n",time_step_num, precip_mm_per_15min, PET_mm_per_15min);
-
+     
      if(illiterate_flag==FALSE) {
        fprintf(outl_fptr,"#TS = %5d %7.6f %7.6f\n",time_step_num, precip_timestep_cm, AET_timestep_cm);
        
@@ -676,8 +663,6 @@ ponded_depth_cm=0.0;   // always start simulation with no ponded depth
      //volstart+volprecip-volET-volin-volrunoff-volon-volrech-volend = 0.0 
 	 //double mass_added_timestep = precip_this_timestep_cm * time_step_h;
 	 double local_mb = volstart_timestep_cm + volprecip_timestep_cm - volin_timestep_cm*0 - volrunoff_timestep_cm - AET_timestep_cm - volon -volrech_timestep_cm -volend_timestep_cm;
-
-	 //double local_mb = volstart + total_mass_added*0 - volin - volrunoff - AET_this_timestep_cm - volon -volrech_cm -volend_timestep;
 
      if(debug_flag) {
        printf("local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_timestep_cm,volprecip_timestep_cm, volrunoff_timestep_cm,AET_timestep_cm, volend_timestep_cm);
@@ -711,8 +696,23 @@ ponded_depth_cm=0.0;   // always start simulation with no ponded depth
    }
 
  // volin is the volume infiltrates into the soil; volrunoff + volin = total volume injected/added
- double global_mb = volstart + volprecip - volrunoff - volET - volon -volrech -volend;
- 
+ double global_error_cm = volstart + volprecip - volrunoff - volAET - volon -volrech -volend;
+
+
+ printf("\n---------------------- Simulation Summary  ------------------------ \n");
+ printf("Time (sec)                 = %6.10f \n", elapsed);
+ printf("-------------------------- Mass balance ------------------- \n");
+ printf("initial water in soil      = %14.10f cm\n", volstart);
+ printf("total precipitation input  = %14.10f cm\n", volprecip);
+ printf("total infiltration         = %14.10f cm\n", volin);
+ printf("final water in soil        = %14.10f cm\n", volend);
+ printf("water remaining on surface = %14.10f cm\n", volon);
+ printf("surface runoff             = %14.10f cm\n", volrunoff);
+ printf("total percolation          = %14.10f cm\n", volrech);
+ printf("total AET                  = %14.10f cm\n", volAET);
+ printf("total PET                  = %14.10f cm\n", volPET);
+ printf("global balance             =   %.6e cm\n", global_error_cm);
+ /*
  printf("\n---------------------- Simulation Summary  ------------------------ \n");
  printf("Time (sec)               = %6.10f \n", elapsed);
  printf("-------------------------- Mass balance ------------------- \n");
@@ -725,7 +725,7 @@ ponded_depth_cm=0.0;   // always start simulation with no ponded depth
  printf("vol runoff (bottom)      = %6.10f \n",  volrech);
  printf("vol AET                  = %6.10f \n", volET);
  printf("Global balance           = %.6e \n", global_mb);
- 
+ */
  // double global_mb = volstart + (volin+volrunoff) - volET - volon-volrech-volend;
 
 
