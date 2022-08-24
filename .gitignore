@@ -1,3 +1,7 @@
+# Model output files
+*.out
+# Executable #
+xlgar
 # Compiled source #
 ###################
 *.com
