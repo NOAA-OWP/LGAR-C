@@ -1,5 +1,6 @@
 #include "../include/all.h"
 
+#define DEBUG 0
 /*##################################################*/
 /*##################################################*/
 /*##################################################*/
@@ -63,7 +64,6 @@ extern int wetting_front_free_drainage() {
   {
     if (current->next != NULL) {
       if (current->layer_num == current->next->layer_num) {
-	//	printf("layers = %d %d \n", current->layer_num, current->next->layer_num);
 	break;
       }
       else
@@ -74,16 +74,19 @@ extern int wetting_front_free_drainage() {
 
   if (wf_that_supplies_free_drainage_demand > number_of_wetting_fronts)
     wf_that_supplies_free_drainage_demand--;
-  
+
+#if DEBUG > 1
+  printf("wettign_front_free_drainage, layer_num = %d %d \n", wf_that_supplies_free_drainage_demand, current->layer_num);
+#endif
 }
 
 extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf_free_drainage_demand, double old_mass, double *AET_demand_cm, double *cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties)
 {
-  // this should be moved the the main.c
-  //struct wetting_front *current1 = head;
-  //int wf_free_drainage_demand = 1;
-		  
-  // 
+
+#if DEBUG > 1
+  printf("wetting fronts before moving \n");
+  listPrint();
+#endif
   struct wetting_front *current;
   struct wetting_front *next;
   struct wetting_front *previous;
@@ -111,21 +114,22 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
   int number_of_wetting_fronts = listLength();
   double time_step = time_step_s;
   
-  //printf ("Number of WF: %d \n", number_of_wetting_fronts);
   current = head;
-  //listPrint();
 
-  int l = number_of_wetting_fronts;
+  //int l = number_of_wetting_fronts;
   int last_wetting_front_index = number_of_wetting_fronts;
   int number_of_layers = 3; // hacked
   int layer_number_above, layer_number_below;
 
-  double precip_mass_to_add = (*ponded_depth_cm); //0.21167*0.1*0; // mm to cm
+  double precip_mass_to_add = (*ponded_depth_cm);
 
   *ponded_depth_cm = 0.0;
   
-  for (l; l !=0; l--) {
-    //printf("*Looping........ %d %d \n", l, number_of_wetting_fronts);
+  for (int l= number_of_wetting_fronts; l != 0; l--) {
+
+#if DEBUG > 1
+    printf("Looping over wetting fronst = %d %d \n", l);
+#endif
     
     if (l == 1 && number_of_wetting_fronts >0) {
       current = listFindFront(l,NULL);
@@ -135,10 +139,6 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
       current_old = listFindFront(l,state_previous);
       next_old = listFindFront(l+1,state_previous);
       previous_old = NULL;
-      //printf("HERE \n");
-      //listPrintC(*state_previous);
-      //listPrint();
-      //printf("******************TEST1 = %lf %lf \n", current_old->theta, next_old->theta);
     }
     else if (l <number_of_wetting_fronts) {
       current = listFindFront(l,NULL);
