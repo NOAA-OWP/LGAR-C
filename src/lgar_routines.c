@@ -63,9 +63,8 @@ extern int wetting_front_free_drainage() {
   for(current = head; current != NULL; current = current->next) 
   {
     if (current->next != NULL) {
-      if (current->layer_num == current->next->layer_num) {
+      if (current->layer_num == current->next->layer_num)
 	break;
-      }
       else
 	wf_that_supplies_free_drainage_demand++;
 
@@ -80,7 +79,7 @@ extern int wetting_front_free_drainage() {
 #endif
 }
 
-extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf_free_drainage_demand, double old_mass, double *AET_demand_cm, double *cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties)
+extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf_free_drainage_demand, double old_mass, int num_layers , double *AET_demand_cm, double *cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties)
 {
 
 #if DEBUG > 1
@@ -118,7 +117,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 
   //int l = number_of_wetting_fronts;
   int last_wetting_front_index = number_of_wetting_fronts;
-  int number_of_layers = 3; // hacked
+  //int num_layers = 3; // hacked
   int layer_number_above, layer_number_below;
 
   double precip_mass_to_add = (*ponded_depth_cm);
@@ -213,7 +212,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
       
       /*************************************************************************************/
 
-      if (l==number_of_wetting_fronts && layer_number_below != layer_num && number_of_wetting_fronts ==  number_of_layers) {
+      if (l==number_of_wetting_fronts && layer_number_below != layer_num && number_of_wetting_fronts == num_layers) {
 	//printf("case 3: number of WF = #layers \n");
 
 	/*
@@ -307,7 +306,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
       
       }
       /*
-      if (l==number_of_wetting_fronts && layer_number_below != layer_num && number_of_wetting_fronts ==  number_of_layers) {
+      if (l==number_of_wetting_fronts && layer_number_below != layer_num && number_of_wetting_fronts ==  num_layers) {
 	printf("case 3: number of WF = #layers \n");
 
 	//	listPrint();
@@ -581,7 +580,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
     // hacked : checkpoint AJ
     //double column_depth = 200; //30;
     //double column_depth = 30;
-    double column_depth = cum_layer_thickness_cm[number_of_layers];
+    double column_depth = cum_layer_thickness_cm[num_layers];
     //printf("column_depth = %lf \n", column_depth);
     if (next != NULL) {
       //printf("Merging time ............ \n");
@@ -838,14 +837,14 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
   
   //while(current != NULL);
 
-  l = listLength();
+  //l = listLength();
   current = head;
   next = current->next;
   //printf("print after merge \n");
   //listPrint();
   double mass_change = 0.0;
   
-  for (l=1; l != listLength(); l++) {
+  for (int l=1; l != listLength(); l++) {
     if (next != NULL) {
       //printf("A3: merging loop ............ %lf \n", current->depth_cm);
       struct wetting_front *next_to_next = listFindFront(l+2,NULL);
@@ -987,7 +986,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
   // make sure all psi values are updated
   current = head;
   
-  for (l=1; l != listLength(); l++) {
+  for (int l=1; l != listLength(); l++) {
 
     int soil_numA    = soil_type[current->layer_num];
 	
@@ -1078,13 +1077,13 @@ extern double lgar_insert_water(double *ponded_depth_cm, double *volin_this_time
 
   int l = number_of_wetting_fronts;
   int last_wetting_front_index = number_of_wetting_fronts;
-  int number_of_layers = 3; // hacked
+  int num_layers = 3; // hacked
   int layer_num_fp = current_free_drainage->layer_num;
 
   
   double Geff;
   
-  if (number_of_wetting_fronts == number_of_layers)
+  if (number_of_wetting_fronts == num_layers)
     Geff = 0.0;
   else {
    
@@ -1147,7 +1146,7 @@ extern double lgar_insert_water(double *ponded_depth_cm, double *volin_this_time
   double theta_e1 = soil_properties[soil_numB].theta_e; // saturated theta of top layer
   
   // what is 2 in the python code??
-  if ((layer_num_fp==number_of_layers) && (current_free_drainage->theta == theta_e1) && (number_of_layers == number_of_wetting_fronts)) 
+  if ((layer_num_fp==num_layers) && (current_free_drainage->theta == theta_e1) && (num_layers == number_of_wetting_fronts)) 
     f_p = 0.0;
 
   double ponded_depth_temp = *ponded_depth_cm;
@@ -1158,7 +1157,7 @@ extern double lgar_insert_water(double *ponded_depth_cm, double *volin_this_time
   double free_drainage_demand = 0;
   
   // checkpoint # AJ
-  if ((layer_num_fp==number_of_layers) && (number_of_layers == number_of_wetting_fronts))
+  if ((layer_num_fp==num_layers) && (num_layers == number_of_wetting_fronts))
     ponded_depth_temp = *ponded_depth_cm - f_p*time_step - free_drainage_demand*0;
   else
     ponded_depth_temp = *ponded_depth_cm - f_p*time_step - free_drainage_demand*0;

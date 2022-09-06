@@ -539,7 +539,7 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
       {
 	double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
 	 
-	lgar_move_fronts(&temp_pd,time_step_h, wf_free_drainage_demand, volend_timestep_cm, &AET_timestep_cm, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
+	lgar_move_fronts(&temp_pd,time_step_h, wf_free_drainage_demand, volend_timestep_cm, num_soil_layers, &AET_timestep_cm, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
 	//listPrint();
 	dry_depth = lgar_calc_dry_depth(nint, time_step_h, soil_type_by_layer, soil_properties, cum_layer_thickness_cm,&delta_theta);
 	//printf("SF = %lf %lf ",AET_timestep_cm, dry_depth);
@@ -600,7 +600,7 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
       //printf("LGAR MAIN ******************* move wetting front ........%lf %lf \n", ponded_depth_cm, volin_this_timestep);
       //lgar_move_fronts(&ponded_depth_cm,time_step_h, wf_free_drainage_demand, volend_timestep, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
       
-      lgar_move_fronts(&volin_timestep_cm,time_step_h, wf_free_drainage_demand, volend_timestep_cm, &AET_timestep_cm, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
+      lgar_move_fronts(&volin_timestep_cm,time_step_h, wf_free_drainage_demand, volend_timestep_cm, num_soil_layers, &AET_timestep_cm, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
       
       // this is the volume of water leaving through the bottom
       volrech_timestep_cm = volin_timestep_cm;
