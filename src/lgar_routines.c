@@ -115,9 +115,7 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
   
   current = head;
 
-  //int l = number_of_wetting_fronts;
   int last_wetting_front_index = number_of_wetting_fronts;
-  //int num_layers = 3; // hacked
   int layer_number_above, layer_number_below;
 
   double precip_mass_to_add = (*ponded_depth_cm);
@@ -158,375 +156,234 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
       previous_old = listFindFront(l-1,state_previous);
     }
 
-    //printf("******************TEST1 = \n");
     //
-    layer_num           = current->layer_num;
-    soil_num            = soil_type[layer_num];
-    theta_e             = soil_properties[soil_num].theta_e;
-    theta_r             = soil_properties[soil_num].theta_r;
-    vg_a                = soil_properties[soil_num].vg_alpha_per_cm;
-    vg_m                = soil_properties[soil_num].vg_m;
-    vg_n                = soil_properties[soil_num].vg_n;
-    // checkpoint # (is theta here is the theta of current wetting front)
-    theta = current->theta;
-    Se         = calc_Se_from_theta(theta, theta_e, theta_r);
-    psi_cm     = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-    K_cm_per_s = calc_K_from_Se(Se, Ks_cm_per_s, vg_m);
+    layer_num   = current->layer_num;
+    soil_num    = soil_type[layer_num];
+    theta_e     = soil_properties[soil_num].theta_e;
+    theta_r     = soil_properties[soil_num].theta_r;
+    vg_a        = soil_properties[soil_num].vg_alpha_per_cm;
+    vg_m        = soil_properties[soil_num].vg_m;
+    vg_n        = soil_properties[soil_num].vg_n;
+    theta       = current->theta;
+    Se          = calc_Se_from_theta(theta, theta_e, theta_r);
+    psi_cm      = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
+    K_cm_per_s  = calc_K_from_Se(Se, Ks_cm_per_s, vg_m);
     
 
-    if (l==1)
-      layer_number_above =  layer_num;
-    else
-      layer_number_above = previous->layer_num;
-    //    layer_number_above =  l == 1 ? layer_num : previous->layer_num;
+    layer_number_above = (l == 1) ? layer_num : previous->layer_num;
 
-    
-    if (l == last_wetting_front_index)
-      layer_number_below = layer_num + 1;
-    else
-      layer_number_below = next->layer_num;
+    layer_number_below = (l == last_wetting_front_index) ? layer_num + 1 : next->layer_num;
 
-    //printf ("****** Layer above/below == %d  %d %d %d \n", l ,layer_num, layer_number_above, layer_number_below);
-
+#if DEBUG > 1
+    printf ("****************** Cases ***************** \n");
+    printf ("Layers (wf, layer, above, below) == %d %d %d %d \n", l ,layer_num, layer_number_above, layer_number_below);
+#endif
     
     double free_drainage_demand = 0.0;
     double actual_ET_demand = *AET_demand_cm;
-    //if (!current->to_bottom && current->dzdt_cm_per_s != 0.0) {
-    if (current->dzdt_cm_per_s != 0.0 || true) {
+    
+    // case to check if the wetting front is at the interface, i.e. deepest wetting front within a layer
+    // todo. this condition can be replace by current->to_depth = FALSE && l<last_wetting_front_index
+    /*************************************************************************************/
+    if ( (l<last_wetting_front_index) && (layer_number_below!=layer_num) ) {
+#if DEBUG > 1
+      printf("case (deepest wetting front) : layer_num_below (%d) != layer_num (%d) \n", layer_num, layer_number_below);
+#endif
+      
+      current->theta = calc_theta_from_h(next->psi_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
+      current->psi_cm = next->psi_cm;
+    }
 
-      // starting 
-      /*************************************************************************************/
-      if ( (l<last_wetting_front_index) && (layer_number_below!=layer_num) ) {
-	//printf("case 2: layer_num_below != layer_num (interface below) %d %d \n", layer_num, layer_number_below);
-	//printf("A0 = %lf %lf \n", current->depth_cm, next->depth_cm);
-	//double Se_next = calc_Se_from_theta(next->theta,soil_properties[soil_num+1].theta_e,soil_properties[soil_num+1].theta_r);
-	//double psi_cm_next = calc_h_from_Se(Se_next, soil_properties[soil_num+1].vg_alpha_per_cm, soil_properties[soil_num+1].vg_m, soil_properties[soil_num+1].vg_n);
-	double psi_cm_next = next->psi_cm;
-	current->theta = calc_theta_from_h(psi_cm_next, vg_a,vg_m, vg_n, theta_e, theta_r);
-	double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-	//printf("A1 = %d %lf %lf %lf %lf \n", layer_num, current->theta, psi_cm_next, next->theta, next->psi_cm);
-	//printf("A1 = %lf %lf \n",current->theta, psi_cm_next);
-	//abort();
+    // case to check if the number of wetting fronst are equal to the number of layers, i.e., one wetting front per layer
+    /*************************************************************************************/
+    
+    if (l == number_of_wetting_fronts && layer_number_below != layer_num && number_of_wetting_fronts == num_layers) {
+      
+#if DEBUG > 1
+      printf("case (number_of_wetting_fronts equal to num_layers) : l (%d) == num_layers (%d) == num_wetting_fronts(%d) \n", l, num_layers,number_of_wetting_fronts);
+#endif
+      
+      // local variables
+      double vg_a_k, vg_m_k, vg_n_k, Ks_cm_per_s_k;
+      double theta_e_k, theta_r_k;
+      
+      current->depth_cm += current->dzdt_cm_per_s * time_step_s; // this is probably not needed, as dz/dt = 0 for the deepest wetting front
+      
+      double *delta_thetas = (double *) malloc(sizeof(double)*(layer_num+1));
+      double *delta_thickness = (double *) malloc(sizeof(double)*(layer_num+1));
+      
+      double psi_cm_old = current_old->psi_cm;
+      double psi_cm_below_old = 0.0;
+      
+      double psi_cm = current->psi_cm;
+      double psi_cm_below = 0.0;
+      
+      double prior_mass = (current_old->depth_cm - cum_layer_thickness_cm[layer_num-1]) * (current_old->theta-0.0); // 0.0 = next_old->theta
+      
+      double new_mass = (current->depth_cm - cum_layer_thickness_cm[layer_num-1]) * (current->theta-0.0); // 0.0 = next->theta;
+      
+#if DEBUG > 1
+      printf ("prior_mass_layer = %6.12f \n", prior_mass);
+#endif
+      
+      for (int k=1; k<layer_num; k++) {
+	int soil_num_k  = soil_type[k];
+	theta_e_k = soil_properties[soil_num_k].theta_e;
+	theta_r_k = soil_properties[soil_num_k].theta_r;
+	vg_a_k    = soil_properties[soil_num_k].vg_alpha_per_cm;
+	vg_m_k    = soil_properties[soil_num_k].vg_m;
+	vg_n_k    = soil_properties[soil_num_k].vg_n;
+	
+	double theta_old             = calc_theta_from_h(psi_cm_old, vg_a_k, vg_m_k, vg_n_k, theta_e_k,theta_r_k);
+	double theta_below_old       = 0.0;
+	double local_delta_theta_old = theta_old - theta_below_old;
+	double layer_thickness       = cum_layer_thickness_cm[k] - cum_layer_thickness_cm[k-1];
+	
+	prior_mass += (layer_thickness * local_delta_theta_old);
+	
+	double theta       = calc_theta_from_h(psi_cm, vg_a_k, vg_m_k, vg_n_k, theta_e_k, theta_r_k);
+	double theta_below = 0.0;
+	
+	new_mass += layer_thickness * (theta - theta_below);
+	delta_thetas[k] = theta_below;
+	delta_thickness[k] = layer_thickness;
       }
       
-      /*************************************************************************************/
+      //double xx = lgar_calc_mass_bal(0,cum_layer_thickness_cm);
+      delta_thetas[layer_num] = 0.0; 
+      delta_thickness[layer_num] = current->depth_cm - cum_layer_thickness_cm[layer_num-1];
+      
+      double free_drainage_demand = 0;
+      
+      if (wf_free_drainage_demand == l)
+	prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
+      
+      
+      double theta_new = lgar_theta_mass_balance_2(layer_num, soil_num, psi_cm, new_mass, prior_mass, current->depth_cm, delta_thetas, delta_thickness, soil_type, soil_properties);
+      
+      current->theta = fmin(theta_new, theta_e);
+      
+      double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
+      current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
+      
+    }
 
-      if (l==number_of_wetting_fronts && layer_number_below != layer_num && number_of_wetting_fronts == num_layers) {
-	//printf("case 3: number of WF = #layers \n");
 
-	/*
-	  this prior and updated water mass in the system should be done, if doable/reasonable, out of here in some subroutines. (AJK)
-	 */
+    // case to check if the wetting fronst is within the layer
+    /*************************************************************************************/
+    
+    if ( (l < last_wetting_front_index) && (layer_number_below == layer_num) ) {
+      
+#if DEBUG > 1
+      printf("case (wetting front within layer) : layer_num (%d) == layer_num_below (%d) \n", layer_num,layer_number_below);
+#endif
+      if (layer_num == 1) {
 	
-	double vg_a1, vg_m1, vg_n1, Ks_cm_per_s1;
-	double theta_e1, theta_r1;
-	  
-	double depth_cm_x = current->depth_cm + current->dzdt_cm_per_s * time_step_s;
+	double free_drainage_demand = 0;
+	double prior_mass = current_old->depth_cm * (current_old->theta -  next_old->theta);
+	
+	if (wf_free_drainage_demand == l)
+	  prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
+	
+	current->depth_cm +=  current->dzdt_cm_per_s * time_step_s;
+	
+	if (current->dzdt_cm_per_s == 0.0 && current->to_bottom == FALSE) // a new front was just created, so don't update it.
+	  current->theta = current->theta;
+	else
+	  current->theta = fmin(theta_e, prior_mass/current->depth_cm + next->theta);
+	
+      }
+      else {
+	
+	double vg_a_k, vg_m_k, vg_n_k, Ks_cm_per_s_k;
+	double theta_e_k, theta_r_k;
+	
 	current->depth_cm +=  current->dzdt_cm_per_s * time_step_s;
 	
 	double *delta_thetas = (double *)malloc(sizeof(double)*(layer_num+1));
 	double *delta_thickness = (double *)malloc(sizeof(double)*(layer_num+1));
-	  
+	
 	
 	double psi_cm_old = current_old->psi_cm;
-	double psi_cm_below_old = 0.0; //current_old->next->psi_cm;
+	double psi_cm_below_old = current_old->next->psi_cm;
 	
 	double psi_cm = current->psi_cm;
-	double psi_cm_below = 0.0; //next->psi_cm;
-
-	//printf("A1 = %6.12f %d \n",psi_cm_old,wf_free_drainage_demand);
-	double prior_mass = (current_old->depth_cm - cum_layer_thickness_cm[layer_num-1]) * (current_old->theta-0.0);//next_old->theta);
+	double psi_cm_below = next->psi_cm;
 	
-	double new_mass = (depth_cm_x - cum_layer_thickness_cm[layer_num-1]) * (current->theta-0.0); //next->theta);
-
-	//printf("M1 = %6.12f %.12e \n", precip_mass_to_add, actual_ET_demand);
-
-	//printf ("prior_mass_layer = %6.12f \n", prior_mass);
-	double x_vec = 0.0;
+	double prior_mass = (current_old->depth_cm - cum_layer_thickness_cm[layer_num-1]) * (current_old->theta-next_old->theta);
+	
+	double new_mass = (current->depth_cm - cum_layer_thickness_cm[layer_num-1]) * (current->theta-next->theta);
+	
 	for (int k=1; k<layer_num; k++) {
-	  //printf("looping .. %d \n",k);
-	  int soil_numA  = soil_type[k];
-	  theta_e1 = soil_properties[soil_numA].theta_e;
-	  theta_r1 = soil_properties[soil_numA].theta_r;
-	  vg_a1    = soil_properties[soil_numA].vg_alpha_per_cm;
-	  vg_m1    = soil_properties[soil_numA].vg_m;
-	  vg_n1    = soil_properties[soil_numA].vg_n;
-	  //printf("vg = %d %d %6.12f \n", k, soil_numA, vg_n1);
-	  double theta_old = calc_theta_from_h(psi_cm_old, vg_a1, vg_m1, vg_n1, theta_e1,theta_r1);
-	  double theta_below_old = 0.0;//calc_theta_from_h(psi_cm_below_old, vg_a1, vg_m1, vg_n1, theta_e1, theta_r1);
+	  
+	  theta_e_k = soil_properties[soil_num-k].theta_e;
+	  theta_r_k = soil_properties[soil_num-k].theta_r;
+	  vg_a_k    = soil_properties[soil_num-k].vg_alpha_per_cm;
+	  vg_m_k    = soil_properties[soil_num-k].vg_m;
+	  vg_n_k    = soil_properties[soil_num-k].vg_n;
+	  
+	  double theta_old = calc_theta_from_h(psi_cm_old, vg_a_k, vg_m_k, vg_n_k, theta_e_k,theta_r_k);
+	  
+	  double theta_below_old = calc_theta_from_h(psi_cm_below_old, vg_a_k, vg_m_k, vg_n_k, theta_e_k, theta_r_k);
+	  
 	  double local_delta_theta_old = theta_old - theta_below_old;
+	  
 	  double layer_thickness = (cum_layer_thickness_cm[k] - cum_layer_thickness_cm[k-1]);
 	  
 	  prior_mass += (layer_thickness * local_delta_theta_old);
-	  x_vec = (layer_thickness * local_delta_theta_old);
+	  
 	  //-------------------------------------------
 	  // do the same for current state
-	  double theta = calc_theta_from_h(psi_cm, vg_a1, vg_m1, vg_n1, theta_e1, theta_r1);
+	  double theta = calc_theta_from_h(psi_cm, vg_a_k, vg_m_k, vg_n_k, theta_e_k, theta_r_k);
 	  
-	  double theta_below = 0.0; //calc_theta_from_h(psi_cm_below, vg_a1, vg_m1, vg_n1, theta_e1, theta_r1);
+	  double theta_below = calc_theta_from_h(psi_cm_below, vg_a_k, vg_m_k, vg_n_k, theta_e_k, theta_r_k);
 	  
 	  new_mass += layer_thickness * (theta - theta_below);
-	  //printf("Mx = %lf %lf \n", layer_thickness, local_delta_theta_old);
-	  //printf("My = %lf %lf \n", layer_thickness, (theta - theta_below));
-	  //printf("M2 = %lf %lf \n",(layer_thickness * local_delta_theta_old), layer_thickness * (theta - theta_below));
-	  //printf ("mass_vec = %6.12f \n", x_vec*10);
+	  
 	  delta_thetas[k] = theta_below;
 	  delta_thickness[k] = layer_thickness;
 	}
 	
-	//double xx = lgar_calc_mass_bal(0,cum_layer_thickness_cm);
-	delta_thetas[layer_num] = 0.0; //next->theta;
-	delta_thickness[layer_num] = depth_cm_x - cum_layer_thickness_cm[layer_num-1];
+	delta_thetas[layer_num] = next->theta;
+	delta_thickness[layer_num] = current->depth_cm - cum_layer_thickness_cm[layer_num-1];
 	
-	// checkpoint # : AJ
 	double free_drainage_demand = 0;
-	//double actual_ET_demand = 0;
-	//printf("wf = %d %d %lf \n", wf_free_drainage_demand, l, prior_mass);
-	//printf ("prior_mass = %6.12f %6.12f \n", prior_mass, xx);
 	
 	if (wf_free_drainage_demand == l)
-	    prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
+	  prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
 	
-	//printf("NEW: prior/new mass = %6.12f %6.12f %6.12f \n", prior_mass*10, new_mass*10,actual_ET_demand*10);
-	//abort();
-	//double delta_theta[] = {theta_of_wf_below_in_layer1_above, theta_of_wf_below_in_layer2_above, theta_below};
+	double theta_new = lgar_theta_mass_balance_2(layer_num, soil_num, psi_cm, new_mass, prior_mass, current->depth_cm, delta_thetas, delta_thickness, soil_type, soil_properties);
 	
-	//printf("NewA = %lf %lf \n",  depth_cm_x , cum_layer_thickness_cm[layer_num-1]);
+	current->theta = fmin(theta_new, theta_e);
 	
-	double new_theta = lgar_theta_mass_balance_2(layer_num, soil_num, psi_cm, new_mass, prior_mass, current->depth_cm, delta_thetas, delta_thickness, soil_type, soil_properties);
-	
-	current->theta = fmin(new_theta, theta_e);
-
-	double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-	//printf("new mass after balance = %6.12f %6.12f %6.12f %6.12f\n", prior_mass*10, new_mass*10, current->psi_cm, current->theta);
-	//abort();
-	//current->depth_cm=depth_x;
+      }
       
-      }
-      /*
-      if (l==number_of_wetting_fronts && layer_number_below != layer_num && number_of_wetting_fronts ==  num_layers) {
-	printf("case 3: number of WF = #layers \n");
-
-	//	listPrint();
-	double psi_cm_old = current_old->psi_cm;
-	//double psi_cm_below_old = next_old->psi_cm;
-	//printf("psi_old = %lf \n", psi_cm_old*10);
-	  
-	double theta_of_same_wf_in_layer1_above_previous = calc_theta_from_h(psi_cm_old, soil_properties[soil_num-1].vg_alpha_per_cm, soil_properties[soil_num-1].vg_m, soil_properties[soil_num-1].vg_n,soil_properties[soil_num-1].theta_e,soil_properties[soil_num-1].theta_r); 
-	  
-	double theta_of_wf_below_in_layer1_above_previous = 0.0; //calc_theta_from_h(psi_cm_below_old, soil_properties[soil_num-1].vg_alpha_per_cm, soil_properties[soil_num-1].vg_m, soil_properties[soil_num-1].vg_n,soil_properties[soil_num-1].theta_e,soil_properties[soil_num-1].theta_r); 
-	
-	double theta_of_same_wf_in_layer2_above_previous = calc_theta_from_h(psi_cm_old, soil_properties[soil_num-2].vg_alpha_per_cm, soil_properties[soil_num-2].vg_m, soil_properties[soil_num-2].vg_n,soil_properties[soil_num-2].theta_e,soil_properties[soil_num-2].theta_r); 
-	
-	double theta_of_wf_below_in_layer2_above_previous = 0.0; //calc_theta_from_h(psi_cm_below_old, soil_properties[soil_num-2].vg_alpha_per_cm, soil_properties[soil_num-2].vg_m, soil_properties[soil_num-2].vg_n,soil_properties[soil_num-2].theta_e,soil_properties[soil_num-2].theta_r);
-	double x1 = (cum_layer_thickness_cm[layer_num-1] - cum_layer_thickness_cm[layer_num-2]);
-	double x2 = (cum_layer_thickness_cm[layer_num-2] - cum_layer_thickness_cm[layer_num-3]);
-	double x3_old = (current_old->depth_cm - cum_layer_thickness_cm[layer_num-1]);
-	double x3 = (current->depth_cm - cum_layer_thickness_cm[layer_num-1]);
-
-	double prior_mass_in_layer1_above = x1 * (theta_of_same_wf_in_layer1_above_previous-theta_of_wf_below_in_layer1_above_previous);
-
-	double prior_mass_in_layer2_above = x2 * (theta_of_same_wf_in_layer2_above_previous-theta_of_wf_below_in_layer2_above_previous);
-	//printf("checking4 = %lf %lf %lf \n", cum_layer_thickness_cm[layer_num], (cum_layer_thickness_cm[layer_num-2] - cum_layer_thickness_cm[layer_num-3]),cum_layer_thickness_cm[layer_num-3]);
-
-	
-	double prior_mass_in_layer = x3_old * (current_old->theta);//-next_old->theta);
-	//printf("Xs = %lf %lf %lf %lf %lf, %lf  \n", x1, x2, x3, current_old->theta, prior_mass_in_layer, (current_old->depth_cm - cum_layer_thickness_cm[soil_num-1]) );
-	// checkpoint # : AJ
-	double free_drainage_demand = 0;
-	double actual_ET_demand = 0;
-	
-	double prior_mass = prior_mass_in_layer1_above +  prior_mass_in_layer2_above + prior_mass_in_layer - (free_drainage_demand+actual_ET_demand);
-	  //*(1 if l==wf_that_supplies_free_drainage_demand else 0) + precip_mass_to_add*(1 if l==wf_that_supplies_free_drainage_demand else 0)
-	//printf("checking5 = %lf %lf %lf %lf \n", prior_mass_in_layer2_above*10, prior_mass_in_layer1_above*10, prior_mass_in_layer*10, prior_mass*10);
-
-
-	double psi_cm = current->psi_cm;
-	//double psi_cm_below = next->psi_cm;
-	
-	double theta_of_wf_in_layer1_above = calc_theta_from_h(psi_cm, soil_properties[soil_num-1].vg_alpha_per_cm, soil_properties[soil_num-1].vg_m, soil_properties[soil_num-1].vg_n,soil_properties[soil_num-1].theta_e,soil_properties[soil_num-1].theta_r);
-
-	double theta_of_wf_in_layer2_above = calc_theta_from_h(psi_cm, soil_properties[soil_num-2].vg_alpha_per_cm, soil_properties[soil_num-2].vg_m, soil_properties[soil_num-2].vg_n,soil_properties[soil_num-2].theta_e,soil_properties[soil_num-2].theta_r);
-		
-	double theta_of_wf_below_in_layer1_above = 0.0; //calc_theta_from_h(psi_cm_below, soil_properties[soil_num-1].vg_alpha_per_cm, soil_properties[soil_num-1].vg_m, soil_properties[soil_num-1].vg_n,soil_properties[soil_num-1].theta_e,soil_properties[soil_num-1].theta_r);
-
-	double theta_of_wf_below_in_layer2_above = 0.0; //calc_theta_from_h(psi_cm_below, soil_properties[soil_num-2].vg_alpha_per_cm, soil_properties[soil_num-2].vg_m, soil_properties[soil_num-2].vg_n,soil_properties[soil_num-2].theta_e,soil_properties[soil_num-2].theta_r); 
-
-	//printf("checking4: = %lf %lf \n", psi_cm*10, psi_cm_below*10);
-
-	//printf("checking5: = %lf %lf \n", theta_of_wf_in_layer_above, theta_of_wf_below_in_layer_above);
-
-	// these are set like this because there is no wetting front below the current one
-	double theta_below = 0;
-	//	double theta_of_wf_below_in_layer1_above = 0;
-	//double theta_of_wf_below_in_layer2_above = 0;
-
-	double new_mass_in_layer2_above = x1 * (theta_of_wf_in_layer2_above - theta_of_wf_below_in_layer2_above);
-	double new_mass_in_layer1_above = x2 * (theta_of_wf_in_layer1_above - theta_of_wf_below_in_layer1_above);
-	double new_mass_in_same_layer = x3 * (theta-theta_below);
-	double new_mass = new_mass_in_layer2_above + new_mass_in_layer1_above + new_mass_in_same_layer;
-
-	printf("prior/new mass. = %lf %lf \n", prior_mass*10, new_mass*10);
-
-	double delta_theta[] = {theta_of_wf_below_in_layer1_above, theta_of_wf_below_in_layer2_above, theta_below};
-	
-	new_mass = lgar_theta_mass_balance_2(layer_num, soil_num, psi_cm, new_mass, prior_mass, current->depth_cm, delta_theta, cum_layer_thickness_cm, soil_properties);
-	  
-	current->theta = fmin(new_mass, theta_e);
-	printf("theta after balance = %lf \n", new_mass);
-	
-	// come back to those while loops
-	
-	//abort();
-      }
-    */
-
-
-      if ( (l<last_wetting_front_index) && (layer_number_below==layer_num) ) {
-	//printf("case 1: layer_num = layer_num_below = %d \n", layer_num);
-	
-	if (layer_num == 1) {
-
-	  // checkpoint # : AJ ; add ET and free drainage to prior mass
-	  double free_drainage_demand = 0;
-	  //double actual_ET_demand = 0;
-	  double prior_mass = current_old->depth_cm * (current_old->theta -  next_old->theta);
-	  //printf("A1 = %lf %lf %lf \n", current_old->depth_cm,  current_old->theta,  next_old->theta);
-	  //printf("prior mass withour Pr = %lf %lf \n", prior_mass*10, precip_mass_to_add*10);
-	  if (wf_free_drainage_demand == l)
-	    prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
-
-	  //printf("prior mass with Pr = %lf \n", prior_mass*10);
-	  //printf("Depth before dzdt, precip_mass: %lf %lf %lf \n", current->depth_cm, precip_mass_to_add, prior_mass);
-	  current->depth_cm +=  current->dzdt_cm_per_s * time_step_s;
-	  //printf("** Depth update, dzdt = %d %lf %lf \n", layer_num, current->depth_cm, current->dzdt_cm_per_s*10);
-	  //current->theta = fmin(theta_e, prior_mass/current->depth_cm + next->theta);
-
-	  if (current->dzdt_cm_per_s == 0.0 && current->to_bottom == FALSE) // a new front was just created, so don't update it.
-	    current->theta = current->theta;
-	  else
-	    current->theta = fmin(theta_e, prior_mass/current->depth_cm + next->theta);
-	  //printf("prior/theta mass = %lf %lf %lf %lf %lf \n", prior_mass, current->theta,current->depth_cm,current->dzdt_cm_per_s*10,next->theta);
-	  
-	}
-
-	else {// working
-
-	  double vg_a1, vg_m1, vg_n1, Ks_cm_per_s1;
-	  double theta_e1, theta_r1;
-	  
-	  
-	  double depth_cm_x = current->depth_cm + current->dzdt_cm_per_s * time_step_s;
-	  current->depth_cm +=  current->dzdt_cm_per_s * time_step_s;
-
-	  double *delta_thetas = (double *)malloc(sizeof(double)*(layer_num+1));
-	  double *delta_thickness = (double *)malloc(sizeof(double)*(layer_num+1));
-	  
-
-	  double psi_cm_old = current_old->psi_cm;
-	  double psi_cm_below_old = current_old->next->psi_cm;
-
-	  double psi_cm = current->psi_cm;
-	  double psi_cm_below = next->psi_cm;
-
-	  double prior_mass = (current_old->depth_cm - cum_layer_thickness_cm[layer_num-1]) * (current_old->theta-next_old->theta);
-
-	  double new_mass = (depth_cm_x - cum_layer_thickness_cm[layer_num-1]) * (current->theta-next->theta);
-		  
-	  for (int k=1; k<layer_num; k++) {
-
-	    theta_e1 = soil_properties[soil_num-k].theta_e;
-	    theta_r1 = soil_properties[soil_num-k].theta_r;
-	    vg_a1    = soil_properties[soil_num-k].vg_alpha_per_cm;
-	    vg_m1    = soil_properties[soil_num-k].vg_m;
-	    vg_n1    = soil_properties[soil_num-k].vg_n;
-
-	    double theta_old = calc_theta_from_h(psi_cm_old, vg_a1, vg_m1, vg_n1, theta_e1,theta_r1);
-
-	    double theta_below_old = calc_theta_from_h(psi_cm_below_old, vg_a1, vg_m1, vg_n1, theta_e1, theta_r1);
-	    
-	    double local_delta_theta_old = theta_old - theta_below_old;
-
-	    double layer_thickness = (cum_layer_thickness_cm[k] - cum_layer_thickness_cm[k-1]);
-		
-	    prior_mass += (layer_thickness * local_delta_theta_old);
-
-	    //-------------------------------------------
-	    // do the same for current state
-	    double theta = calc_theta_from_h(psi_cm, vg_a1, vg_m1, vg_n1, theta_e1, theta_r1);
-
-	    double theta_below = calc_theta_from_h(psi_cm_below, vg_a1, vg_m1, vg_n1, theta_e1, theta_r1);
-
-	    
-	    //double layer_thickness = (cum_layer_thickness_cm[k] - cum_layer_thickness_cm[k-1]);
-
-	    new_mass += layer_thickness * (theta - theta_below);
-
-	    delta_thetas[k] = theta_below;
-	    delta_thickness[k] = layer_thickness;
-	  }
-
-	  delta_thetas[layer_num] = next->theta;
-	  delta_thickness[layer_num] = depth_cm_x - cum_layer_thickness_cm[layer_num-1];
-	    
-	  // checkpoint # : AJ
-	  double free_drainage_demand = 0;
-
-	  if (wf_free_drainage_demand == l)
-	    prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
-	  //printf("LL = %d %d \n ", wf_free_drainage_demand, l);
-	  //if (wf_free_drainage_demand == l)
-	  //  prior_mass -= free_drainage_demand;
-	  
-	  //printf("U1: prior/new mass = %lf %lf \n", prior_mass*10, new_mass*10);
-
-	  //double delta_theta[] = {theta_of_wf_below_in_layer1_above, theta_of_wf_below_in_layer2_above, theta_below};
-
-	  //printf("U2 = %lf %lf \n",  depth_cm_x , cum_layer_thickness_cm[layer_num-1]);
-	  new_mass = lgar_theta_mass_balance_2(layer_num, soil_num, psi_cm, new_mass, prior_mass, current->depth_cm, delta_thetas, delta_thickness, soil_type, soil_properties);
-
-	  current->theta = fmin(new_mass, theta_e);
-	  //printf("new mass after balance = %lf \n", new_mass);
-	  //current->depth_cm=depth_x;
-	}
-
-
-	double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-      }
-
       
+      double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
+      current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
     }
-
-    //printf("looping done\n");
-    //listPrint();
-    //if ( (self.previous_states[0][1]<theta_s_vec[0])&(self.current_states[wf_that_supplies_free_drainage_demand][1] == theta_s_vec[layer_with_wf_that_supplies_free_drainage_demand])  ):
+    
+    
+#if DEBUG > 1
+    printf("*********** Cases for mass balance of wetting fronts is done!! ************** \n");
+#endif
     
     // if f_p (predicted infiltration) causes theta > theta_e, mass correction is needed. depth of the wetting front with theta > theta_e is increased to close the mass balance
     // this should be moved out of here to a subroutine; add a call to that subroutine
     if (l == 1) {
-      int soil_numB1  = soil_type[1];
-      int soil_numB2  = soil_type[wf_free_drainage_demand];
-      //printf("soil_num = %d %d %d \n", soil_numB1, soil_numB2, wf_free_drainage_demand);
-      double theta_eB1 = soil_properties[soil_numB1].theta_e;
-      double theta_eB2 = soil_properties[soil_numB2].theta_e;
+      int soil_num_k1  = soil_type[wf_free_drainage_demand];
+      double theta_e_k1 = soil_properties[soil_num_k1].theta_e;
       
       struct wetting_front *wf_free_drainage = listFindFront(wf_free_drainage_demand,NULL);
       
       double mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand+free_drainage_demand);
-      //printf("checking1 = %lf %lf %lf %lf %lf \n ", current_old->theta , theta_eB1, wf_free_drainage->theta, theta_eB2, wf_free_drainage->depth_cm);
       
-      if (wf_free_drainage->theta == theta_eB2) {
-	//current_mass = calc_mass_bal(self.current_states)
+      if (wf_free_drainage->theta == theta_e_k1) {
+
 	double current_mass = lgar_calc_mass_bal(0,cum_layer_thickness_cm);
-	//double mass_balance_error = current_mass - mass_timestep;
-	
 	
 	double mass_balance_error = fabs(current_mass - mass_timestep); // mass error
 	
-	//printf("xxxx mass balance = %lf %lf %lf \n", current_mass, old_mass, mass_balance_error);
 	double factor = 1.0;
 	bool switched = false;
 	double tolerance = 1e-12;
@@ -536,13 +393,12 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 	  // return current_mass;
 	}
 	
-	double x = wf_free_drainage->depth_cm;
+	double psi_k = wf_free_drainage->depth_cm;
 	
-	//printf("X = %lf \n", x);
 	while (mass_balance_error > tolerance) {
 	  
 	  if (current_mass<mass_timestep) {
-	    x = x + 0.01 * factor;
+	    psi_k = psi_k + 0.01 * factor;
 	    switched = false;
 	  }
 	  else {
@@ -550,44 +406,42 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 	      switched = true;
 	      factor = factor * 0.001;
 	    }
-	    x = x - 0.01 * factor;
-	    //abort();
+	    psi_k = psi_k - 0.01 * factor;
 	    
 	  }
 	  
-	  wf_free_drainage->depth_cm = x; //13.878404844;//x;
+	  wf_free_drainage->depth_cm = psi_k;
 	  
 	  current_mass = lgar_calc_mass_bal(0,cum_layer_thickness_cm);
 	  mass_balance_error = fabs(current_mass - mass_timestep);
-	  
-	  //printf("mass_balance_error = %lf %lf %lf \n", mass_balance_error, x, current_mass);
-	  //break;
-	  //	   delta_mass = fabs(new_mass - prior_mass);
 	  
 	}	
 	
       }
     }
-    
-    // check if the superficial wetting front has reached the layer depth ?????
-    //    lgar_merge_wetting_fronts()
+
 
     // **************************** MERGING WETTING FRONT ********************************
-    // intra-wettting fronts merge
+    //    lgar_merge_wetting_fronts()
+#if DEBUG > 1
+    if (next != NULL) {
+      printf("********** Merging wetting fronts ********** \n");
+      listPrint();
+    }
+    else
+      printf("********** No merging is needed ********** \n");
+#endif
 
     // THIS WILL NEED SOME MAJOR CLEANUP or a separate module if needed
     
-    // hacked : checkpoint AJ
-    //double column_depth = 200; //30;
-    //double column_depth = 30;
     double column_depth = cum_layer_thickness_cm[num_layers];
-    //printf("column_depth = %lf \n", column_depth);
+    
     if (next != NULL) {
-      //printf("Merging time ............ \n");
-      //listPrint();
-      struct wetting_front *next_to_next = listFindFront(l+2,NULL);
-      // printf("main part: merging = %lf %lf %lf \n", current->depth_cm, next->depth_cm,cum_layer_thickness_cm[layer_num]);
 
+      struct wetting_front *next_to_next = listFindFront(l+2,NULL); // next->next;
+
+
+      // case fronts passing within a layer
       // fronts passing within a layer
       if ( (current->depth_cm > next->depth_cm) && (current->layer_num == next->layer_num) && !next->to_bottom) {
 	//printf("A1: merging ............ \n");
