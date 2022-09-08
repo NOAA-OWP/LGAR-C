@@ -440,44 +440,45 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 
       struct wetting_front *next_to_next = listFindFront(l+2,NULL); // next->next;
 
-
-      // case fronts passing within a layer
-      // fronts passing within a layer
+      
+      // case a wetting front passing another wetting front within a layer
+      /**********************************************************/
+      
       if ( (current->depth_cm > next->depth_cm) && (current->layer_num == next->layer_num) && !next->to_bottom) {
-	//printf("A1: merging ............ \n");
-	//struct wetting_front *next_to_next = listFindFront(l+2);
+
 	double current_mass_this_layer = current->depth_cm * (current->theta - next->theta) + next->depth_cm*(next->theta - next_to_next->theta);
 	current->depth_cm = current_mass_this_layer / (current->theta - next_to_next->theta);
 
-	// checkpoint # AJ how to compute K_cm_per_s after merging
-	double theta_e   = soil_properties[soil_num].theta_e;
-	double theta_r   = soil_properties[soil_num].theta_r;
-	double vg_a      = soil_properties[soil_num].vg_alpha_per_cm;
-	double vg_m      = soil_properties[soil_num].vg_m;
-	double vg_n      = soil_properties[soil_num].vg_n;
-	double Ksat_cm_per_s  = soil_properties[soil_num].Ksat_cm_per_s;
-	double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-	
-	//current->K_cm_per_s = soil_properties[soil_num].Ksat_cm_per_s;
-	current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m); // AJ - K_temp in python version for 1st layer
+	double theta_e_k        = soil_properties[soil_num].theta_e;
+	double theta_r_k        = soil_properties[soil_num].theta_r;
+	double vg_a_k           = soil_properties[soil_num].vg_alpha_per_cm;
+	double vg_m_k           = soil_properties[soil_num].vg_m;
+	double vg_n_k           = soil_properties[soil_num].vg_n;
+	double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s;
+	double Se_k             = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
+	current->psi_cm         = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
+	current->K_cm_per_s     = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k); // AJ - K_temp in python version for 1st layer
 
+#if DEBUG > 1
+	printf ("Deleting wetting front (before)... \n");
+	listPrint();
+#endif
 	listDeleteFront(next->front_num);
-	//listPrint();
+
+#if DEBUG > 1
+	printf ("Deleting wetting front (after) ... \n");
+	listPrint();
+#endif
+
       }
 
-      // wetting front reached layer depth
+      // case wetting front passing the layer depth
+      /**********************************************************/
       // or use next_to_next != NULL
       if (current->depth_cm > cum_layer_thickness_cm[layer_num] && current->depth_cm < column_depth) {
-	//printf("A2: merging time ............ %d %lf %lf \n",layer_num, current->depth_cm, cum_layer_thickness_cm[layer_num]);
-	//abort();
-	//if (current->depth_cm)
-	//struct wetting_front *next_to_next = listFindFront(l+2);
 	double current_theta = fmin(theta_e, current->theta);
-	//printf("M1 = %lf \n", current_theta);
 	double overshot_depth = current->depth_cm - next->depth_cm;
-	//printf("M2 = %lf %lf %lf \n", overshot_depth, current->depth_cm, next->depth_cm);
-	// key: better to have a general function for computing psi_cm and K_cm_per_s etc. (all that needs vG parameters) based on layer number instead of the below local stuff
+
 	// Given theta return psi_cm, Se or K_cm_per_s etc.
 	
 	double next_theta_e   = soil_properties[soil_num+1].theta_e;
@@ -490,217 +491,123 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 	double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
 	current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
 
-	//double prev_Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	//previous->psi_cm = calc_h_from_Se(prev_Se, vg_a, vg_m, vg_n);
-	current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m);
+	current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m); // AJ check Ksat_cm_per_s here current or next?
 	
 	double theta_new = calc_theta_from_h(current->psi_cm, next_vg_a, next_vg_m, next_vg_n, next_theta_e, next_theta_r);
 	
 	double mbal_correction = overshot_depth*(current_theta-next->theta);
 	double mbal_Z_correction = mbal_correction/(theta_new - next_to_next->theta);
 
-	/****/
-	//listPrint();
-	double depth_new = cum_layer_thickness_cm[layer_num]+mbal_Z_correction;
-	//printf("New depth = %6.12f %6.12f %6.12f \n", depth_new, cum_layer_thickness_cm[layer_num], mbal_Z_correction);
+	double depth_new = cum_layer_thickness_cm[layer_num] + mbal_Z_correction;
+
 	if (depth_new < next_to_next->depth_cm) {
-	  //printf("first condition \n");
 	  next->theta = current->theta;
-	  //listPrint();
 	  current = listDeleteFront(current->front_num);
 	  int num_fronts = listLength();
-	  //printf("M3 = %lf %lf %lf %lf \n", theta_new, current->psi_cm*10,cum_layer_thickness_cm[layer_num]+mbal_Z_correction, mbal_Z_correction);
-	  //abort();
-	  //listPrint();
-	  //struct wetting_front *current_temp = current;
 	  struct wetting_front *current_temp = current;
 	  current = listInsertFrontAtDepth(num_fronts, cum_layer_thickness_cm,cum_layer_thickness_cm[layer_num]+mbal_Z_correction, theta_new);
-
-	  //listPrint();
 	}
 	else {
-	  // printf("second condition \n");
 	  next->theta = current->theta; // assign current theta to next layer theta before deleting the wetting front
-	  //listPrint();
+
 	  current = listDeleteFront(current->front_num);
-	  //printf("current1 = %lf \n", current->depth_cm);
-	  //listPrint();
+
 	  current = current->next; // this is points to the next_to_next node (w.r.t the original list)
-	  //printf("current2 = %6.12f %6.12f %6.12f\n", current->depth_cm, current->theta, current->depth_cm - cum_layer_thickness_cm[layer_num]);
-	  //printf("current_next = %6.12f \n", current->next->theta);
+
 	  double current_mass_this_layer =  mbal_Z_correction * (theta_new - current->theta) + (current->depth_cm - cum_layer_thickness_cm[layer_num])*(current->theta - current->next->theta);
-	  //printf("A1x = %lf %lf %lf \n", mbal_Z_correction, theta_new, current->theta);
-	  //printf ("current_mass = %lf \n", current_mass_this_layer);
-	  //printf ("A1x = %6.12f\n",  current->depth_cm );
+
 	  // spread the mass by the space (Mass = Depth * space)
 	  // Q : can this depth ever get greater than the next layer depth??
 	  current->depth_cm = cum_layer_thickness_cm[layer_num] + current_mass_this_layer / (current->theta - current->next->theta);
 	  
-	  //printf ("A1y = %6.12f \n", current->depth_cm);
 	  current->theta = theta_new;
 
 	  int soil_num = soil_type[current->layer_num];
-	  //printf("in else: = %lf %d \n", current->depth_cm, soil_num);
-	  double theta_e   = soil_properties[soil_num].theta_e;
-	  double theta_r   = soil_properties[soil_num].theta_r;
-	  double vg_a      = soil_properties[soil_num].vg_alpha_per_cm;
-	  double vg_m      = soil_properties[soil_num].vg_m;
-	  double vg_n      = soil_properties[soil_num].vg_n;
-	  double Ksat_cm_per_s  = soil_properties[soil_num].Ksat_cm_per_s;
 	  
-	  double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	  current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-	  current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m);
-	  //listPrint();
-	  //abort();
-	}
-	/*****/
-
-	/*
-	next->theta = current->theta;
-     	listPrint();
-	current = listDeleteFront(current->front_num);
-	int num_fronts = listLength();
-	printf("M3 = %lf %lf %lf %lf \n", theta_new, current->psi_cm*10,cum_layer_thickness_cm[layer_num]+mbal_Z_correction, mbal_Z_correction);
-	//abort();
-	listPrint();
-	//struct wetting_front *current_temp = current;
-	struct wetting_front *current_temp = current;
-	current = listInsertFrontAtDepth(num_fronts, cum_layer_thickness_cm,cum_layer_thickness_cm[layer_num]+mbal_Z_correction, theta_new);
-	//current = listInsertFront(cum_layer_thickness_cm[layer_num]+mbal_Z_correction,theta_new, current->front_num+1,layer_num+1,false);
-	listPrint();
-	printf("HERE1 \n");
-	if (current != NULL) {
-	// checkpoint # AJ how to compute K_cm_per_s after merging
-	double next_Se = calc_Se_from_theta(theta_new,next_theta_e,next_theta_r);
-	current->psi_cm = calc_h_from_Se(next_Se, next_vg_a, next_vg_m, next_vg_n);
-	//printf("V1 = %lf %lf \n", theta_new, current->psi_cm);
-	//current->K_cm_per_s = soil_properties[soil_num].Ksat_cm_per_s;
-	current->K_cm_per_s = calc_K_from_Se(next_Se, Ksat_cm_per_s, next_vg_m); // AJ - K_temp in python version for 1st layer
-	printf("HERE2 \n");
-	next->psi_cm = current->psi_cm;
-	listPrint();
-	}
-	else {
-	  printf("HERE2 \n");
-	  current = current_temp->next;
-	  printf("current = %6.12f %6.12f %6.12f\n", current->depth_cm, current->theta, current->depth_cm - cum_layer_thickness_cm[layer_num]);
-	  printf("current_next = %6.12f \n", current->next->theta);
-	  double current_mass_this_layer =  mbal_Z_correction * (theta_new - current->theta) + (current->depth_cm - cum_layer_thickness_cm[layer_num])*(current->theta - current->next->theta);
-	  printf("A1x = %lf %lf %lf ", mbal_Z_correction, theta_new, current->theta);
-	  printf ("current_mass = %lf \n", current_mass_this_layer);
-	  current->depth_cm = cum_layer_thickness_cm[layer_num] + current_mass_this_layer / (current->theta - current->next->theta);
-	  current->theta = theta_new;
-
-	  int soil_num = soil_type[current->layer_num];
-	  printf("in else: = %lf %d \n", current->depth_cm, soil_num);
-	  double theta_e   = soil_properties[soil_num].theta_e;
-	  double theta_r   = soil_properties[soil_num].theta_r;
-	  double vg_a      = soil_properties[soil_num].vg_alpha_per_cm;
-	  double vg_m      = soil_properties[soil_num].vg_m;
-	  double vg_n      = soil_properties[soil_num].vg_n;
-	  double Ksat_cm_per_s  = soil_properties[soil_num].Ksat_cm_per_s;
+	  double theta_e_k   = soil_properties[soil_num].theta_e;
+	  double theta_r_k   = soil_properties[soil_num].theta_r;
+	  double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
+	  double vg_m_k      = soil_properties[soil_num].vg_m;
+	  double vg_n_k      = soil_properties[soil_num].vg_n;
+	  double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s;
 	  
-	  double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	  current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-	  current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m);	
-	  //listPrint();
-	  //abort();
-	  }*/
+	  double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
+	  current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
+	  current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);
+	}
+	
       }
-
+      // case wetting front moving (no merging) within a layer; just update values (check if this is actually needed)
+      /**********************************************************/
       else if (current->depth_cm < next->depth_cm && current->to_bottom == false) {
 	//printf("A3: merging time ............ %lf \n",cum_layer_thickness_cm[layer_num]);
 	// wetting front moving within a layer; update values
-	double theta_e   = soil_properties[soil_num].theta_e;
-	double theta_r   = soil_properties[soil_num].theta_r;
-	double vg_a      = soil_properties[soil_num].vg_alpha_per_cm;
-	double vg_m      = soil_properties[soil_num].vg_m;
-	double vg_n      = soil_properties[soil_num].vg_n;
-	double Ksat_cm_per_s  = soil_properties[soil_num].Ksat_cm_per_s;
+	double theta_e_k   = soil_properties[soil_num].theta_e;
+	double theta_r_k   = soil_properties[soil_num].theta_r;
+	double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
+	double vg_m_k      = soil_properties[soil_num].vg_m;
+	double vg_n_k      = soil_properties[soil_num].vg_n;
+	double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s;
 
-	double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-	current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m);	
+	double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
+	current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
+	current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);	
       }
 
+      // case wetting front stationary (not moving) and the deepest wetting front in the layer, again just update values
+      /**********************************************************/
       else if (current->to_bottom == true) {
-	//printf("A4: merging time ............ %lf \n",cum_layer_thickness_cm[layer_num]);
-	//listPrint();
-	// wetting front moving within a layer; update values
-	double theta_e   = soil_properties[soil_num].theta_e;
-	double theta_r   = soil_properties[soil_num].theta_r;
-	double vg_a      = soil_properties[soil_num].vg_alpha_per_cm;
-	double vg_m      = soil_properties[soil_num].vg_m;
-	double vg_n      = soil_properties[soil_num].vg_n;
-	double Ksat_cm_per_s  = soil_properties[soil_num].Ksat_cm_per_s;
+	double theta_e_k   = soil_properties[soil_num].theta_e;
+	double theta_r_k   = soil_properties[soil_num].theta_r;
+	double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
+	double vg_m_k      = soil_properties[soil_num].vg_m;
+	double vg_n_k      = soil_properties[soil_num].vg_n;
+	double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s;
 
-	double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	//double Se = calc_Se_from_theta(next->theta,theta_e,theta_r);
-	/*
-	if (next_to_next == NULL)
-	  Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	else
-	  Se = calc_Se_from_theta(next->theta,theta_e,theta_r);
-	*/
-	current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-	current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m);
-	
-	//printf("++ Psi layer = %lf %lf %lf %lf %lf %lf %lf %lf \n", theta_e, theta_r, vg_n, vg_m, vg_a, current->depth_cm, current->theta, current->psi_cm);
-	//listPrint();
+	double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
+
+	current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
+	current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);
       }
       
-      // wetting front at the last layer
+      // case wetting front is the deepest one in the last layer (most deepested wetting front in the domain)
+      /**********************************************************/
       if (next_to_next == NULL && current->depth_cm > cum_layer_thickness_cm[layer_num]) {
-	//abort();
-	//listPrint();
-	//double delta_theta = current->theta - next->theta;
-	//double delta_depth = current->depth_cm - next->depth_cm;
 
 	//  this is the water leaving the system through the bottom of the soil
 	*ponded_depth_cm = (current->theta - next->theta) *  (current->depth_cm - next->depth_cm);
-	//printf("next to next is null %lf\n", *ponded_depth_cm);
-	//abort();
-	// checkpoint# AJ
-	double theta_e   = soil_properties[soil_num].theta_e;
-	double theta_r   = soil_properties[soil_num].theta_r;
-	double vg_a      = soil_properties[soil_num].vg_alpha_per_cm;
-	double vg_m      = soil_properties[soil_num].vg_m;
-	double vg_n      = soil_properties[soil_num].vg_n;
-	double Ksat_cm_per_s  = soil_properties[soil_num].Ksat_cm_per_s;
+	double theta_e_k   = soil_properties[soil_num].theta_e;
+	double theta_r_k   = soil_properties[soil_num].theta_r;
+	double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
+	double vg_m_k      = soil_properties[soil_num].vg_m;
+	double vg_n_k      = soil_properties[soil_num].vg_n;
+	double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s;
 	
 	next->theta = current->theta;
-	double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	next->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-	next->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m);
-	//printf("A30 \n");
+	double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
+	next->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
+	next->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);
 	listDeleteFront(current->front_num);
       }
 
 
     }
-
-    // **************************** MERGING WETTING FRONT ********************************
-
-    // check when the velocity of the front becomes zero
-    
-    //break;
-    //current = next;
    
-  } // for loop ends here
-  
-  //while(current != NULL);
+  }
+  /*******************************************************************/
+  // end of the for loop
+  /*******************************************************************/
 
-  //l = listLength();
+  
+  // reset current to head to fix any mass balance issues and dry-over-wet wetting fronts conditions
   current = head;
   next = current->next;
-  //printf("print after merge \n");
-  //listPrint();
+
   double mass_change = 0.0;
   
   for (int l=1; l != listLength(); l++) {
+    
     if (next != NULL) {
-      //printf("A3: merging loop ............ %lf \n", current->depth_cm);
       struct wetting_front *next_to_next = listFindFront(l+2,NULL);
       /*
 	// this code needs to be tested again for a drier wetting front on top on a wetting front when AET is zero.
@@ -741,66 +648,44 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 	//abort();
 	
 	}*/
-      
+
+
       // this part fixes thetas when AET caused upper wetting front drier than the lower wetting front
-      if ( (current->theta < next->theta) && (current->layer_num == next->layer_num)) {
-	int layer_numA = current->layer_num;
-	//printf("deleting front %d \n",layer_numA);
-	//listPrint();
-	//abort();
-	//int num_soil_layers = 3; // hacked
-	double mass_before=lgar_calc_mass_bal(0,cum_layer_thickness_cm);
-	//double current_mass_this_layer = next->depth_cm * (next->theta - current->theta) + current->depth_cm*(current->theta - next_to_next->theta);
-	//printf ("C1 = %d %lf \n", current->front_num, current->depth_cm);
+      /***************************************************/
+      
+      if ( (current->theta < next->theta) && (current->layer_num == next->layer_num) ) {
+	int layer_num_k = current->layer_num;
+	double mass_before = lgar_calc_mass_bal(0,cum_layer_thickness_cm);
+
 	current = listDeleteFront(current->front_num);
-	//printf ("C2 = %d %lf \n", current->front_num, current->depth_cm);
-	if (layer_numA > 1) {
-	  //listPrint();
-	  int soil_numA    = soil_type[current->layer_num];
-	  double theta_e   = soil_properties[soil_numA].theta_e;
-	  double theta_r   = soil_properties[soil_numA].theta_r;
-	  double vg_a      = soil_properties[soil_numA].vg_alpha_per_cm;
-	  double vg_m      = soil_properties[soil_numA].vg_m;
-	  double vg_n      = soil_properties[soil_numA].vg_n;
-	  double Ksat_cm_per_s  = soil_properties[soil_numA].Ksat_cm_per_s;
-	  double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	  //printf("A4_theta = %lf \n", current->psi_cm);
-	  current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-	  //printf("A5_theta = %lf \n", current->psi_cm);
-	  //abort();
-	  struct wetting_front *current_local = head;
-	  //struct wetting_front current_local = current;
+	// this needs to be revised
+	if (layer_num_k > 1) {
+	  int soil_num_k     = soil_type[current->layer_num];
+	  double theta_e_k   = soil_properties[soil_num_k].theta_e;
+	  double theta_r_k   = soil_properties[soil_num_k].theta_r;
+	  double vg_a_k      = soil_properties[soil_num_k].vg_alpha_per_cm;
+	  double vg_m_k      = soil_properties[soil_num_k].vg_m;
+	  double vg_n_k      = soil_properties[soil_num_k].vg_n;
+	  double Ksat_cm_per_s_k  = soil_properties[soil_num_k].Ksat_cm_per_s;
+	  double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
+
+	  current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
 	  
-	  while (current_local->layer_num < layer_numA) {
-	    int soil_numB    = soil_type[current_local->layer_num];
-	    theta_e   = soil_properties[soil_numB].theta_e;
-	    theta_r   = soil_properties[soil_numB].theta_r;
-	    vg_a      = soil_properties[soil_numB].vg_alpha_per_cm;
-	    vg_m      = soil_properties[soil_numB].vg_m;
-	    vg_n      = soil_properties[soil_numB].vg_n;
-	    double Se_l = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	    current_local->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-	    current_local->theta = calc_theta_from_h(current->psi_cm, vg_a, vg_m, vg_n,theta_e,theta_r);
+	  struct wetting_front *current_local = head;
+	  
+	  while (current_local->layer_num < layer_num_k) {
+	    int soil_num_k1    = soil_type[current_local->layer_num];
+	    theta_e_k   = soil_properties[soil_num_k1].theta_e;
+	    theta_r_k   = soil_properties[soil_num_k1].theta_r;
+	    vg_a_k      = soil_properties[soil_num_k1].vg_alpha_per_cm;
+	    vg_m_k      = soil_properties[soil_num_k1].vg_m;
+	    vg_n_k      = soil_properties[soil_num_k1].vg_n;
+	    double Se_l = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
+	    
+	    current_local->psi_cm = calc_h_from_Se(Se_l, vg_a_k, vg_m_k, vg_n_k);
+	    current_local->theta = calc_theta_from_h(current->psi_cm, vg_a_k, vg_m_k, vg_n_k,theta_e_k,theta_r_k);
 	    current_local = current_local->next;
-	    //printf ("H1 = %lf \n", current->theta);
-	    //listPrint();
-	    //abort();
 	    }
-	  /*
-	  for (int k=1; k< layer_numA; k++) {
-	    int soil_numB    = soil_type[k];
-	    double theta_e   = soil_properties[soil_numB].theta_e;
-	    double theta_r   = soil_properties[soil_numB].theta_r;
-	    double vg_a      = soil_properties[soil_numB].vg_alpha_per_cm;
-	    double vg_m      = soil_properties[soil_numB].vg_m;
-	    double vg_n      = soil_properties[soil_numB].vg_n;
-	    double Se_l = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	    current->theta = calc_theta_from_h(current->psi_cm, vg_a, vg_m, vg_n,theta_e,theta_r);
-	    printf ("H1 = %lf \n", current->theta);
-	    printf("this part has not been debug, so aborting here to double check it's working");
-	    abort();
-	  }
-	  */
 	}
 
 	double mass_after=lgar_calc_mass_bal(0,cum_layer_thickness_cm);
@@ -814,9 +699,9 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
       next = current->next;
     }
   }
-  //listPrint();
-  // adjust AET based on updated mass balance
-  //printf("AET (before) = %0.6e %0.6e \n", *AET_demand_cm , mass_change);
+  
+  // adjust AET based on updated mass balance, this ensures to water/mass is lost from the system
+  
   if (*AET_demand_cm >0 && mass_change !=0) {
     if (mass_change > 0)
       *AET_demand_cm -= mass_change;
@@ -826,7 +711,6 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
       abort();
     }
   }
-  //printf("AET (after) = %0.6e %0.6e \n", *AET_demand_cm , mass_change);
 
 
   // do a general mass check again
@@ -837,33 +721,30 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
   //printf("Mass Balance = %6.12f %6.12f %6.12f %6.12f\n" , mass_before_move, mass_after_move, *AET_demand_cm, precip_mass_to_add);
 
   *AET_demand_cm += mass_correction;
+
+
+  /***********************************************/
   // make sure all psi values are updated
   current = head;
   
   for (int l=1; l != listLength(); l++) {
 
-    int soil_numA    = soil_type[current->layer_num];
+    int soil_num_k    = soil_type[current->layer_num];
 	
-    double theta_e   = soil_properties[soil_numA].theta_e;
-    double theta_r   = soil_properties[soil_numA].theta_r;
-    double vg_a      = soil_properties[soil_numA].vg_alpha_per_cm;
-    double vg_m      = soil_properties[soil_numA].vg_m;
-    double vg_n      = soil_properties[soil_numA].vg_n;
-    double Ksat_cm_per_s  = soil_properties[soil_numA].Ksat_cm_per_s;
-    double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
-    current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
+    double theta_e_k   = soil_properties[soil_num_k].theta_e;
+    double theta_r_k   = soil_properties[soil_num_k].theta_r;
+    double vg_a_k      = soil_properties[soil_num_k].vg_alpha_per_cm;
+    double vg_m_k      = soil_properties[soil_num_k].vg_m;
+    double vg_n_k      = soil_properties[soil_num_k].vg_n;
+    double Ksat_cm_per_s_k  = soil_properties[soil_num_k].Ksat_cm_per_s;
+    double Se = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
+    current->psi_cm = calc_h_from_Se(Se, vg_a_k, vg_m_k, vg_n_k);
     
-    current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m); // A
+    current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s_k, vg_m_k);
 
     current = current->next;
   }
   
-  //if ( number_of_wetting_fronts == 4)
-  //    abort();
-  //listPrintC(*state_previous);
-  //printf("After moving \n");
-  //listPrint();
-  //abort();
 }
 
 
