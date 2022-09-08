@@ -33,7 +33,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I/usr/X11/include")
 # add the executable
 message("CMAKE_C_FLAGS = $CMAKE_C_FLAGS")
 
-add_executable(xlgar ./src/main.c ./src/lgar_routines.c ./src/soil_funcs.c ./src/linked_list.c ./src/mem_funcs.c ./src/util_funcs.c)
+add_executable(xlgar ./src/main.c ./src/lgar.c ./src/soil_funcs.c ./src/linked_list.c ./src/mem_funcs.c ./src/util_funcs.c)
 
 #add_library(xlgarlib ./smc_coupler/src/bmi_soil_moisture_profile.cxx ./smc_coupler/src/soil_moisture_profile.cxx ./smc_coupler/include/bmi_soil_moisture_profile.hxx ./smc_coupler/include/soil_moisture_profile.hxx)
 

@@ -79,13 +79,16 @@ extern int wetting_front_free_drainage() {
 #endif
 }
 
-extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf_free_drainage_demand, double old_mass, int num_layers , double *AET_demand_cm, double *cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties)
+extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf_free_drainage_demand, double old_mass,
+			     int num_layers, double *AET_demand_cm, double *cum_layer_thickness_cm, int *soil_type,
+			     struct soil_properties_ *soil_properties)
 {
 
 #if VERBOSE > 1
   printf("wetting fronts before moving \n");
   listPrint();
 #endif
+  
   struct wetting_front *current;
   struct wetting_front *next;
   struct wetting_front *previous;
@@ -125,7 +128,8 @@ extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf
 
   /* ************************************************************ */
   // main loop advancing all wetting fronts and dooing the mass balance
-  
+
+  //lgar_move_wetting_fronts()
   for (int l= number_of_wetting_fronts; l != 0; l--) {
 
 #if VERBOSE > 1

@@ -1,10 +1,6 @@
 #include "../include/all.h"  // <--- This header file contains all function prototypes and other global definitions.
 
 
-/* this is a block comment, that starts with a slash-star, and runs until the next star-slash (see two lines down)
-12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
-*/
-
 // this is a C++ style comment that tells the compiler to ignore the rest of the line.
 
 //#####################################################################################################################
@@ -54,7 +50,6 @@
 bool debug_flag=TRUE;         // TODO set to TRUE to enable screen printing debugging info
 bool quiet_flag=FALSE;         // TODO set to TRUE to have code print nothing to screen
 bool illiterate_flag=FALSE;    // TODO set to TRUE to make code write nothing to disk
-
 
 
 /* global variables: */
