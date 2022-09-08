@@ -133,10 +133,6 @@ extern double lgar_insert_water(double *ponded_depth, double *volin_this_timeste
 extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf_free_drainage_demand, double old_mass, int number_of_layers, double *actual_ET_demand, double *cum_layer_thickness_cm, int *soil_type_by_layer, struct soil_properties_ *soil_properties);
 
 extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm, double new_mass, double prior_mass,
-				      double theta_below, double theta_below_above, double wf_depth_cm,
-				      double layer_thickness_cm, struct soil_properties_ *soil_properties);
-
-extern double lgar_theta_mass_balance_2(int layer_num, int soil_num, double psi_cm, double new_mass, double prior_mass,
 					double depth_cm_old, double *delta_theta,
 					double *layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
 
