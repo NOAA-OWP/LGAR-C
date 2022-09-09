@@ -130,12 +130,16 @@ extern void lgar_create_surfacial_front(double *ponded_depth_cm, double *volin, 
                                         double *cum_layer_thickness_cm, int nint, double dt);
 extern double lgar_insert_water(double *ponded_depth, double *volin_this_timestep, double precip_timestep_cm, double dry_depth, int nint, double time_step_s, int wf_free_drainge_demand,
                               int *soil_type, struct soil_properties_ *soil_properties, double *cum_layer_thickness_cm);
-extern void lgar_move_fronts(double *ponded_depth_cm, double time_step_s, int wf_free_drainage_demand, double old_mass, int number_of_layers, double *actual_ET_demand, double *cum_layer_thickness_cm, int *soil_type_by_layer, struct soil_properties_ *soil_properties);
+extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s, int wf_free_drainage_demand, double old_mass, int number_of_layers, double *actual_ET_demand, double *cum_layer_thickness_cm, int *soil_type_by_layer, struct soil_properties_ *soil_properties);
 
 extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm, double new_mass, double prior_mass,
 					double depth_cm_old, double *delta_theta,
 					double *layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
 
+extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *current, double* cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
+
+extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
+  
 extern int wetting_front_free_drainage();
 /********************************************************************/
 /*Other function prototypes for doing hydrology calculations, etc.  */
