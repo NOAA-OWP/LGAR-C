@@ -68,6 +68,17 @@ extern struct wetting_front *head;  // GLOBALLY DEFINED pointer to the first lin
                                     // in subroutines a pain of referencing.  Since it is just one thing, 
                                     // making it global just makes everything easier.
 
+typedef struct lgar_model {
+  struct wetting_front wetting_front;
+  struct soil_properties_ soil_properties;
+} lgar_model;
+
+struct lgar_bmi_parameters {
+  int shape[3];
+  double spacing[8];
+  double origin[3];
+};
+
 /* next, function prototypes. */
 /* function prototypes provide the compiler with variable types and order in the calling statement */
 /* any time a function is called, it must contain the same number, order, and type of variables    */

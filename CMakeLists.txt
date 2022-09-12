@@ -28,21 +28,20 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0")
 # -I option adds path to find header files
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I/usr/X11/include")
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/usr/X11/include")
+
 #set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /usr/X11/lib)
 #set(CMAKE_C_FLAGS "/usr/X11/include")
 # add the executable
-message("CMAKE_C_FLAGS = $CMAKE_C_FLAGS")
+message("CXXLIBS" ${CMAKE_CXX_FLAGS})
 
-add_executable(xlgar ./src/main.c ./src/lgar.c ./src/soil_funcs.c ./src/linked_list.c ./src/mem_funcs.c ./src/util_funcs.c)
+#add_executable(xlgar ./src/main.c ./src/lgar.c ./src/soil_funcs.c ./src/linked_list.c ./src/mem_funcs.c ./src/util_funcs.c)
 
-#add_library(xlgarlib ./smc_coupler/src/bmi_soil_moisture_profile.cxx ./smc_coupler/src/soil_moisture_profile.cxx ./smc_coupler/include/bmi_soil_moisture_profile.hxx ./smc_coupler/include/soil_moisture_profile.hxx)
+add_executable(xlgar ./src/bmi_main_lgar.cxx ./src/bmi_lgar.cxx ./src/lgar.c ./src/soil_funcs.c ./src/linked_list.c ./src/mem_funcs.c ./src/util_funcs.c)
+
+#add_library(cfelib ./smc_coupler/src/bmi_soil_moisture_profile.cxx ./smc_coupler/src/soil_moisture_profile.cxx ./smc_coupler/include/bmi_soil_moisture_profile.hxx ./smc_coupler/include/soil_moisture_profile.hxx)
 
 
-#target_link_libraries(${exe_name} LINK_PUBLIC cfelib)
 
 target_link_libraries(xlgar PRIVATE m)
-#LINK_DIRECTORIES(/usr/X11/include)
-#LINK_DIRECTORIES(/usr/X11/lib)
-#link_libraries(/usr/X11/include)
-#link_libraries(/usr/X11/lib)
-#target_link_libraries(xlgar PRIVATE "/usr/X11/include")
+
