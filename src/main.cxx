@@ -1,5 +1,5 @@
-#include "../include/all.h"  // <--- This header file contains all function prototypes and other global definitions.
-
+#include "../include/all.hxx"  // <--- This header file contains all function prototypes and other global definitions.
+#include <cstring>
 
 // this is a C++ style comment that tells the compiler to ignore the rest of the line.
 
@@ -58,7 +58,7 @@ struct wetting_front *head = NULL;  //<- this pointer stores the address in memo
                                     //   list containing all the wetting fronts.  That address is called "head".  
                                     //   The contents of struct wetting_front are defined in "all.h"
 
-struct wetting_front *head_previous = NULL;
+struct wetting_front *state_previous = NULL;
 /*################################################*/
 /*################################################*/
 /*################################################*/
@@ -68,7 +68,7 @@ struct wetting_front *head_previous = NULL;
 /*################################################*/
 /*################################################*/
  
-int main(int argc, char *argv) 
+int main(int argc, char **argv) 
 {
 
 FILE *in_forcing_fptr;    // pointer to forcing data file

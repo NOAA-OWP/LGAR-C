@@ -5,10 +5,10 @@ using namespace std;
 
 #include <string.h>
 #include "../bmi/bmi.hxx"
-#include "all.h"
+#include "all.hxx"
 #include <stdexcept>
 
-namespace lgar {
+namespace bmi_lgar {
 class NotImplemented : public std::logic_error {
   public:
   NotImplemented() : std::logic_error("Not Implemented Function in LGAR") { };
@@ -81,9 +81,9 @@ class BmiLGAR : public bmixx::Bmi {
     void GetGridNodesPerFace(const int grid, int *nodes_per_face);
   private:
   //soil_moisture_profile::smp_parameters* model;
-  lgar_model* model;
-    static const int input_var_name_count = 3;
-    static const int output_var_name_count = 2;
+  struct lgar_model_ *model;
+  static const int input_var_name_count = 3;
+  static const int output_var_name_count = 2;
 
     std::string input_var_names[3];
     std::string output_var_names[2];

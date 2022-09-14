@@ -1,4 +1,7 @@
-#include "X_stuff.h"
+#ifndef XPLOT_H_INCLUDED
+#define XPLOT_H_INCLUDED
+
+#include "../include/X_stuff.hxx"
 
 
 extern void   xplot(int shade,int num_fronts_to_plot, int xorg, int yorg, int *topleftx, int *toplefty,
@@ -46,3 +49,4 @@ extern void   xplot(int shade,int num_fronts_to_plot, int xorg, int yorg, int *t
       } 
    return;
 }
+#endif

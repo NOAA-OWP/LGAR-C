@@ -1,6 +1,18 @@
-#include "../include/all.h"
+#ifndef LGAR_CXX_INCLUDED
+#define LGAR_CXX_INCLUDED
 
-#define VERBOSE 0
+#include "../include/all.hxx"
+//#include "../include/lgar.hxx"
+#include <iostream>
+#include <fstream>
+//#include <stdio.h>
+//#include <stdlib.h>
+#include <string.h>
+#include <sstream>
+
+using namespace std;
+
+#define VERBOSE 2
 /*##################################################*/
 /*##################################################*/
 /*##################################################*/
@@ -46,16 +58,286 @@
 // depth
 
 
-//
-extern void initialize()
+extern void lgar_initialize(string config_file, struct lgar_model_ *model)
+{
+  
+  std::cout<<" config = "<<config_file<<"\n";
+  InitFromConfigFile(config_file, model);
+  //printf("config = %s \n", config_file);
+}
+
+
+extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
+{ 
+  ifstream fp; //FILE *fp = fopen(config_file.c_str(),"r");
+  fp.open(config_file);
+  
+  bool is_layer_thickness_set = false;
+  bool is_initial_psi_set = false;
+  bool is_timestep_set = false;
+  bool is_forcing_resolution_set = false;
+  bool is_layer_soil_type_set = false;
+  bool is_wilting_point_psi_cm_set = false;
+  bool is_soil_params_file_set = false;
+  bool is_max_soil_types_set = false;
+  
+  string soil_params_file;
+  
+  while (fp) {
+
+    string line;
+    string param_key, param_value, param_unit;
+    
+    getline(fp, line);
+   
+    int loc_eq = line.find("=") + 1;
+    int loc_u = line.find("[");
+    param_key = line.substr(0,line.find("="));
+
+    bool is_unit = line.find("[") != string::npos;
+
+    if (is_unit)
+      param_unit = line.substr(loc_u,line.find("]")+1);
+    else
+      param_unit = "";
+
+    param_value = line.substr(loc_eq,loc_u - loc_eq);
+    
+    if (param_key == "layer_thickness") {
+      vector<double> vec = ReadVectorData(param_value);
+      
+      model->lgar_bmi_params.layer_thickness_cm = new double[vec.size()+1];
+      model->lgar_bmi_params.cum_layer_thickness_cm = new double[vec.size()+1];
+
+      model->lgar_bmi_params.layer_thickness_cm[0] = 0.0; // the value at index 0 is never used
+      // calculate the cumulative (absolute) depth from land surface to bottom of each soil layer
+      model->lgar_bmi_params.cum_layer_thickness_cm[0] = 0.0;
+      
+      for (unsigned int layer=1; layer <= vec.size(); layer++) {
+	//std::cout<<"vec = "<<layer<<" "<<vec[layer-1]<<"\n";
+      	model->lgar_bmi_params.layer_thickness_cm[layer] = vec[layer-1];
+	model->lgar_bmi_params.cum_layer_thickness_cm[layer] = model->lgar_bmi_params.cum_layer_thickness_cm[layer-1] + vec[layer-1];
+      }
+      
+      model->lgar_bmi_params.num_layers = vec.size();
+ 
+      model->lgar_bmi_params.soil_depth = vec[model->lgar_bmi_params.num_layers-1];
+      
+      is_layer_thickness_set = true;
+      for (int i=0; i<4; i++)
+      	std::cout<<"values "<<model->lgar_bmi_params.layer_thickness_cm[i]<<" "<<model->lgar_bmi_params.cum_layer_thickness_cm[i]<<"\n";
+      continue;
+    }
+    else if (param_key == "layer_soil_type") {
+      vector<double> vec = ReadVectorData(param_value);
+      
+      model->lgar_bmi_params.layer_soil_type = new int[vec.size()+1];
+
+      // calculate the cumulative (absolute) depth from land surface to bottom of each soil layer
+      model->lgar_bmi_params.cum_layer_thickness_cm[0] = 0;
+      
+      for (unsigned int layer=1; layer <= vec.size(); layer++) {
+	//std::cout<<"vec = "<<layer<<" "<<vec[layer-1]<<"\n";
+      	model->lgar_bmi_params.layer_soil_type[layer] = vec[layer-1];
+      }
+
+      is_layer_soil_type_set = true;
+      for (int i=0; i<4; i++)
+      	std::cout<<"soiltype "<<model->lgar_bmi_params.layer_soil_type[i]<<"\n";
+      continue;
+    }
+    else if (param_key == "initial_psi") {
+      model->lgar_bmi_params.initial_psi_cm = stod(param_value);
+      is_initial_psi_set = true;
+      continue;
+    }
+    else if (param_key == "max_soil_types") {
+      model->lgar_bmi_params.num_soil_types = stod(param_value);
+      is_max_soil_types_set = true;
+      continue;
+    }
+    else if (param_key == "soil_params_file") {
+      soil_params_file = param_value;
+      is_soil_params_file_set = true;
+      continue;
+    }
+    else if (param_key == "timestep") {
+      model->lgar_bmi_params.timestep_h = stod(param_value);
+      
+      if (param_unit == "[s]" || param_unit == "[sec]" || param_unit == "") // defalut time unit is seconds
+	model->lgar_bmi_params.timestep_h /= 3600; // convert to hours
+      else if (param_unit == "[min]" || param_unit == "[minute]")
+	model->lgar_bmi_params.timestep_h /= 60; // convert to hours
+      else if (param_unit == "[h]" || param_unit == "[hr]") 
+	model->lgar_bmi_params.timestep_h /= 1.0; // convert to hours
+      
+      assert (model->lgar_bmi_params.timestep_h > 0);
+      is_timestep_set = true;
+      continue;
+    }
+    else if (param_key == "forcing_resolution") {
+      model->lgar_bmi_params.forcing_resolution_h = stod(param_value);
+
+      if (param_unit == "[s]" || param_unit == "[sec]" || param_unit == "") // defalut time unit is seconds
+	model->lgar_bmi_params.timestep_h /= 3600; // convert to hours
+      else if (param_unit == "[min]" || param_unit == "[minute]")
+	model->lgar_bmi_params.timestep_h /= 60; // convert to hours
+      else if (param_unit == "[h]" || param_unit == "[hr]") 
+	model->lgar_bmi_params.timestep_h /= 1.0; // convert to hours
+      
+      assert (model->lgar_bmi_params.forcing_resolution_h > 0);
+      is_forcing_resolution_set = true;
+      continue;
+    }
+    
+  }
+  
+  fp.close();
+
+  if(!is_max_soil_types_set)
+     model->lgar_bmi_params.num_soil_types = 15;          // maximum number of soil types defaults to 15
+  
+  if(is_soil_params_file_set) {
+    //allocate memory to create an array of structures to hold the soils properties data.
+    //model->soil_properties = (struct soil_properties_*) malloc((model->lgar_bmi_params.num_layers+1)*sizeof(struct soil_properties_));
+    model->soil_properties = new struct soil_properties_[model->lgar_bmi_params.num_layers+1];
+    int num_soil_types = model->lgar_bmi_params.num_soil_types;
+    double wilting_point_psi_cm = 50;
+    lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types, wilting_point_psi_cm, model->soil_properties);
+    //std::cout<<"theta_e = "<<model->soil_properties[13].theta_e<<"\n";
+  }  
+  
+  if (!is_layer_thickness_set) {
+    stringstream errMsg;
+    errMsg << "layer thickness not set in the config file "<< config_file << "\n";
+    throw runtime_error(errMsg.str());
+  }
+
+  if (!is_initial_psi_set) {
+    stringstream errMsg;
+    errMsg << "initial psi not set in the config file "<< config_file << "\n";
+    throw runtime_error(errMsg.str());
+  }
+  
+  if (!is_timestep_set) {
+    stringstream errMsg;
+    errMsg << "timestep not set in the config file "<< config_file << "\n";
+    throw runtime_error(errMsg.str());
+  }
+  
+  if (!is_forcing_resolution_set) {
+    stringstream errMsg;
+    errMsg << "forcing resolution not set in the config file "<< config_file << "\n";
+    throw runtime_error(errMsg.str());
+  }
+  
+  if (!is_layer_soil_type_set) {
+    stringstream errMsg;
+    errMsg << "layer soil type not set in the config file "<< config_file << "\n";
+    throw runtime_error(errMsg.str());
+  }
+
+  // check if the size of the input data is consistent
+  //assert (parameters->ncells > 0);
+  
+
+  model->lgar_bmi_params.forcing_interval = int(model->lgar_bmi_params.forcing_resolution_h/model->lgar_bmi_params.timestep_h+1.0e-08); // add 1.0e-08 to prevent truncation error
+
+  InitializeWettingFronts(model->lgar_bmi_params.num_layers, model->lgar_bmi_params.initial_psi_cm, model->lgar_bmi_params.layer_soil_type, model->lgar_bmi_params.cum_layer_thickness_cm, model->soil_properties);
+
+#if VERBOSE > 1
+  printf("************* Initial conditions ******************** ");
+  listPrint();
+  printf("***************************************************** \n");
+#endif
+}
+
+
+//###################################################################
+// calculate the initial theta and wilting point moisture content
+// ffor the soil in each layer from initial_psi and assumed wilting point psi
+// and create initial fronts and include them in each of the soil layers
+extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm, struct soil_properties_ *soil_properties)
+{
+  int soil;
+  int front=0;
+  double Se, theta_init;
+  bool bottom_flag;
+  struct wetting_front *current;
+  
+  for(int layer=1;layer<=num_layers;layer++) {
+    front++;
+    
+    soil = layer_soil_type[layer];
+    theta_init = calc_theta_from_h(initial_psi_cm,soil_properties[soil].vg_alpha_per_cm,
+				   soil_properties[soil].vg_m,soil_properties[soil].vg_n,
+				   soil_properties[soil].theta_e,soil_properties[soil].theta_r);
+    
+    // the next lines create the initial moisture profile
+    bottom_flag=true;  // all intial wetting fronts are in contact with the bottom of the layer they exist in
+    // NOTE: The listInsertFront function does lots of stuff.
+    current = listInsertFront(cum_layer_thickness_cm[layer],theta_init,front,layer,bottom_flag);
+    current->psi_cm = initial_psi_cm;
+    Se = calc_Se_from_theta(current->theta,soil_properties[soil].theta_e,soil_properties[soil].theta_r);
+    current->K_cm_per_s = calc_K_from_Se(Se, soil_properties[soil].Ksat_cm_per_s, soil_properties[soil].vg_m);  // cm/s
+  
+  }
+  
+}
+
+/*
+Reads 1D data from the config file
+- used for reading soil discretization (1D)
+- used for reading layers depth from the surface if model `layered` is chosen
+*/
+
+extern vector<double>
+ReadVectorData(string key)
+{
+  int pos = 0;
+  string delimiter = ",";
+  vector<double> value(0.0);
+  string z1 = key;
+  
+  if (z1.find(delimiter) == string::npos) {
+    double v = stod(z1);
+    if (v == 0.0) {
+      stringstream errMsg;
+      errMsg << "soil_z (depth of soil reservior) should be greater than zero. It it set to "<< v << " in the config file "<< "\n";
+      throw runtime_error(errMsg.str());
+    }
+    
+    value.push_back(v);
+    
+  }
+  else {
+    while (z1.find(delimiter) != string::npos) {
+      pos = z1.find(delimiter);
+      string z_v = z1.substr(0, pos);
+
+      value.push_back(stod(z_v.c_str()));
+      
+      z1.erase(0, pos + delimiter.length());
+      if (z1.find(delimiter) == string::npos)
+	value.push_back(stod(z1));
+    }
+  }
+  
+  return value;
+}
+
+
+extern void lgar_update(struct lgar_model_ *lgar_model)
 {
 
 
 }
+
 // calculate precipitation mass that will be added to the layers
 extern double potential_infiltration()
 {
-  // in the main -- this should only be called for the condition (self.precip_data[i]>0)&(self.precip_data[i-1]>0) 
+  // in the main -- this should only be called for the condition (self.precip_data[i]>0)&(self.precip_data[i-1]>0)
+  return 0.0;
 
 }
 
@@ -84,6 +366,7 @@ extern int wetting_front_free_drainage() {
 #if VERBOSE > 1
   printf("wettign_front_free_drainage, layer_num = %d %d \n", wf_that_supplies_free_drainage_demand, current->layer_num);
 #endif
+  return  wf_that_supplies_free_drainage_demand;
 }
 
 // it moves wetting fronts, merge wetting fronts and does the mass balance correction if needed
@@ -1114,7 +1397,7 @@ do
  return sum;
 }
 
-extern void lgar_read_vG_param_file(char *vG_param_file_name, int num_soil_types, double wilting_point_psi_cm,
+extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_types, double wilting_point_psi_cm,
                                     struct soil_properties_ *soil_properties)
 {
   //###################################################################
@@ -1140,9 +1423,11 @@ extern void lgar_read_vG_param_file(char *vG_param_file_name, int num_soil_types
   
   for(soil=1;soil<=num_soil_types;soil++)  // read the num_soil_types lines with data
     {
+
       fgets(jstr,255,in_vG_params_fptr);
       sscanf(jstr,"%s %lf %lf %lf %lf %lf %lf",soil_name,&theta_r,&theta_e,&vg_alpha_per_cm,&vg_n,&vg_m,&Ksat_cm_per_h);
       length=strlen(soil_name);
+      
       if(length>MAX_SOIL_NAME_CHARS)
 	{
 	  printf("While reading vG soil parameter file: %s, soil name longer than allowed.  Increase MAX_SOIL_NAME_CHARS\n",
@@ -1156,8 +1441,8 @@ extern void lgar_read_vG_param_file(char *vG_param_file_name, int num_soil_types
       soil_properties[soil].vg_alpha_per_cm = vg_alpha_per_cm; // cm^(-1)
       soil_properties[soil].vg_n            = vg_n;
       soil_properties[soil].vg_m            = vg_m;
-      soil_properties[soil].Ksat_cm_per_s   = Ksat_cm_per_h;  // convert from cm/h to cm/s
-      
+      soil_properties[soil].Ksat_cm_per_s   = Ksat_cm_per_h;
+
       soil_properties[soil].theta_wp = calc_theta_from_h(wilting_point_psi_cm, vg_alpha_per_cm,
 							 vg_m, vg_n, theta_e, theta_r);
       
@@ -1397,3 +1682,5 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   return theta;
   
 }
+
+#endif

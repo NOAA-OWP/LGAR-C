@@ -10,7 +10,7 @@
 #include <algorithm>
 #include "../bmi/bmi.hxx"
 #include "../include/bmi_lgar.hxx"
-#include "../include/all.h"
+#include "../include/all.hxx"
 //#include "../include/soil_moisture_profile.hxx"
 
 
@@ -18,7 +18,7 @@ void BmiLGAR::
 Initialize (std::string config_file)
 {
   if (config_file.compare("") != 0 ) {
-    this->model = new lgar_model;
+    this->model = new lgar_model_;
     //soil_moisture_profile::LGAR(config_file, model);
     lgar_initialize(config_file, model);
   }
@@ -29,7 +29,7 @@ void BmiLGAR::
 Update()
 {
   //  model->LGARUpdate();
-  LGARUpdate(model);
+  lgar_update(model);
 }
 
 
@@ -144,7 +144,7 @@ void BmiLGAR::
 GetGridShape(const int grid, int *shape)
 {
   if (grid == 2) {
-    shape[0] = this->model->shape[0];
+    shape[0] = this->model->lgar_bmi_params.shape[0];
   }
 }
 
@@ -153,7 +153,7 @@ void BmiLGAR::
 GetGridSpacing (const int grid, double * spacing)
 {
   if (grid == 0) {
-    spacing[0] = this->model->spacing[0];
+    spacing[0] = this->model->lgar_bmi_params.spacing[0];
   }
 }
 
@@ -162,7 +162,7 @@ void BmiLGAR::
 GetGridOrigin (const int grid, double *origin)
 {
   if (grid == 0) {
-    origin[0] = this->model->origin[0];
+    origin[0] = this->model->lgar_bmi_params.origin[0];
   }
 }
 
@@ -183,7 +183,7 @@ GetGridSize(const int grid)
   if (grid == 0 || grid == 1)
     return 1;
   else if (grid == 2)
-    return this->model->shape[0];
+    return this->model->lgar_bmi_params.shape[0];
   else
     return -1;
 }
@@ -202,28 +202,28 @@ GetGridType(const int grid)
 void BmiLGAR::
 GetGridX(const int grid, double *x)
 {
-  throw coupler::NotImplemented();
+  throw bmi_lgar::NotImplemented();
 }
 
 
 void BmiLGAR::
 GetGridY(const int grid, double *y)
 {
-  throw coupler::NotImplemented();
+  throw bmi_lgar::NotImplemented();
 }
 
 
 void BmiLGAR::
 GetGridZ(const int grid, double *z)
 {
-  throw coupler::NotImplemented();
+  throw bmi_lgar::NotImplemented();
 }
 
 
 int BmiLGAR::
 GetGridNodeCount(const int grid)
 {
-  throw coupler::NotImplemented();
+  throw bmi_lgar::NotImplemented();
   /*
   if (grid == 0)
     return this->model->shape[0];
@@ -236,42 +236,42 @@ GetGridNodeCount(const int grid)
 int BmiLGAR::
 GetGridEdgeCount(const int grid)
 {
-  throw coupler::NotImplemented();
+  throw bmi_lgar::NotImplemented();
 }
 
 
 int BmiLGAR::
 GetGridFaceCount(const int grid)
 {
-  throw coupler::NotImplemented();
+  throw bmi_lgar::NotImplemented();
 }
 
 
 void BmiLGAR::
 GetGridEdgeNodes(const int grid, int *edge_nodes)
 {
-  throw coupler::NotImplemented();
+  throw bmi_lgar::NotImplemented();
 }
 
 
 void BmiLGAR::
 GetGridFaceEdges(const int grid, int *face_edges)
 {
-  throw coupler::NotImplemented();
+  throw bmi_lgar::NotImplemented();
 }
 
 
 void BmiLGAR::
 GetGridFaceNodes(const int grid, int *face_nodes)
 {
-  throw coupler::NotImplemented();
+  throw bmi_lgar::NotImplemented();
 }
 
 
 void BmiLGAR::
 GetGridNodesPerFace(const int grid, int *nodes_per_face)
 {
-  throw coupler::NotImplemented();
+  throw bmi_lgar::NotImplemented();
 }
 
 
@@ -289,7 +289,7 @@ GetValue (std::string name, void *dest)
 
 void *BmiLGAR::
 GetValuePtr (std::string name)
-{
+{/*
   if (name.compare("soil_storage") == 0)
     return (void*)(&this->model->soil_storage);
   else if (name.compare("soil_storage_change") == 0)
@@ -307,7 +307,9 @@ GetValuePtr (std::string name)
     errMsg << "variable "<< name << " does not exist";
     throw std::runtime_error(errMsg.str());
     return NULL;
-  }
+    }*/
+  // delete it later
+  return NULL;
 }
 
 

@@ -1,4 +1,4 @@
-#include "../include/all.h"
+#include "../include/all.hxx"
 
 /*#########################################################*/
 /*#########################################################*/
@@ -58,8 +58,8 @@ extern struct wetting_front* listCopy(struct wetting_front* current)
     wf->dzdt_cm_per_s = current->dzdt_cm_per_s;
     wf->next = listCopy(current->next);
 
-    if (head_previous == NULL) 
-      head_previous = wf;
+    if (state_previous == NULL) 
+      state_previous = wf;
     return wf;
   }
 }
@@ -270,7 +270,7 @@ extern struct wetting_front* listDeleteFront(int front_num)
     }
   //listPrint();
   
-  if (current != NULL)
+  //if (current != NULL)
     //printf("deleted .................... %lf \n", current->depth_cm);
   
   return current;

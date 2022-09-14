@@ -7,12 +7,15 @@
 #include <float.h>
 #include <math.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string>
 #include <stddef.h>
 #include <assert.h>
 #include <stdbool.h>
-#include "X_stuff.h"
+#include <vector>
+//#include "X_stuff.hxx"
 #include <time.h>
+
+using namespace std;
 
 #define TRUE 1
 #define FALSE 0
@@ -68,16 +71,32 @@ extern struct wetting_front *head;  // GLOBALLY DEFINED pointer to the first lin
                                     // in subroutines a pain of referencing.  Since it is just one thing, 
                                     // making it global just makes everything easier.
 
-typedef struct lgar_model {
-  struct wetting_front wetting_front;
-  struct soil_properties_ soil_properties;
-} lgar_model;
-
 struct lgar_bmi_parameters {
   int shape[3];
   double spacing[8];
   double origin[3];
+  double *layer_thickness_cm;
+  int *layer_soil_type;  // allocate this to MAX_NUM_SOIL_LAYERS, integer equal to the soil type in each layer
+  int num_layers;  // number of actual soil layers
+  double *cum_layer_thickness_cm; // cumulative thickness of layers, allocate memory at run time
+  double soil_depth; //depth of the computational domain
+  double initial_psi_cm; // model initial (psi) condition
+  double timestep_h; // model timestep in hours
+  double forcing_resolution_h; // forcing resolution in hours
+  int forcing_interval;
+  int num_soil_types;          // must be less than or equal to MAX_NUM_SOIL_TYPES 
 };
+
+struct lgar_model_
+{
+  struct wetting_front wetting_front;
+  struct soil_properties_ *soil_properties;
+  struct lgar_bmi_parameters lgar_bmi_params;
+};
+
+
+
+extern struct lgar_model_ *lgar_model;
 
 /* next, function prototypes. */
 /* function prototypes provide the compiler with variable types and order in the calling statement */
@@ -107,10 +126,10 @@ extern void                     listReverseOrder(struct wetting_front** head_ref
 extern bool                     listFindLayer( struct wetting_front* link, int num_layers, 
                                                double *cum_layer_thickness_cm,
                                                int *lives_in_layer, bool *extends_to_bottom_flag);
-extern struct wetting_front*    listCopy();
+extern struct wetting_front*    listCopy(struct wetting_front* current);
 
-struct wetting_front *state_previous;
-extern struct wetting_front *head_previous; //head pointer to the previous state, used in computing derivatives
+extern struct wetting_front *state_previous;
+//extern struct wetting_front *head_previous; //head pointer to the previous state, used in computing derivatives
 
 /*########################################*/
 /*   van Genuchten function prototypes    */
@@ -134,7 +153,7 @@ extern int lgar_dzdt_calc(int nint, int *soil_type, struct soil_properties_ *soi
 extern double lgar_calc_dry_depth(int nint, double time_step_s, int *soil_type, 
                                   struct soil_properties_ *soil_properties, double *cum_layer_thickness_cm,
                                   double *deltheta);
-extern void lgar_read_vG_param_file(char *vG_param_file_name, int num_soil_types, double wilting_point_psi_cm,
+extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_types, double wilting_point_psi_cm,
                                     struct soil_properties_ *soil_properties);
 extern void lgar_create_surfacial_front(double *ponded_depth_cm, double *volin, double dry_depth, double theta1,
                                         int *soil_type, struct soil_properties_ *soil_properties, 
@@ -152,6 +171,18 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
 extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
   
 extern int wetting_front_free_drainage();
+
+
+/********************************************************************/
+// Bmi functions
+/********************************************************************/
+extern void lgar_initialize(string config_file, struct lgar_model_ *lgar_model);
+extern void lgar_update(struct lgar_model_ *lgar_model);
+extern void InitFromConfigFile(string config_file, struct lgar_model_ *model);
+extern vector<double> ReadVectorData(string key);
+extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm, struct soil_properties_ *soil_properties);
+
+
 /********************************************************************/
 /*Other function prototypes for doing hydrology calculations, etc.  */
 /********************************************************************/

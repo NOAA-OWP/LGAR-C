@@ -1,4 +1,7 @@
-#include "X_stuff.h"
+#ifndef XSHOW_H_INCLUDED
+#define XSHOW_H_INCLUDED
+
+#include "../include/X_stuff.hxx"
 
 extern void xshow()
 {
@@ -6,3 +9,5 @@ extern void xshow()
    XFlush(theDisplay);  
    return;
 }
+
+#endif

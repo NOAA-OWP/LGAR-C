@@ -4,22 +4,20 @@
 #include <cmath>
 
 #include "../bmi/bmi.hxx"
-#include "../include/all.h"
+#include "../include/all.hxx"
 #include "../include/bmi_lgar.hxx"
-//#include "../include/lgar.h"
-//#include "../include/all.h"
 
 struct wetting_front *head = NULL;  //<- this pointer stores the address in memory of the first member of the linked
                                     //   list containing all the wetting fronts.  That address is called "head".  
                                     //   The contents of struct wetting_front are defined in "all.h"
 
-struct wetting_front *head_previous = NULL;
+struct wetting_front *state_previous = NULL;
 
 #define SUCCESS 0
 int main(int argc, char *argv[])
 {
-  /*
-  BmiSoilMoistureProfile model;
+  
+  BmiLGAR model;
   
   if (argc != 2) {
     printf("Usage: run_bmifrozensoilcxx CONFIGURATION_FILE\n\n");
@@ -27,7 +25,7 @@ int main(int argc, char *argv[])
     printf("Output is written to the file `bmifrozensoilcxx.out`.\n");
     return SUCCESS;
   }
-
+  
   FILE *fp = fopen("bmi_file.out", "w");
   fprintf(fp, "Configuration file = %s\n", argv[1]);
   fprintf(fp, "Initializing... ");
@@ -35,7 +33,7 @@ int main(int argc, char *argv[])
   model.Initialize(argv[1]);
   
   fprintf(fp, "done\n");
-
+  /*
   {
     std::string model_name;
     model_name = model.GetComponentName();
