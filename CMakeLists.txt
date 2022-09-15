@@ -37,7 +37,7 @@ message("CXXLIBS" ${CMAKE_CXX_FLAGS})
 
 #add_executable(xlgar ./src/main.cxx ./src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx)
 
-add_executable(xlgar ./src/bmi_main_lgar.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx)
+add_executable(xlgar ./src/bmi_main_lgar.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx)
 
 #add_library(cfelib ./smc_coupler/src/bmi_soil_moisture_profile.cxx ./smc_coupler/src/soil_moisture_profile.cxx ./smc_coupler/include/bmi_soil_moisture_profile.hxx ./smc_coupler/include/soil_moisture_profile.hxx)
 

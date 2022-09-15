@@ -2,10 +2,16 @@
 #include <stdlib.h>
 #include <iostream>
 #include <cmath>
+#include "fstream"
 
 #include "../bmi/bmi.hxx"
 #include "../include/all.hxx"
 #include "../include/bmi_lgar.hxx"
+
+
+std::string GetForcingFile(std::string config_file);
+
+void ReadForcingData(std::string config_file, std::vector<std::string>& time, std::vector<double>& precip, std::vector<double>& pet);
 
 struct wetting_front *head = NULL;  //<- this pointer stores the address in memory of the first member of the linked
                                     //   list containing all the wetting fronts.  That address is called "head".  
@@ -17,7 +23,7 @@ struct wetting_front *state_previous = NULL;
 int main(int argc, char *argv[])
 {
   
-  BmiLGAR model;
+  BmiLGAR lgar_model;
   
   if (argc != 2) {
     printf("Usage: run_bmifrozensoilcxx CONFIGURATION_FILE\n\n");
@@ -29,105 +35,86 @@ int main(int argc, char *argv[])
   FILE *fp = fopen("bmi_file.out", "w");
   fprintf(fp, "Configuration file = %s\n", argv[1]);
   fprintf(fp, "Initializing... ");
-  
-  model.Initialize(argv[1]);
+
+  lgar_model.Initialize(argv[1]);
   
   fprintf(fp, "done\n");
-  /*
+  
   {
     std::string model_name;
-    model_name = model.GetComponentName();
+    model_name = lgar_model.GetComponentName();
     fprintf(fp, "%s\n", model_name.c_str());
   }
-
+  
   {
-    std::string var_name_s = "soil_storage";
-    std::string var_name_sc = "soil_storage_change";
-    std::string var_name_wt = "soil_water_table";
-    std::string var_name_smc = "soil_moisture_profile";
-    std::string var_name_smcl = "soil_moisture_layered";
-    std::string var_name_smc_bmi = "soil_storage_model";
+    std::string var_name_precip = "precipitation";
+    std::string var_name_pet = "potential_evapotranspiration";
     
     int grid, rank, *shape;
     double *var_s = NULL;
     double *var_sc = NULL;
-    double *water_table_thickness_bmi = NULL;
 
-    fprintf(fp, "variable = %s\n", var_name_s.c_str());
-    fprintf(fp, "variable = %s\n", var_name_sc.c_str());
-    fprintf(fp, "variable = %s\n", var_name_wt.c_str());
-    fprintf(fp, "variable = %s\n", var_name_smc.c_str());
-    fprintf(fp, "variable = %s\n", var_name_smcl.c_str());
-    fprintf(fp, "variable = %s\n", var_name_smc_bmi.c_str());
+    fprintf(fp, "variable = %s\n", var_name_precip.c_str());
+    fprintf(fp, "variable = %s\n", var_name_pet.c_str());
     
-    grid = model.GetVarGrid(var_name_smc);
+    grid = lgar_model.GetVarGrid(var_name_precip);
 
-    rank = model.GetGridRank(grid);
+    rank = lgar_model.GetGridRank(grid);
     fprintf(fp, "rank = %d\n", rank);
     shape = new int[rank];
-    model.GetGridShape(grid, shape);
+    lgar_model.GetGridShape(grid, shape);
 
     fprintf(fp, "shape = %d x %d x %d\n", shape[0],1,1);
-  */
-    /****************************************************************************/
-    // unit test data for conceptual soil reservoir
-    //double SMCT[] ={0.32207, 0.333438, 0.367336, 0.439}; // soil_moisture_profile
-    double SMCT[] = {0.3375634,0.34234789,0.34752731,0.35330897,0.35974973,0.3669139,0.37517657,0.38464055,0.39596964,0.40977129,0.42703622,0.439,0.439,0.439,0.439,0.439,0.439,0.439,0.439,0.439};
-    double water_table_thickness = 0.490438; // in meters
-    enum option { Conceptual = 1, Layered = 2};
-    /****************************************************************************/
-    // Set values
-    double storage_m = 0.8; //0.526328;
-    double storage_change_m = -0.000472;
-    double *storage_m_ptr = &storage_m;
-    double *storage_change_m_ptr = &storage_change_m;
-    double smc_layers[] = {0.25, 0.15, 0.1, 0.12};
-    /*
-    int soil_moisture_profile_option;
-
-    model.GetValue(var_name_smc_bmi,&soil_moisture_profile_option);
-
-    model.SetValue(var_name_s,storage_m_ptr);
-
-    model.SetValue(var_name_sc,storage_change_m_ptr);
-
-    model.SetValue(var_name_smcl,&smc_layers[0]);
-    
-    var_s = (double *)model.GetValuePtr(var_name_s);
-    var_sc = (double *)model.GetValuePtr(var_name_sc);
-
-    std::cout<<"soil_storage_model: "<<soil_moisture_profile_option<<"\n";
-    std::cout<<"storage: "<<*var_s<<"\n";
-    std::cout<<"storage change: "<<*var_sc<<"\n";
-    
-    model.Update();
-
-    water_table_thickness_bmi = (double *)model.GetValuePtr(var_name_wt);
-    
-    if (soil_moisture_profile_option == Conceptual) {
-      std::cout<<"Check: water table thickness = "<<water_table_thickness<<" | water table thickness bmi = "<<*water_table_thickness_bmi<<"\n";
-      double diff = std::fabs(water_table_thickness - *water_table_thickness_bmi);
-      assert (diff < 1e-4);
-    }
-    
-    // Get values
-    double *var_smc = new double[shape[0]];
-    
-    model.GetValue(var_name_smc,&var_smc[0]);
-      
-    if (soil_moisture_profile_option == Conceptual) {
-      std::cout<<"Referance value | Simulated value | Difference \n";
-      for (int i=0; i < shape[0]; i++) {
-	std::cout<< left << setw(18) << var_smc[i]
-		 << setw(18) << SMCT[i]
-		 << setw(1) << abs(var_smc[i] - SMCT[i])<<"\n";
-	assert (abs(var_smc[i] - SMCT[i]) < 1.E-6);     
-	fprintf(fp, "%6.4e", var_smc[i]);
-	fprintf(fp, "\n");
-      }
-    }
   }
+
+
+  std::string filename = GetForcingFile(argv[1]); // forcing file name
+  std::cout<<"forcings "<<filename<<"\n";
+
+  std::ifstream forcing_p;
+  forcing_p.open(filename);
+
+  std::string line, cell;
+  getline(forcing_p,line); // read heading and skip
+  //std::stringstream lineStream(line);
   
+  int nsteps = 1;//57;
+  std::vector<std::string> time;
+  std::vector<double> precipitation;
+  std::vector<double> PET;
+  
+  ReadForcingData(argv[1], time, precipitation, PET);
+
+  //for (int i =0; i < 7; i++)
+  //  std::cout<<"Time, P, PET = "<<time[i]<<" "<<precipitation[i]<<" "<<PET[i]<<"\n";
+  
+  for (int i = 0; i < nsteps; i++) {
+    std::cout<<"----------------------------------- \n";
+    std::cout<<"Timestep | "<<i<<" "<<time[i]<<"\n";
+    std::cout<<"P, PET = "<<precipitation[i]<<" "<<PET[i]<<"\n";
+    lgar_model.SetValue("precipitation", &precipitation[i]);
+    lgar_model.SetValue("potential_evapotranspiration", &PET[i]);
+
+    lgar_model.Update(); // Update model
+    /*
+    
+
+    ftm_bmi_model.Update(); // Update model
+
+    ftm_bmi_model.GetValue("ice_fraction_schaake",&ice_frac_v);
+
+    ice_fraction[i] = ice_frac_v;
+    
+    if (golden_test)
+      outfile << i+1 << "," <<ice_frac_v << "\n";
+    */ 
+  }
+
+
+  lgar_model.global_mass_balance();
+ 
+ 
+ /* 
   fprintf(fp, "Finalizing... ");
 
   model.Finalize();
@@ -135,4 +122,140 @@ int main(int argc, char *argv[])
   fclose(fp);
     */
   return SUCCESS;
+}
+
+
+
+void
+ReadForcingData(std::string config_file, std::vector<std::string>& time, std::vector<double>& precip, std::vector<double>& pet)
+{
+  // get the forcing file from the config file
+
+  std::ifstream file;
+  file.open(config_file);
+
+  if (!file) {
+    std::stringstream errMsg;
+    errMsg << config_file << " does not exist";
+    throw std::runtime_error(errMsg.str());
+  }
+
+  std::string forcing_file;
+  bool is_forcing_file_set=false;
+  
+  while (file) {
+    std::string line;
+    std::string param_key, param_value;
+
+    std::getline(file, line);
+
+    int loc_eq = line.find("=") + 1;
+    param_key = line.substr(0, line.find("="));
+    param_value = line.substr(loc_eq,line.length());
+
+    if (param_key == "forcing_file") {
+      forcing_file = param_value;
+      is_forcing_file_set = true;
+      break;
+    }
+  }
+
+  if (!is_forcing_file_set) {
+    std::stringstream errMsg;
+    errMsg << config_file << " does not provide forcing_file";
+    throw std::runtime_error(errMsg.str());
+  }
+  
+  std::ifstream fp;
+  fp.open(forcing_file);
+  if (!fp) {
+    cout<<"file "<<forcing_file<<" doesn't exist. \n";
+    abort();
+  }
+  
+  std::string line, cell;
+  
+  //read first line of strings which contains forcing variables names.
+  std::getline(fp, line);
+
+  while (fp) {
+    std::getline(fp, line);
+    std::stringstream lineStream(line);
+    int count = 0;
+    while(std::getline(lineStream,cell, ',')) {
+      
+      if (count == 0) {
+	time.push_back(cell);
+	count++;
+	continue;
+      }
+      else if (count == 1) {
+	precip.push_back(stod(cell));
+	count++;
+	continue;
+      }
+      else if (count == 2) {
+	pet.push_back(stod(cell));
+	count +=1;
+	continue;
+      }
+
+    }
+
+  }
+
+ 
+}
+
+
+std::string
+GetForcingFile(std::string config_file)
+{
+  // get the forcing file from the config file
+
+  std::ifstream file;
+  file.open(config_file);
+
+  if (!file) {
+    std::stringstream errMsg;
+    errMsg << config_file << " does not exist";
+    throw std::runtime_error(errMsg.str());
+  }
+
+  std::string forcing_file;
+  bool is_forcing_file_set=false;
+  
+  while (file) {
+    std::string line;
+    std::string param_key, param_value;
+
+    std::getline(file, line);
+
+    int loc_eq = line.find("=") + 1;
+    param_key = line.substr(0, line.find("="));
+    param_value = line.substr(loc_eq,line.length());
+
+    if (param_key == "forcing_file") {
+      forcing_file = param_value;
+      is_forcing_file_set = true;
+      break;
+    }
+  }
+
+  if (!is_forcing_file_set) {
+    std::stringstream errMsg;
+    errMsg << config_file << " does not provide forcing_file";
+    throw std::runtime_error(errMsg.str());
+  }
+  
+  std::ifstream fp;
+  fp.open(forcing_file);
+  if (!fp) {
+    cout<<"file "<<forcing_file<<" doesn't exist. \n";
+    abort();
+  }
+  fp.close();
+  
+  return forcing_file;
+ 
 }
