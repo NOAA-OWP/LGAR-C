@@ -2,7 +2,7 @@
 #define LGAR_CXX_INCLUDED
 
 #include "../include/all.hxx"
-//#include "../include/lgar.hxx"
+//#include "../src/aet.cxx"
 #include <iostream>
 #include <fstream>
 //#include <stdio.h>
@@ -12,7 +12,7 @@
 
 using namespace std;
 
-#define VERBOSE 2
+#define VERBOSE 0
 /*##################################################*/
 /*##################################################*/
 /*##################################################*/
@@ -61,9 +61,9 @@ using namespace std;
 extern void lgar_initialize(string config_file, struct lgar_model_ *model)
 {
   
-  std::cout<<" config = "<<config_file<<"\n";
   InitFromConfigFile(config_file, model);
-  //printf("config = %s \n", config_file);
+  model->lgar_bmi_params.shape[0] = model->lgar_bmi_params.num_layers;
+  
 }
 
 
@@ -161,6 +161,11 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
       is_soil_params_file_set = true;
       continue;
     }
+    else if (param_key == "wilting_point_psi") {
+      model->lgar_bmi_params.wilting_point_psi_cm = stod(param_value);
+      is_wilting_point_psi_cm_set = true;
+      continue;
+    }
     else if (param_key == "timestep") {
       model->lgar_bmi_params.timestep_h = stod(param_value);
       
@@ -173,17 +178,18 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
       
       assert (model->lgar_bmi_params.timestep_h > 0);
       is_timestep_set = true;
+      
       continue;
     }
     else if (param_key == "forcing_resolution") {
       model->lgar_bmi_params.forcing_resolution_h = stod(param_value);
 
       if (param_unit == "[s]" || param_unit == "[sec]" || param_unit == "") // defalut time unit is seconds
-	model->lgar_bmi_params.timestep_h /= 3600; // convert to hours
+	model->lgar_bmi_params.forcing_resolution_h /= 3600; // convert to hours
       else if (param_unit == "[min]" || param_unit == "[minute]")
-	model->lgar_bmi_params.timestep_h /= 60; // convert to hours
+	model->lgar_bmi_params.forcing_resolution_h /= 60; // convert to hours
       else if (param_unit == "[h]" || param_unit == "[hr]") 
-	model->lgar_bmi_params.timestep_h /= 1.0; // convert to hours
+	model->lgar_bmi_params.forcing_resolution_h /= 1.0; // convert to hours
       
       assert (model->lgar_bmi_params.forcing_resolution_h > 0);
       is_forcing_resolution_set = true;
@@ -200,11 +206,12 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
   if(is_soil_params_file_set) {
     //allocate memory to create an array of structures to hold the soils properties data.
     //model->soil_properties = (struct soil_properties_*) malloc((model->lgar_bmi_params.num_layers+1)*sizeof(struct soil_properties_));
-    model->soil_properties = new struct soil_properties_[model->lgar_bmi_params.num_layers+1];
+
+    model->soil_properties = new soil_properties_[model->lgar_bmi_params.num_layers+1];
     int num_soil_types = model->lgar_bmi_params.num_soil_types;
-    double wilting_point_psi_cm = 50;
+    double wilting_point_psi_cm = model->lgar_bmi_params.wilting_point_psi_cm;
     lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types, wilting_point_psi_cm, model->soil_properties);
-    //std::cout<<"theta_e = "<<model->soil_properties[13].theta_e<<"\n";
+
   }  
   
   if (!is_layer_thickness_set) {
@@ -222,6 +229,12 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
   if (!is_timestep_set) {
     stringstream errMsg;
     errMsg << "timestep not set in the config file "<< config_file << "\n";
+    throw runtime_error(errMsg.str());
+  }
+
+  if(!is_wilting_point_psi_cm_set) {
+    stringstream errMsg;
+    errMsg << "wilting point psi not set in the config file "<< config_file << "\n";
     throw runtime_error(errMsg.str());
   }
   
@@ -245,11 +258,18 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
 
   InitializeWettingFronts(model->lgar_bmi_params.num_layers, model->lgar_bmi_params.initial_psi_cm, model->lgar_bmi_params.layer_soil_type, model->lgar_bmi_params.cum_layer_thickness_cm, model->soil_properties);
 
-#if VERBOSE > 1
+#if VERBOSE > -1
   printf("************* Initial conditions ******************** ");
   listPrint();
   printf("***************************************************** \n");
 #endif
+
+  // initial mass in the system
+  model->lgar_mass_balance.volstart_cm = lgar_calc_mass_bal(model->lgar_bmi_params.num_layers,model->lgar_bmi_params.cum_layer_thickness_cm);
+
+  model->lgar_bmi_params.ponded_depth_cm = 0.0; // initially we start with a dry surface (no surface ponding)
+  model->lgar_bmi_params.nint = 120; // hacked, not needed to be an input option
+
 }
 
 
@@ -282,7 +302,7 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
     current->K_cm_per_s = calc_K_from_Se(Se, soil_properties[soil].Ksat_cm_per_s, soil_properties[soil].vg_m);  // cm/s
   
   }
-  
+
 }
 
 /*
@@ -327,10 +347,195 @@ ReadVectorData(string key)
 }
 
 
-extern void lgar_update(struct lgar_model_ *lgar_model)
+extern void lgar_update(struct lgar_model_ *model)
 {
+  std::cout<<"in lgar update \n";
+  listPrint();
+  double mm_to_cm = 0.1;
+  
+  int subcycles = model->lgar_bmi_params.forcing_interval;
 
+  for (int cycle=0; cycle < subcycles; cycle++) {
 
+    state_previous = NULL;
+    state_previous = listCopy(head);
+    
+    // local variables for readibility
+    double timestep_h = model->lgar_bmi_params.timestep_h;
+    double precip_timestep_cm = model->lgar_bmi_params.precipitation_cm * mm_to_cm / double(subcycles); // rate; cm/hour
+    double PET_timestep_cm = model->lgar_bmi_params.PET_cm * mm_to_cm / double(subcycles);
+    double ponded_depth_cm = precip_timestep_cm * timestep_h;
+    double AET_timestep_cm = 0.0;
+    double volstart_timestep_cm = 0.0;
+    double volin_timestep_cm =0.0;
+    double volend_timestep_cm = 0.0;
+    double volrunoff_timestep_cm = 0.0;
+    double volrech_timestep_cm = 0.0;
+    
+    double precip_previous_timestep_cm = model->lgar_bmi_params.precip_previous_timestep_cm;
+    int nint = model->lgar_bmi_params.nint;
+    double num_layers = model->lgar_bmi_params.num_layers;
+    double delta_theta;   // the width of a front, such that its volume=depth*delta_theta
+    double dry_depth;
+    double wilting_point_psi_cm = model->lgar_bmi_params.wilting_point_psi_cm;
+    
+    double AET_thresh_Theta = 0.85;    // scaled soil moisture (0-1) above which AET=PET (fix later!)
+    double AET_expon = 1.0;  // exponent that allows curvature of the rising portion of the Budyko curve (fix later!)
+    
+    
+    
+    if (PET_timestep_cm>0) {
+      // Calculate AET from PET and root zone soil moisture.  Note PET was reduced iff raining
+      
+      AET_timestep_cm = calc_aet(PET_timestep_cm, timestep_h, wilting_point_psi_cm, model->soil_properties, model->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon);
+    }
+    
+    
+    // put local variables to state timstep variables
+    model->lgar_mass_balance.volprecip_timestep_cm = precip_timestep_cm * timestep_h; // volume in cm
+    model->lgar_mass_balance.volPET_timestep_cm = PET_timestep_cm;
+    
+    // put local variables to state global variables
+    model->lgar_mass_balance.volprecip_cm += precip_timestep_cm * timestep_h;
+    model->lgar_mass_balance.volPET_cm += fmax(PET_timestep_cm,0.0); // ensures non-negative PET
+    volstart_timestep_cm = lgar_calc_mass_bal(num_layers,model->lgar_bmi_params.cum_layer_thickness_cm);
+    
+    
+    int soil_num = model->lgar_bmi_params.layer_soil_type[head->layer_num];
+    double theta_e = model->soil_properties[soil_num].theta_e;
+    bool is_top_wf_saturated = head->theta >= theta_e ? true : false;
+    bool create_surficial_front = (precip_previous_timestep_cm == 0.0 && precip_timestep_cm >0.0);
+    
+    double mass_source_to_soil_timestep = 0.0;
+    
+    int wf_free_drainage_demand = wetting_front_free_drainage();
+    
+    //if the follow is true, that would mean there is no wetting front in the top layer to accept the water, must create one.
+    if(create_surficial_front && !is_top_wf_saturated)  {
+      
+      double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
+      
+      lgar_move_wetting_fronts(&temp_pd,timestep_h, wf_free_drainage_demand, volend_timestep_cm, num_layers, &AET_timestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->soil_properties);
+      
+      dry_depth = lgar_calc_dry_depth(nint, timestep_h, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm,&delta_theta);
+      
+      double theta1 = head->theta;
+      lgar_create_surfacial_front(&ponded_depth_cm, &volin_timestep_cm, dry_depth, theta1, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm, nint, timestep_h);
+      
+      state_previous = NULL;
+      state_previous = listCopy(head);
+      
+      model->lgar_mass_balance.volin_cm += volin_timestep_cm;
+      
+    }
+
+    //listPrint();
+
+    if (ponded_depth_cm > 0 && !create_surficial_front) {
+      
+      volrunoff_timestep_cm = lgar_insert_water(&ponded_depth_cm, &volin_timestep_cm, precip_timestep_cm, dry_depth, nint, timestep_h, wf_free_drainage_demand, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm);
+      
+      model->lgar_mass_balance.volin_cm += volin_timestep_cm;
+      model->lgar_mass_balance.volrunoff_timestep_cm = volrunoff_timestep_cm;
+      model->lgar_mass_balance.volrunoff_cm += volrunoff_timestep_cm;
+      volrech_timestep_cm = volin_timestep_cm; // this gets updated later, probably not needed here
+      model->lgar_mass_balance.volon_cm = ponded_depth_cm;
+      //printf("Mass in = %lf %lf %lf \n", volin_timestep_cm, volrech_timestep_cm, volrunoff_timestep_cm);
+      if (volrunoff_timestep_cm < 0) abort();  
+    }
+    else {
+      //printf("wetting front created = %lf %d \n", ponded_depth_cm ,!create_surficial_front );
+      double hp_cm_max = 0.0; //h_p_max = 0.0;
+      
+      if (ponded_depth_cm < hp_cm_max) {
+	model->lgar_mass_balance.volrunoff_cm += 0.0;
+	model->lgar_mass_balance.volon_cm = ponded_depth_cm;
+	ponded_depth_cm = 0.0;
+	model->lgar_mass_balance.volrunoff_timestep_cm = 0.0;
+      }
+      else {
+	model->lgar_mass_balance.volrunoff_timestep_cm = ponded_depth_cm - hp_cm_max;
+	model->lgar_mass_balance.volrunoff_cm += (ponded_depth_cm - hp_cm_max);
+	model->lgar_mass_balance.volon_cm = hp_cm_max;
+	ponded_depth_cm = hp_cm_max;
+	
+      }
+    }
+    
+    
+    if (!create_surficial_front) {
+      lgar_move_wetting_fronts(&volin_timestep_cm,timestep_h, wf_free_drainage_demand, volend_timestep_cm, num_layers, &AET_timestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->soil_properties);
+      
+      // this is the volume of water leaving through the bottom
+      volrech_timestep_cm = volin_timestep_cm;
+      model->lgar_mass_balance.volrech_timestep_cm = volrech_timestep_cm;
+      //printf("Mass in x = %lf %lf \n", volin_timestep_cm, volrech_timestep_cm);
+    }
+    
+    
+    int num_dzdt_calculated = lgar_dzdt_calc(nint, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm, ponded_depth_cm);
+    
+    
+    model->lgar_mass_balance.volAET_timestep_cm = AET_timestep_cm;
+    model->lgar_mass_balance.volAET_cm += AET_timestep_cm;
+    model->lgar_mass_balance.volrech_timestep_cm = volrech_timestep_cm;
+    model->lgar_mass_balance.volrech_cm += volrech_timestep_cm;
+    
+    volend_timestep_cm = lgar_calc_mass_bal(num_layers,model->lgar_bmi_params.cum_layer_thickness_cm);
+    
+    model->lgar_mass_balance.volend_timestep_cm = volend_timestep_cm;
+    model->lgar_mass_balance.volend_cm = volend_timestep_cm;
+    model->lgar_bmi_params.precip_previous_timestep_cm = precip_timestep_cm;
+    
+    
+    double local_mb = volstart_timestep_cm + model->lgar_mass_balance.volprecip_timestep_cm -  model->lgar_mass_balance.volrunoff_timestep_cm - model->lgar_mass_balance.volAET_timestep_cm - model->lgar_mass_balance.volon_cm - model->lgar_mass_balance.volrech_timestep_cm - volend_timestep_cm;
+    
+    bool debug_flag = true;
+    if(debug_flag) {
+      printf("local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_timestep_cm, model->lgar_mass_balance.volprecip_timestep_cm, volrunoff_timestep_cm,AET_timestep_cm, model->lgar_mass_balance.volend_timestep_cm);
+    }
+    
+    if (fabs(local_mb) >1e-7) {
+      printf("Local mass balance (in this timestep) is %.6e, larger than expected, needs some debugging...\n ",local_mb);
+      abort();
+    }
+    
+    listPrint();
+    if (head->depth_cm <= 0.0) {
+      printf("negative depth = %lf \n", head->depth_cm);
+      abort();
+    }
+  }  
+  
+}
+
+extern void lgar_global_mass_balance(struct lgar_model_ *model)
+{
+  double volstart = model->lgar_mass_balance.volstart_cm;
+  double volprecip = model->lgar_mass_balance.volprecip_cm;
+  double volrunoff = model->lgar_mass_balance.volrunoff_cm;
+  double volAET = model->lgar_mass_balance.volAET_cm;
+  double volPET = model->lgar_mass_balance.volPET_cm;
+  double volon = model->lgar_mass_balance.volon_cm;
+  double volin = model->lgar_mass_balance.volin_cm;
+  double volrech = model->lgar_mass_balance.volrech_cm;
+  double volend = model->lgar_mass_balance.volend_cm;
+  double global_error_cm = volstart + volprecip - volrunoff - volAET - volon -volrech -volend;
+  
+  
+ printf("\n---------------------- Simulation Summary  ------------------------ \n");
+ //printf("Time (sec)                 = %6.10f \n", elapsed);
+ printf("-------------------------- Mass balance ------------------- \n");
+ printf("initial water in soil      = %14.10f cm\n", volstart);
+ printf("total precipitation input  = %14.10f cm\n", volprecip);
+ printf("total infiltration         = %14.10f cm\n", volin);
+ printf("final water in soil        = %14.10f cm\n", volend);
+ printf("water remaining on surface = %14.10f cm\n", volon);
+ printf("surface runoff             = %14.10f cm\n", volrunoff);
+ printf("total percolation          = %14.10f cm\n", volrech);
+ printf("total AET                  = %14.10f cm\n", volAET);
+ printf("total PET                  = %14.10f cm\n", volPET);
+ printf("global balance             =   %.6e cm\n", global_error_cm);
 }
 
 // calculate precipitation mass that will be added to the layers
@@ -364,7 +569,7 @@ extern int wetting_front_free_drainage() {
     wf_that_supplies_free_drainage_demand--;
 
 #if VERBOSE > 1
-  printf("wettign_front_free_drainage, layer_num = %d %d \n", wf_that_supplies_free_drainage_demand, current->layer_num);
+  printf("wettign_front_free_drainage, layer_num = %d \n", wf_that_supplies_free_drainage_demand);
 #endif
   return  wf_that_supplies_free_drainage_demand;
 }
@@ -375,7 +580,7 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
 			     struct soil_properties_ *soil_properties)
 {
 
-#if VERBOSE > 1
+#if VERBOSE > -1
   printf("wetting fronts before moving \n");
   listPrint();
 #endif
@@ -416,14 +621,13 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
 
   *ponded_depth_cm = 0.0;
 
-
   /* ************************************************************ */
   // main loop advancing all wetting fronts and dooing the mass balance
 
   //lgar_move_wetting_fronts()
-  for (int l= number_of_wetting_fronts; l != 0; l--) {
+  for (int l = number_of_wetting_fronts; l != 0; l--) {
 
-#if VERBOSE > 1
+#if VERBOSE > -1
     printf("Looping over wetting fronst = %d %d \n", l);
 #endif
     
@@ -468,12 +672,11 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
     psi_cm      = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
     K_cm_per_s  = calc_K_from_Se(Se, Ks_cm_per_s, vg_m);
     
-
     layer_number_above = (l == 1) ? layer_num : previous->layer_num;
 
     layer_number_below = (l == last_wetting_front_index) ? layer_num + 1 : next->layer_num;
 
-#if VERBOSE > 1
+#if VERBOSE > -1
     printf ("****************** Cases ***************** \n");
     printf ("Layers (wf, layer, above, below) == %d %d %d %d \n", l ,layer_num, layer_number_above, layer_number_below);
 #endif
@@ -485,8 +688,9 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
     // todo. this condition can be replace by current->to_depth = FALSE && l<last_wetting_front_index
     /*************************************************************************************/
     if ( (l<last_wetting_front_index) && (layer_number_below!=layer_num) ) {
-#if VERBOSE > 1
+#if VERBOSE > -1
       printf("case (deepest wetting front) : layer_num_below (%d) != layer_num (%d) \n", layer_num, layer_number_below);
+      //listPrint();
 #endif
       
       current->theta = calc_theta_from_h(next->psi_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
@@ -498,7 +702,7 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
     
     if (l == number_of_wetting_fronts && layer_number_below != layer_num && number_of_wetting_fronts == num_layers) {
       
-#if VERBOSE > 1
+#if VERBOSE > -1
       printf("case (number_of_wetting_fronts equal to num_layers) : l (%d) == num_layers (%d) == num_wetting_fronts(%d) \n", l, num_layers,number_of_wetting_fronts);
 #endif
       
@@ -559,12 +763,13 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
       
       
       double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass, current->depth_cm, delta_thetas, delta_thickness, soil_type, soil_properties);
-      
+
       current->theta = fmin(theta_new, theta_e);
       
       double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
       current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-      
+      //listPrint();
+      //abort();
     }
 
 
@@ -573,7 +778,7 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
     
     if ( (l < last_wetting_front_index) && (layer_number_below == layer_num) ) {
       
-#if VERBOSE > 1
+#if VERBOSE > -1
       printf("case (wetting front within layer) : layer_num (%d) == layer_num_below (%d) \n", layer_num,layer_number_below);
 #endif
       if (layer_num == 1) {
@@ -660,16 +865,20 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
     }
     
     
-#if VERBOSE > 1
-    printf("*********** Cases for mass balance of wetting fronts is done!! ************** \n");
+#if VERBOSE > -1
+    printf("*********** Cases for mass balance of wetting fronts are done!! ************** \n");
+    listPrint();
 #endif
     
     // if f_p (predicted infiltration) causes theta > theta_e, mass correction is needed. depth of the wetting front with theta > theta_e is increased to close the mass balance
     // this should be moved out of here to a subroutine; add a call to that subroutine
     if (l == 1) {
+
       int soil_num_k1  = soil_type[wf_free_drainage_demand];
       double theta_e_k1 = soil_properties[soil_num_k1].theta_e;
-      
+
+      std::cout<<"B1 = "<<wf_free_drainage_demand<<" "<<soil_type[wf_free_drainage_demand]<<" "<<theta_e_k1<<"\n";
+	
       struct wetting_front *wf_free_drainage = listFindFront(wf_free_drainage_demand,NULL);
       
       double mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand+free_drainage_demand);
@@ -690,7 +899,7 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
 	}
 	
 	double psi_k = wf_free_drainage->depth_cm;
-	
+	std::cout<<"B2 = "<<psi_k<<" "<<mass_balance_error<<" "<<current_mass<<" "<<mass_timestep<<" "<<old_mass<<"\n";
 	while (mass_balance_error > tolerance) {
 	  
 	  if (current_mass<mass_timestep) {
@@ -710,19 +919,21 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
 	  
 	  current_mass = lgar_calc_mass_bal(0,cum_layer_thickness_cm);
 	  mass_balance_error = fabs(current_mass - mass_timestep);
-	  
+	  //printf("mass_balance_error = %lf %lf %lf \n", mass_balance_error, psi_k, current_mass);
+	   // break;
 	}	
-	
+	std::cout<<"B3 = "<<psi_k<<"\n";
       }
     }
 
-
+printf("moving done 0 \n");
+  listPrint();
     // **************************** MERGING WETTING FRONT ********************************
     
 #if VERBOSE > 1
     if (next != NULL) {
       printf("********** Merging wetting fronts ********** \n");
-      listPrint();
+      //listPrint();
     }
     else
       printf("********** No merging is needed ********** \n");
@@ -739,7 +950,6 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
   // end of the for loop
   /*******************************************************************/
 
-  
   // reset current to head to fix any mass balance issues and dry-over-wet wetting fronts conditions
   double mass_change = 0.0;
   
@@ -793,7 +1003,8 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
 
     current = current->next;
   }
-  
+  printf("moving done \n");
+  listPrint();
 }
 
 

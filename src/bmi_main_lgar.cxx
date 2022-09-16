@@ -67,18 +67,8 @@ int main(int argc, char *argv[])
     fprintf(fp, "shape = %d x %d x %d\n", shape[0],1,1);
   }
 
-
-  std::string filename = GetForcingFile(argv[1]); // forcing file name
-  std::cout<<"forcings "<<filename<<"\n";
-
-  std::ifstream forcing_p;
-  forcing_p.open(filename);
-
-  std::string line, cell;
-  getline(forcing_p,line); // read heading and skip
-  //std::stringstream lineStream(line);
   
-  int nsteps = 1;//57;
+  int nsteps = 2700; //7500.0;//57;
   std::vector<std::string> time;
   std::vector<double> precipitation;
   std::vector<double> PET;
@@ -207,55 +197,3 @@ ReadForcingData(std::string config_file, std::vector<std::string>& time, std::ve
  
 }
 
-
-std::string
-GetForcingFile(std::string config_file)
-{
-  // get the forcing file from the config file
-
-  std::ifstream file;
-  file.open(config_file);
-
-  if (!file) {
-    std::stringstream errMsg;
-    errMsg << config_file << " does not exist";
-    throw std::runtime_error(errMsg.str());
-  }
-
-  std::string forcing_file;
-  bool is_forcing_file_set=false;
-  
-  while (file) {
-    std::string line;
-    std::string param_key, param_value;
-
-    std::getline(file, line);
-
-    int loc_eq = line.find("=") + 1;
-    param_key = line.substr(0, line.find("="));
-    param_value = line.substr(loc_eq,line.length());
-
-    if (param_key == "forcing_file") {
-      forcing_file = param_value;
-      is_forcing_file_set = true;
-      break;
-    }
-  }
-
-  if (!is_forcing_file_set) {
-    std::stringstream errMsg;
-    errMsg << config_file << " does not provide forcing_file";
-    throw std::runtime_error(errMsg.str());
-  }
-  
-  std::ifstream fp;
-  fp.open(forcing_file);
-  if (!fp) {
-    cout<<"file "<<forcing_file<<" doesn't exist. \n";
-    abort();
-  }
-  fp.close();
-  
-  return forcing_file;
- 
-}
