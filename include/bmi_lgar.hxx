@@ -19,12 +19,12 @@ class NotImplemented : public std::logic_error {
 class BmiLGAR : public bmixx::Bmi {
 public:
   BmiLGAR() {
-    this->input_var_names[0] = "soil_storage";
-    this->input_var_names[1] = "soil_storage_change";
-    this->input_var_names[2] = "soil_moisture_layered";
+    this->input_var_names[0] = "precipitation";
+    this->input_var_names[1] = "potential_evapotranspiration";
     
-    this->output_var_names[0] = "soil_moisture_profile";
-    this->output_var_names[1] = "soil_water_table";
+    this->output_var_names[0] = "soil_moisture_layered";
+    this->output_var_names[0] = "soil_layer_thickness";
+    this->output_var_names[0] = "soil_wetting_front_thickness";
   };
   
   void Initialize(std::string config_file);
@@ -83,11 +83,11 @@ public:
 private:
   //soil_moisture_profile::smp_parameters* model;
   struct lgar_model_* model;
-  static const int input_var_name_count = 3;
-  static const int output_var_name_count = 2;
+  static const int input_var_name_count = 2;
+  static const int output_var_name_count = 3;
   
-  std::string input_var_names[3];
-  std::string output_var_names[2];
+  std::string input_var_names[input_var_name_count];
+  std::string output_var_names[output_var_name_count];
 };
 
 
