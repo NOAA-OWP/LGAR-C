@@ -207,7 +207,7 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
     //allocate memory to create an array of structures to hold the soils properties data.
     //model->soil_properties = (struct soil_properties_*) malloc((model->lgar_bmi_params.num_layers+1)*sizeof(struct soil_properties_));
 
-    model->soil_properties = new soil_properties_[model->lgar_bmi_params.num_layers+1];
+    model->soil_properties = new soil_properties_[model->lgar_bmi_params.num_soil_types+1];
     int num_soil_types = model->lgar_bmi_params.num_soil_types;
     double wilting_point_psi_cm = model->lgar_bmi_params.wilting_point_psi_cm;
     lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types, wilting_point_psi_cm, model->soil_properties);
@@ -352,36 +352,48 @@ extern void lgar_update(struct lgar_model_ *model)
   std::cout<<"in lgar update \n";
   listPrint();
   double mm_to_cm = 0.1;
-  
-  int subcycles = model->lgar_bmi_params.forcing_interval;
 
+  // local variables for readibility
+  int subcycles = model->lgar_bmi_params.forcing_interval;
+  
+  double precip_timestep_cm;
+  double PET_timestep_cm;
+  double ponded_depth_cm;
+  double AET_timestep_cm;
+  double volstart_timestep_cm;
+  double volend_timestep_cm = 0.0; // this should not be reset to 0.0 in the for loop
+  double volin_timestep_cm;
+  double volrunoff_timestep_cm;
+  double volrech_timestep_cm;
+  double precip_previous_timestep_cm;
+  double num_layers;
+  double timestep_h = model->lgar_bmi_params.timestep_h;
+  int nint = model->lgar_bmi_params.nint;
+  double wilting_point_psi_cm = model->lgar_bmi_params.wilting_point_psi_cm;
+  double AET_thresh_Theta = 0.85;    // scaled soil moisture (0-1) above which AET=PET (fix later!)
+  double AET_expon = 1.0;  // exponent that allows curvature of the rising portion of the Budyko curve (fix later!)
+
+  
   for (int cycle=0; cycle < subcycles; cycle++) {
 
     state_previous = NULL;
     state_previous = listCopy(head);
     
-    // local variables for readibility
-    double timestep_h = model->lgar_bmi_params.timestep_h;
-    double precip_timestep_cm = model->lgar_bmi_params.precipitation_cm * mm_to_cm / double(subcycles); // rate; cm/hour
-    double PET_timestep_cm = model->lgar_bmi_params.PET_cm * mm_to_cm / double(subcycles);
-    double ponded_depth_cm = precip_timestep_cm * timestep_h;
-    double AET_timestep_cm = 0.0;
-    double volstart_timestep_cm = 0.0;
-    double volin_timestep_cm =0.0;
-    double volend_timestep_cm = 0.0;
-    double volrunoff_timestep_cm = 0.0;
-    double volrech_timestep_cm = 0.0;
+    precip_timestep_cm = model->lgar_bmi_params.precipitation_cm * mm_to_cm / double(subcycles); // rate; cm/hour
+    PET_timestep_cm = model->lgar_bmi_params.PET_cm * mm_to_cm / double(subcycles);
+    ponded_depth_cm = precip_timestep_cm * timestep_h;
+    AET_timestep_cm = 0.0;
+    volstart_timestep_cm = 0.0;
+    volin_timestep_cm =0.0;
+
+    volrunoff_timestep_cm = 0.0;
+    volrech_timestep_cm = 0.0;
     
-    double precip_previous_timestep_cm = model->lgar_bmi_params.precip_previous_timestep_cm;
-    int nint = model->lgar_bmi_params.nint;
-    double num_layers = model->lgar_bmi_params.num_layers;
+    precip_previous_timestep_cm = model->lgar_bmi_params.precip_previous_timestep_cm;
+    
+    num_layers = model->lgar_bmi_params.num_layers;
     double delta_theta;   // the width of a front, such that its volume=depth*delta_theta
     double dry_depth;
-    double wilting_point_psi_cm = model->lgar_bmi_params.wilting_point_psi_cm;
-    
-    double AET_thresh_Theta = 0.85;    // scaled soil moisture (0-1) above which AET=PET (fix later!)
-    double AET_expon = 1.0;  // exponent that allows curvature of the rising portion of the Budyko curve (fix later!)
-    
     
     
     if (PET_timestep_cm>0) {
@@ -1560,7 +1572,7 @@ extern double lgar_calc_dry_depth(int nint, double time_step_s, int *soil_type,
   //when dry depth greater than layer 1 thickness, set dry depth to layer 1 thickness
   dry_depth = fmin(cum_layer_thickness_cm[layer_num], dry_depth);
  
- return(dry_depth);
+ return dry_depth;
 
 }
 
