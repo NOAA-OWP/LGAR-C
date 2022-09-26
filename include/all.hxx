@@ -22,6 +22,8 @@ using namespace std;
 #define FALSE 0
 #define ONE 1
 
+#define VERBOSE 0
+
 #define use_bmi_flag FALSE       // TODO set to TRUE to run in BMI environment
 
 #define MAX_NUM_SOIL_LAYERS 4
@@ -89,11 +91,17 @@ struct lgar_bmi_parameters {
   double precipitation_cm; // rainfall precip in cm
   double PET_cm;  // potential evapotranspiration in cm
   double AET_cm; // actual evapotranspiration in cm
-  double *soil_moisture_layered; // array of thetas (soil moisture content); output to other models (e.g. soil freeze-thaw)
+  double *soil_moisture_layer; // array of thetas (mean soil moisture content) per layer; output option to other models (e.g. soil freeze-thaw)
+  double *soil_moisture_wetting_front; // array of thetas (soil moisture content) per wetting front; output to other models (e.g. soil freeze-thaw)
   double  wilting_point_psi_cm;
   double ponded_depth_cm;
   double precip_previous_timestep_cm;
   int nint = 120;    // the number of trapezoids used in integrating the Geff function
+
+
+  // giuh parameters
+  int num_giuh_ordinates;
+  double *giuh_ordinates;
 };
 
 struct lgar_mass_balance_variables {
@@ -107,6 +115,7 @@ struct lgar_mass_balance_variables {
   double volAET_timestep_cm;
   double volPET_timestep_cm;
   double volrech_timestep_cm;
+  double volrunoff_giuh_timestep_cm;
   
   // for global mass balance
   double volstart_cm;
@@ -118,7 +127,7 @@ struct lgar_mass_balance_variables {
   double volPET_cm;
   double volAET_cm;
   double volrech_cm;
-  
+  double volrunoff_giuh_cm;
 };
 
 struct lgar_model_
@@ -212,11 +221,11 @@ extern int wetting_front_free_drainage();
 // Bmi functions
 /********************************************************************/
 extern void lgar_initialize(string config_file, struct lgar_model_ *lgar_model);
-extern void lgar_update(struct lgar_model_ *lgar_model);
+//extern void lgar_update(struct lgar_model_ *lgar_model);
 extern void InitFromConfigFile(string config_file, struct lgar_model_ *model);
 extern vector<double> ReadVectorData(string key);
 extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm, struct soil_properties_ *soil_properties);
-extern void lgar_global_mass_balance(struct lgar_model_ *lgar_model);
+extern void lgar_global_mass_balance(struct lgar_model_ *lgar_model, double *giuh_runoff_queue);
 
 /********************************************************************/
 /*Other function prototypes for doing hydrology calculations, etc.  */

@@ -80,6 +80,7 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
   bool is_wilting_point_psi_cm_set = false;
   bool is_soil_params_file_set = false;
   bool is_max_soil_types_set = false;
+  bool is_giuh_ordinates_set = false;
   
   string soil_params_file;
   
@@ -144,6 +145,22 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
       is_layer_soil_type_set = true;
       for (int i=0; i<4; i++)
       	std::cout<<"soiltype "<<model->lgar_bmi_params.layer_soil_type[i]<<"\n";
+      continue;
+    }
+    else if (param_key == "giuh_ordinates") {
+      vector<double> vec = ReadVectorData(param_value);
+      
+      model->lgar_bmi_params.giuh_ordinates = new double[vec.size()+1];
+      
+      for (unsigned int layer=1; layer <= vec.size(); layer++) {
+      	model->lgar_bmi_params.giuh_ordinates[layer] = vec[layer-1];
+      }
+
+      model->lgar_bmi_params.num_giuh_ordinates = vec.size();
+      
+      is_giuh_ordinates_set = true;
+      for (int i=0; i<=model->lgar_bmi_params.num_giuh_ordinates; i++)
+      	std::cout<<"giuh ords "<<model->lgar_bmi_params.giuh_ordinates[i]<<"\n";
       continue;
     }
     else if (param_key == "initial_psi") {
@@ -346,7 +363,7 @@ ReadVectorData(string key)
   return value;
 }
 
-
+/*
 extern void lgar_update(struct lgar_model_ *model)
 {
   std::cout<<"in lgar update \n";
@@ -503,7 +520,7 @@ extern void lgar_update(struct lgar_model_ *model)
     double local_mb = volstart_timestep_cm + model->lgar_mass_balance.volprecip_timestep_cm -  model->lgar_mass_balance.volrunoff_timestep_cm - model->lgar_mass_balance.volAET_timestep_cm - model->lgar_mass_balance.volon_cm - model->lgar_mass_balance.volrech_timestep_cm - volend_timestep_cm;
     
     bool debug_flag = true;
-    if(debug_flag) {
+    if(VERBOSE > 1) {
       printf("local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_timestep_cm, model->lgar_mass_balance.volprecip_timestep_cm, volrunoff_timestep_cm,AET_timestep_cm, model->lgar_mass_balance.volend_timestep_cm);
     }
     
@@ -512,7 +529,7 @@ extern void lgar_update(struct lgar_model_ *model)
       abort();
     }
     
-    listPrint();
+    //listPrint();
     if (head->depth_cm <= 0.0) {
       printf("negative depth = %lf \n", head->depth_cm);
       abort();
@@ -520,8 +537,9 @@ extern void lgar_update(struct lgar_model_ *model)
   }  
   
 }
+*/
 
-extern void lgar_global_mass_balance(struct lgar_model_ *model)
+extern void lgar_global_mass_balance(struct lgar_model_ *model, double *giuh_runoff_queue_cm)
 {
   double volstart = model->lgar_mass_balance.volstart_cm;
   double volprecip = model->lgar_mass_balance.volprecip_cm;
@@ -532,6 +550,15 @@ extern void lgar_global_mass_balance(struct lgar_model_ *model)
   double volin = model->lgar_mass_balance.volin_cm;
   double volrech = model->lgar_mass_balance.volrech_cm;
   double volend = model->lgar_mass_balance.volend_cm;
+  double volend_giuh = model->lgar_mass_balance.volrunoff_giuh_cm;
+  double volend_giuh_cm = 0.0;
+
+  //check if the giuh queue have some water left at the end of simulaiton; needs to be included in the global mass balance
+  // hold on; this is probably not needed as we have volrunoff in the balance; revist AJK
+  for(int i=1; i <= model->lgar_bmi_params.num_giuh_ordinates; i++)
+    volend_giuh_cm += giuh_runoff_queue_cm[i];
+    
+    
   double global_error_cm = volstart + volprecip - volrunoff - volAET - volon -volrech -volend;
   
   
@@ -544,6 +571,7 @@ extern void lgar_global_mass_balance(struct lgar_model_ *model)
  printf("final water in soil        = %14.10f cm\n", volend);
  printf("water remaining on surface = %14.10f cm\n", volon);
  printf("surface runoff             = %14.10f cm\n", volrunoff);
+ printf("giuh runoff                = %14.10f cm\n", volrunoff);
  printf("total percolation          = %14.10f cm\n", volrech);
  printf("total AET                  = %14.10f cm\n", volAET);
  printf("total PET                  = %14.10f cm\n", volPET);
@@ -592,7 +620,7 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
 			     struct soil_properties_ *soil_properties)
 {
 
-#if VERBOSE > -1
+#if VERBOSE > 1
   printf("wetting fronts before moving \n");
   listPrint();
 #endif
@@ -639,7 +667,7 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
   //lgar_move_wetting_fronts()
   for (int l = number_of_wetting_fronts; l != 0; l--) {
 
-#if VERBOSE > -1
+#if VERBOSE > 1
     printf("Looping over wetting fronst = %d %d \n", l);
 #endif
     
@@ -688,7 +716,7 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
 
     layer_number_below = (l == last_wetting_front_index) ? layer_num + 1 : next->layer_num;
 
-#if VERBOSE > -1
+#if VERBOSE > 1
     printf ("****************** Cases ***************** \n");
     printf ("Layers (wf, layer, above, below) == %d %d %d %d \n", l ,layer_num, layer_number_above, layer_number_below);
 #endif
@@ -700,7 +728,7 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
     // todo. this condition can be replace by current->to_depth = FALSE && l<last_wetting_front_index
     /*************************************************************************************/
     if ( (l<last_wetting_front_index) && (layer_number_below!=layer_num) ) {
-#if VERBOSE > -1
+#if VERBOSE > 1
       printf("case (deepest wetting front) : layer_num_below (%d) != layer_num (%d) \n", layer_num, layer_number_below);
       //listPrint();
 #endif
@@ -714,7 +742,7 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
     
     if (l == number_of_wetting_fronts && layer_number_below != layer_num && number_of_wetting_fronts == num_layers) {
       
-#if VERBOSE > -1
+#if VERBOSE > 1
       printf("case (number_of_wetting_fronts equal to num_layers) : l (%d) == num_layers (%d) == num_wetting_fronts(%d) \n", l, num_layers,number_of_wetting_fronts);
 #endif
       
@@ -790,7 +818,7 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
     
     if ( (l < last_wetting_front_index) && (layer_number_below == layer_num) ) {
       
-#if VERBOSE > -1
+#if VERBOSE > 1
       printf("case (wetting front within layer) : layer_num (%d) == layer_num_below (%d) \n", layer_num,layer_number_below);
 #endif
       if (layer_num == 1) {
@@ -877,7 +905,7 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
     }
     
     
-#if VERBOSE > -1
+#if VERBOSE > 1
     printf("*********** Cases for mass balance of wetting fronts are done!! ************** \n");
     listPrint();
 #endif
@@ -888,8 +916,6 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
 
       int soil_num_k1  = soil_type[wf_free_drainage_demand];
       double theta_e_k1 = soil_properties[soil_num_k1].theta_e;
-
-      std::cout<<"B1 = "<<wf_free_drainage_demand<<" "<<soil_type[wf_free_drainage_demand]<<" "<<theta_e_k1<<"\n";
 	
       struct wetting_front *wf_free_drainage = listFindFront(wf_free_drainage_demand,NULL);
       
@@ -938,8 +964,6 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
       }
     }
 
-printf("moving done 0 \n");
-  listPrint();
     // **************************** MERGING WETTING FRONT ********************************
     
 #if VERBOSE > 1
@@ -1015,8 +1039,7 @@ printf("moving done 0 \n");
 
     current = current->next;
   }
-  printf("moving done \n");
-  listPrint();
+
 }
 
 
