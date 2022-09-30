@@ -7,6 +7,11 @@ using namespace std;
 #include "../bmi/bmi.hxx"
 #include "all.hxx"
 #include <stdexcept>
+//#include "../giuh/giuh.h"
+
+extern "C" {
+#include "../giuh/giuh.h"
+}
 
 namespace bmi_lgar {
 class NotImplemented : public std::logic_error {
@@ -22,9 +27,11 @@ public:
     this->input_var_names[0] = "precipitation";
     this->input_var_names[1] = "potential_evapotranspiration";
     
-    this->output_var_names[0] = "soil_moisture_layered";
-    this->output_var_names[0] = "soil_layer_thickness";
-    this->output_var_names[0] = "soil_wetting_front_thickness";
+    this->output_var_names[0] = "soil_moisture_layer";
+    this->output_var_names[1] = "soil_moisture_wetting_front";
+    this->output_var_names[2] = "soil_thickness_layer";
+    this->output_var_names[3] = "soil_thickness_wetting_front";
+    this->output_var_names[4] = "actual_evapotranspiration";
   };
   
   void Initialize(std::string config_file);
@@ -84,10 +91,13 @@ private:
   //soil_moisture_profile::smp_parameters* model;
   struct lgar_model_* model;
   static const int input_var_name_count = 2;
-  static const int output_var_name_count = 3;
+  static const int output_var_name_count = 5;
   
   std::string input_var_names[input_var_name_count];
   std::string output_var_names[output_var_name_count];
+  int num_giuh_ordinates;
+  double *giuh_ordinates;
+  double *giuh_runoff_queue;
 };
 
 

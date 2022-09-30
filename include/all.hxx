@@ -116,6 +116,7 @@ struct lgar_mass_balance_variables {
   double volPET_timestep_cm;
   double volrech_timestep_cm;
   double volrunoff_giuh_timestep_cm;
+  double volQ_timestep_cm; // total outgoing water
   
   // for global mass balance
   double volstart_cm;
@@ -128,6 +129,7 @@ struct lgar_mass_balance_variables {
   double volAET_cm;
   double volrech_cm;
   double volrunoff_giuh_cm;
+  double volQ_cm; // total outgoing water 
 };
 
 struct lgar_model_
@@ -221,7 +223,7 @@ extern int wetting_front_free_drainage();
 // Bmi functions
 /********************************************************************/
 extern void lgar_initialize(string config_file, struct lgar_model_ *lgar_model);
-//extern void lgar_update(struct lgar_model_ *lgar_model);
+extern void lgar_update(struct lgar_model_ *lgar_model);
 extern void InitFromConfigFile(string config_file, struct lgar_model_ *model);
 extern vector<double> ReadVectorData(string key);
 extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm, struct soil_properties_ *soil_properties);

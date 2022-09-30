@@ -8,10 +8,10 @@
 #include <cstdlib>
 #include <vector>
 #include <algorithm>
+#include <iostream>
 #include "../bmi/bmi.hxx"
 #include "../include/bmi_lgar.hxx"
 #include "../include/all.hxx"
-//#include "../include/soil_moisture_profile.hxx"
 
 
 void BmiLGAR::
@@ -19,19 +19,235 @@ Initialize (std::string config_file)
 {
   if (config_file.compare("") != 0 ) {
     this->model = new lgar_model_;
-    //soil_moisture_profile::LGAR(config_file, model);
     lgar_initialize(config_file, model);
   }
-}
+  
+  num_giuh_ordinates = model->lgar_bmi_params.num_giuh_ordinates;
 
+  giuh_ordinates = new double[num_giuh_ordinates];
+  giuh_runoff_queue = new double[num_giuh_ordinates+1];
+  
+  for (int i=0; i<num_giuh_ordinates;i++) {
+    giuh_ordinates[i] = model->lgar_bmi_params.giuh_ordinates[i+1]; // note lgar use 1 indexing
+    std::cout<<"giuh = "<<num_giuh_ordinates<<" "<<giuh_ordinates[i]<<"\n";
+  }
+
+  for (int i=0; i<=num_giuh_ordinates;i++) {
+    giuh_runoff_queue[i] = 0.0;
+  }
+
+}
 
 void BmiLGAR::
 Update()
 {
-  //  model->LGARUpdate();
-  lgar_update(model);
+  std::cout<<"LGAT BMI Update... \n";
+  //listPrint();
+  double mm_to_cm = 0.1;
+
+  // local variables for readibility
+  int subcycles = model->lgar_bmi_params.forcing_interval;
+  
+  double precip_timestep_cm;
+  double PET_timestep_cm;
+  double ponded_depth_cm;
+  double AET_timestep_cm;
+  double volstart_timestep_cm;
+  double volend_timestep_cm = 0.0; // this should not be reset to 0.0 in the for loop
+  double volin_timestep_cm;
+  double volrunoff_timestep_cm;
+  double volrech_timestep_cm;
+  double surface_runoff_m;
+  double precip_previous_timestep_cm;
+  double num_layers;
+  double timestep_h = model->lgar_bmi_params.timestep_h;
+  int nint = model->lgar_bmi_params.nint;
+  double wilting_point_psi_cm = model->lgar_bmi_params.wilting_point_psi_cm;
+  double AET_thresh_Theta = 0.85;    // scaled soil moisture (0-1) above which AET=PET (fix later!)
+  double AET_expon = 1.0;  // exponent that allows curvature of the rising portion of the Budyko curve (fix later!)
+
+  
+  for (int cycle=0; cycle < subcycles; cycle++) {
+
+    state_previous = NULL;
+    state_previous = listCopy(head);
+    
+    precip_timestep_cm = model->lgar_bmi_params.precipitation_cm * mm_to_cm / double(subcycles); // rate; cm/hour
+    PET_timestep_cm = model->lgar_bmi_params.PET_cm * mm_to_cm / double(subcycles);
+    ponded_depth_cm = precip_timestep_cm * timestep_h;
+    AET_timestep_cm = 0.0;
+    volstart_timestep_cm = 0.0;
+    volin_timestep_cm =0.0;
+
+    volrunoff_timestep_cm = 0.0;
+    volrech_timestep_cm = 0.0;
+    surface_runoff_m = 0.0;
+
+    precip_previous_timestep_cm = model->lgar_bmi_params.precip_previous_timestep_cm;
+    
+    num_layers = model->lgar_bmi_params.num_layers;
+    double delta_theta;   // the width of a front, such that its volume=depth*delta_theta
+    double dry_depth;
+    
+    
+    if (PET_timestep_cm>0) {
+      // Calculate AET from PET and root zone soil moisture.  Note PET was reduced iff raining
+      
+      AET_timestep_cm = calc_aet(PET_timestep_cm, timestep_h, wilting_point_psi_cm, model->soil_properties, model->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon);
+    }
+    
+    
+    // put local variables to state timstep variables
+    model->lgar_mass_balance.volprecip_timestep_cm = precip_timestep_cm * timestep_h; // volume in cm
+    model->lgar_mass_balance.volPET_timestep_cm = PET_timestep_cm;
+    
+    // put local variables to state global variables
+    model->lgar_mass_balance.volprecip_cm += precip_timestep_cm * timestep_h;
+    model->lgar_mass_balance.volPET_cm += fmax(PET_timestep_cm,0.0); // ensures non-negative PET
+    volstart_timestep_cm = lgar_calc_mass_bal(num_layers,model->lgar_bmi_params.cum_layer_thickness_cm);
+    
+    
+    int soil_num = model->lgar_bmi_params.layer_soil_type[head->layer_num];
+    double theta_e = model->soil_properties[soil_num].theta_e;
+    bool is_top_wf_saturated = head->theta >= theta_e ? true : false;
+    bool create_surficial_front = (precip_previous_timestep_cm == 0.0 && precip_timestep_cm >0.0);
+    
+    double mass_source_to_soil_timestep = 0.0;
+    
+    int wf_free_drainage_demand = wetting_front_free_drainage();
+    
+    //if the follow is true, that would mean there is no wetting front in the top layer to accept the water, must create one.
+    if(create_surficial_front && !is_top_wf_saturated)  {
+      
+      double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
+      
+      lgar_move_wetting_fronts(&temp_pd,timestep_h, wf_free_drainage_demand, volend_timestep_cm, num_layers, &AET_timestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->soil_properties);
+      
+      dry_depth = lgar_calc_dry_depth(nint, timestep_h, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm,&delta_theta);
+      
+      double theta1 = head->theta;
+      lgar_create_surfacial_front(&ponded_depth_cm, &volin_timestep_cm, dry_depth, theta1, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm, nint, timestep_h);
+      
+      state_previous = NULL;
+      state_previous = listCopy(head);
+      
+      model->lgar_mass_balance.volin_cm += volin_timestep_cm;
+      
+    }
+
+    //listPrint();
+
+    if (ponded_depth_cm > 0 && !create_surficial_front) {
+      
+      volrunoff_timestep_cm = lgar_insert_water(&ponded_depth_cm, &volin_timestep_cm, precip_timestep_cm, dry_depth, nint, timestep_h, wf_free_drainage_demand, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm);
+      
+      model->lgar_mass_balance.volin_cm += volin_timestep_cm;
+      model->lgar_mass_balance.volrunoff_timestep_cm = volrunoff_timestep_cm;
+      model->lgar_mass_balance.volrunoff_cm += volrunoff_timestep_cm;
+      volrech_timestep_cm = volin_timestep_cm; // this gets updated later, probably not needed here
+      model->lgar_mass_balance.volon_cm = ponded_depth_cm;
+      //printf("Mass in = %lf %lf %lf \n", volin_timestep_cm, volrech_timestep_cm, volrunoff_timestep_cm);
+      if (volrunoff_timestep_cm < 0) abort();  
+    }
+    else {
+      //printf("wetting front created = %lf %d \n", ponded_depth_cm ,!create_surficial_front );
+      double hp_cm_max = 0.0; //h_p_max = 0.0;
+      
+      if (ponded_depth_cm < hp_cm_max) {
+	model->lgar_mass_balance.volrunoff_cm += 0.0;
+	model->lgar_mass_balance.volon_cm = ponded_depth_cm;
+	ponded_depth_cm = 0.0;
+	model->lgar_mass_balance.volrunoff_timestep_cm = 0.0;
+      }
+      else {
+	model->lgar_mass_balance.volrunoff_timestep_cm = ponded_depth_cm - hp_cm_max;
+	model->lgar_mass_balance.volrunoff_cm += (ponded_depth_cm - hp_cm_max);
+	model->lgar_mass_balance.volon_cm = hp_cm_max;
+	ponded_depth_cm = hp_cm_max;
+	
+      }
+    }
+    
+    
+    if (!create_surficial_front) {
+      lgar_move_wetting_fronts(&volin_timestep_cm,timestep_h, wf_free_drainage_demand, volend_timestep_cm, num_layers, &AET_timestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->soil_properties);
+      
+      // this is the volume of water leaving through the bottom
+      volrech_timestep_cm = volin_timestep_cm;
+      model->lgar_mass_balance.volrech_timestep_cm = volrech_timestep_cm;
+      //printf("Mass in x = %lf %lf \n", volin_timestep_cm, volrech_timestep_cm);
+    }
+    
+    
+    int num_dzdt_calculated = lgar_dzdt_calc(nint, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm, ponded_depth_cm);
+    
+    
+    model->lgar_mass_balance.volAET_timestep_cm = AET_timestep_cm;
+    model->lgar_mass_balance.volAET_cm += AET_timestep_cm;
+    model->lgar_mass_balance.volrech_timestep_cm = volrech_timestep_cm;
+    model->lgar_mass_balance.volrech_cm += volrech_timestep_cm;
+    
+    volend_timestep_cm = lgar_calc_mass_bal(num_layers,model->lgar_bmi_params.cum_layer_thickness_cm);
+    
+    model->lgar_mass_balance.volend_timestep_cm = volend_timestep_cm;
+    model->lgar_mass_balance.volend_cm = volend_timestep_cm;
+    model->lgar_bmi_params.precip_previous_timestep_cm = precip_timestep_cm;
+    
+    
+    double local_mb = volstart_timestep_cm + model->lgar_mass_balance.volprecip_timestep_cm -  model->lgar_mass_balance.volrunoff_timestep_cm - model->lgar_mass_balance.volAET_timestep_cm - model->lgar_mass_balance.volon_cm - model->lgar_mass_balance.volrech_timestep_cm - volend_timestep_cm;
+
+    
+    // compute giuh runoff for the sub-timestep
+    surface_runoff_m = this->model->lgar_mass_balance.volrunoff_timestep_cm;
+    model->lgar_mass_balance.volrunoff_giuh_timestep_cm = 10 * giuh_convolution_integral(surface_runoff_m,num_giuh_ordinates,
+											 giuh_ordinates,giuh_runoff_queue);
+
+    model->lgar_mass_balance.volrunoff_giuh_cm +=  model->lgar_mass_balance.volrunoff_giuh_timestep_cm;
+
+    if(VERBOSE > 1) {
+      printf("local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_timestep_cm, model->lgar_mass_balance.volprecip_timestep_cm, volrunoff_timestep_cm,AET_timestep_cm, model->lgar_mass_balance.volend_timestep_cm);
+    }
+    
+    if (fabs(local_mb) >1e-7) {
+      printf("Local mass balance (in this timestep) is %.6e, larger than expected, needs some debugging...\n ",local_mb);
+      abort();
+    }
+    
+    //listPrint();
+    if (head->depth_cm <= 0.0) {
+      printf("negative depth = %lf \n", head->depth_cm);
+      abort();
+    }
+
+
+  } // end of cycle loop 
+  
 }
 
+/*
+void BmiLGAR::
+Update()
+{
+  lgar_update(this->model);
+  
+  //double surface_runoff_m = this->model->lgar_mass_balance.volrunoff_timestep_cm;
+
+  //double giuh_runoff_cm = 10 * giuh_convolution_integral(surface_runoff_m,num_giuh_ordinates,
+  //						 giuh_ordinates,giuh_runoff_queue);
+  //std::cout<<"giuh runoff "<<giuh_runoff_cm<<" "<<surface_runoff_m<<"\n";
+
+  //this->model->lgar_mass_balance = this->model->lgar_mass_balance.volrunoff_giuh_timestep_cm;
+  //massbal_struct->vol_out_giuh+=giuh_runoff_m;
+  //abort();
+}
+
+*/
+
+void BmiLGAR::
+global_mass_balance()
+{
+  lgar_global_mass_balance(this->model, giuh_runoff_queue);
+}
 
 void BmiLGAR::
 UpdateUntil(double t)
@@ -65,11 +281,11 @@ Finalize()
 int BmiLGAR::
 GetVarGrid(std::string name)
 {
-  if (name.compare("soil_storage_model") == 0)   // int
+  if (name.compare("soil_storage_model") == 0)   // int (ke
     return 0;
-  else if (name.compare("soil_storage") == 0 || name.compare("soil_storage_change") == 0 || name.compare("soil_water_table") == 0) // double
+  else if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
     return 1; 
-  else if (name.compare("soil_moisture_profile") == 0 || name.compare("soil_moisture_layered") == 0) // array of doubles 
+  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_front") == 0) // array of doubles 
     return 2; 
   else 
     return -1;
@@ -81,9 +297,9 @@ GetVarType(std::string name)
 {
   if (name.compare("soil_storage_model") == 0)
     return "int";
-  else if (name.compare("soil_storage") == 0 || name.compare("soil_storage_change") == 0 || name.compare("soil_water_table") == 0)
+  else if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0)
     return "double";
-  else if (name.compare("soil_moisture_profile") == 0 || name.compare("soil_moisture_layered") == 0)
+  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_front") == 0)
     return "double";
   else
     return "";
@@ -95,9 +311,9 @@ GetVarItemsize(std::string name)
 {
   if (name.compare("soil_storage_model") == 0)
     return sizeof(int);
-  else if (name.compare("soil_storage") == 0 || name.compare("soil_storage_change") == 0 || name.compare("soil_water_table") == 0)
+  else if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0)
     return sizeof(double);
-  else if (name.compare("soil_moisture_profile") == 0 || name.compare("soil_moisture_layered") == 0)
+  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_front") == 0)
     return sizeof(double);
   else
     return 0;
@@ -107,9 +323,9 @@ GetVarItemsize(std::string name)
 std::string BmiLGAR::
 GetVarUnits(std::string name)
 {
-  if (name.compare("soil_storage") == 0 || name.compare("soil_storage_change") == 0  || name.compare("soil_water_table") == 0)
+  if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0)
     return "m";
-  else if (name.compare("soil_moisture_profile") == 0 || name.compare("soil_moisture_layered") == 0)
+  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_front") == 0)
     return "none";
   else
     return "none";
@@ -131,9 +347,9 @@ GetVarNbytes(std::string name)
 std::string BmiLGAR::
 GetVarLocation(std::string name)
 {
-  if (name.compare("soil_storage") == 0 || name.compare("soil_storage_change") == 0 || name.compare("soil_water_table") == 0)
+  if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0)
     return "node";
-  else if (name.compare("soil_moisture_profile") == 0 || name.compare("soil_moisture_layered") == 0)
+  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_front") == 0)
     return "node";
   else
     return "none";
@@ -289,25 +505,24 @@ GetValue (std::string name, void *dest)
 
 void *BmiLGAR::
 GetValuePtr (std::string name)
-{/*
-  if (name.compare("soil_storage") == 0)
-    return (void*)(&this->model->soil_storage);
-  else if (name.compare("soil_storage_change") == 0)
-    return (void*)(&this->model->soil_storage_change_per_timestep);
-  else  if (name.compare("soil_water_table") == 0)
-    return (void*)(&this->model->water_table_thickness);
-  else if (name.compare("soil_moisture_profile") == 0)
-    return (void*)this->model->soil_moisture_profile;
-  else if (name.compare("soil_moisture_layered") == 0)
-    return (void*)this->model->soil_moisture_layered;
-  else if (name.compare("soil_storage_model") == 0)
-    return (void*)(&this->model->soil_storage_model);
+{
+ 
+  if (name.compare("precipitation") == 0)
+    return (void*)(&this->model->lgar_bmi_params.precipitation_cm);
+  else  if (name.compare("potential_evapotranspiration") == 0)
+    return (void*)(&this->model->lgar_bmi_params.PET_cm);
+  else  if (name.compare("actual_evapotranspiration") == 0)
+    return (void*)(&this->model->lgar_bmi_params.AET_cm);
+  else if (name.compare("soil_moisture_layer") == 0)
+    return (void*)this->model->lgar_bmi_params.soil_moisture_layer;
+  else if (name.compare("soil_moisture_wetting_front") == 0)
+    return (void*)this->model->lgar_bmi_params.soil_moisture_wetting_front;
   else {
     std::stringstream errMsg;
     errMsg << "variable "<< name << " does not exist";
     throw std::runtime_error(errMsg.str());
     return NULL;
-    }*/
+    }
   // delete it later
   return NULL;
 }
@@ -377,7 +592,7 @@ SetValueAtIndices (std::string name, int * inds, int len, void *src)
 std::string BmiLGAR::
 GetComponentName()
 {
-  return "LGAR BMI";
+  return "LGAR model";
 }
 
 
