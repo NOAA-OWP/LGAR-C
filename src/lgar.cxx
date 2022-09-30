@@ -520,7 +520,7 @@ extern void lgar_update(struct lgar_model_ *model)
     double local_mb = volstart_timestep_cm + model->lgar_mass_balance.volprecip_timestep_cm -  model->lgar_mass_balance.volrunoff_timestep_cm - model->lgar_mass_balance.volAET_timestep_cm - model->lgar_mass_balance.volon_cm - model->lgar_mass_balance.volrech_timestep_cm - volend_timestep_cm;
     
     bool debug_flag = true;
-    if(VERBOSE > 1) {
+    if(VERBOSE > -1) {
       printf("local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_timestep_cm, model->lgar_mass_balance.volprecip_timestep_cm, volrunoff_timestep_cm,AET_timestep_cm, model->lgar_mass_balance.volend_timestep_cm);
     }
     
@@ -539,6 +539,7 @@ extern void lgar_update(struct lgar_model_ *model)
 }
 */
 
+
 extern void lgar_global_mass_balance(struct lgar_model_ *model, double *giuh_runoff_queue_cm)
 {
   double volstart = model->lgar_mass_balance.volstart_cm;
@@ -552,7 +553,7 @@ extern void lgar_global_mass_balance(struct lgar_model_ *model, double *giuh_run
   double volend = model->lgar_mass_balance.volend_cm;
   double volend_giuh = model->lgar_mass_balance.volrunoff_giuh_cm;
   double volend_giuh_cm = 0.0;
-
+  double total_Q_cm = model->lgar_mass_balance.volQ_cm;
   //check if the giuh queue have some water left at the end of simulaiton; needs to be included in the global mass balance
   // hold on; this is probably not needed as we have volrunoff in the balance; revist AJK
   for(int i=1; i <= model->lgar_bmi_params.num_giuh_ordinates; i++)
@@ -575,6 +576,7 @@ extern void lgar_global_mass_balance(struct lgar_model_ *model, double *giuh_run
  printf("total percolation          = %14.10f cm\n", volrech);
  printf("total AET                  = %14.10f cm\n", volAET);
  printf("total PET                  = %14.10f cm\n", volPET);
+ printf("total discharge (Q)        = %14.10f cm\n", total_Q_cm);
  printf("global balance             =   %.6e cm\n", global_error_cm);
 }
 

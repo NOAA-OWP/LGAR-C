@@ -223,7 +223,7 @@ extern int wetting_front_free_drainage();
 // Bmi functions
 /********************************************************************/
 extern void lgar_initialize(string config_file, struct lgar_model_ *lgar_model);
-extern void lgar_update(struct lgar_model_ *lgar_model);
+//extern void lgar_update(struct lgar_model_ *lgar_model);
 extern void InitFromConfigFile(string config_file, struct lgar_model_ *model);
 extern vector<double> ReadVectorData(string key);
 extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm, struct soil_properties_ *soil_properties);
