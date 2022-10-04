@@ -24,13 +24,13 @@ class NotImplemented : public std::logic_error {
 class BmiLGAR : public bmixx::Bmi {
 public:
   BmiLGAR() {
-    this->input_var_names[0] = "precipitation";
+    this->input_var_names[0] = "precipitation_rate";
     this->input_var_names[1] = "potential_evapotranspiration";
     
     this->output_var_names[0] = "soil_moisture_layer";
-    this->output_var_names[1] = "soil_moisture_wetting_front";
+    this->output_var_names[1] = "soil_moisture_wetting_fronts";
     this->output_var_names[2] = "soil_thickness_layer";
-    this->output_var_names[3] = "soil_thickness_wetting_front";
+    this->output_var_names[3] = "soil_thickness_wetting_fronts";
 
     // vis outputs
     this->output_var_names[4] = "precipitation";
@@ -121,6 +121,8 @@ public:
   void GetGridFaceNodes(const int grid, int *face_nodes);
   void GetGridNodesPerFace(const int grid, int *nodes_per_face);
   void global_mass_balance();
+  struct lgar_model_* get_model();
+  
 private:
   struct lgar_model_* model;
   static const int input_var_name_count = 2;

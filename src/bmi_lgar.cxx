@@ -175,7 +175,7 @@ Update()
 
     if (ponded_depth_subtimestep_cm > 0 && !create_surficial_front) {
       
-      volrunoff_subtimestep_cm = lgar_insert_water(&ponded_depth_subtimestep_cm, &volin_subtimestep_cm, precip_subtimestep_cm, dry_depth, nint, subtimestep_h, wf_free_drainage_demand, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm);
+      volrunoff_subtimestep_cm = lgar_insert_water(&ponded_depth_subtimestep_cm, &volin_subtimestep_cm, precip_subtimestep_cm_per_h, dry_depth, nint, subtimestep_h, wf_free_drainage_demand, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm);
       /*
       model->lgar_mass_balance.volin_cm += volin_timestep_cm;
       model->lgar_mass_balance.volrunoff_timestep_cm = volrunoff_timestep_cm;
@@ -313,6 +313,9 @@ Update()
 
   } // end of cycle loop
 
+  //update number of wetting fronts
+  model->lgar_bmi_params.num_wetting_fronts = listLength();
+    
   // add to mass balance timestep variables
   model->lgar_mass_balance.volprecip_timestep_cm = precip_timestep_cm;
   model->lgar_mass_balance.volin_timestep_cm = volin_timestep_cm;
@@ -393,16 +396,18 @@ Finalize()
 int BmiLGAR::
 GetVarGrid(std::string name)
 {
-  if (name.compare("soil_storage_model") == 0)   // int (ke
+  if (name.compare("soil_storage_model") == 0)   // int
     return 0;
   else if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
     return 1;
   else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("soil_storage") == 0) // double
     return 1;
-   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
-    return 1; 
-  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_front") == 0) // array of doubles 
-    return 2; 
+  else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
+    return 1;
+  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_thickness_layer") == 0) // array of doubles (fixed length)
+    return 2;
+  else if (name.compare("soil_moisture_wetting_front") == 0 || name.compare("soil_thickness_wetting_front") == 0) // array of doubles (dynamic length)
+    return 3; 
   else 
     return -1;
 }
@@ -411,11 +416,11 @@ GetVarGrid(std::string name)
 std::string BmiLGAR::
 GetVarType(std::string name)
 {
-  if (name.compare("soil_storage_model") == 0)
+  int var_grid = GetVarGrid(name);
+  
+  if (var_grid == 0)
     return "int";
-  else if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0)
-    return "double";
-  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_front") == 0)
+  else if (var_grid == 1 || var_grid == 2 || var_grid == 3) 
     return "double";
   else
     return "";
@@ -425,11 +430,11 @@ GetVarType(std::string name)
 int BmiLGAR::
 GetVarItemsize(std::string name)
 {
-  if (name.compare("soil_storage_model") == 0)
+  int var_grid = GetVarGrid(name);
+
+   if (var_grid == 0)
     return sizeof(int);
-  else if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0)
-    return sizeof(double);
-  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_front") == 0)
+  else if (var_grid == 1 || var_grid == 2 || var_grid == 3)
     return sizeof(double);
   else
     return 0;
@@ -439,12 +444,19 @@ GetVarItemsize(std::string name)
 std::string BmiLGAR::
 GetVarUnits(std::string name)
 {
-  if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0)
-    return "m";
-  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_front") == 0)
+  if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
+    return "cm";
+  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("soil_storage") == 0) // double
+    return "cm";
+   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
+    return "cm";
+  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_front") == 0) // array of doubles 
     return "none";
-  else
+  else if (name.compare("soil_thickness_layer") == 0 || name.compare("soil_thickness_wetting_front") == 0) // array of doubles 
+    return "m"; 
+  else 
     return "none";
+  
 }
 
 
@@ -463,11 +475,17 @@ GetVarNbytes(std::string name)
 std::string BmiLGAR::
 GetVarLocation(std::string name)
 {
-  if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0)
+  if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
     return "node";
-  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_front") == 0)
+  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("soil_storage") == 0) // double
     return "node";
-  else
+   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
+    return "node";
+  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_front") == 0) // array of doubles 
+    return "node";
+  else if (name.compare("soil_thickness_layer") == 0 || name.compare("soil_thickness_wetting_front") == 0) // array of doubles 
+    return "node"; 
+  else 
     return "none";
 }
 
@@ -502,7 +520,7 @@ GetGridOrigin (const int grid, double *origin)
 int BmiLGAR::
 GetGridRank(const int grid)
 {
-  if (grid == 0 || grid == 1 || grid == 2)
+  if (grid == 0 || grid == 1 || grid == 2 || grid == 3)
     return 1;
   else
     return -1;
@@ -514,8 +532,10 @@ GetGridSize(const int grid)
 {
   if (grid == 0 || grid == 1)
     return 1;
-  else if (grid == 2)
-    return this->model->lgar_bmi_params.shape[0];
+  else if (grid == 2) // number of layers 
+    return this->model->lgar_bmi_params.num_layers; //.shape[0];
+  else if (grid == 3)
+    return this->model->lgar_bmi_params.num_wetting_fronts; //this->model->lgar_bmi_params.shape[0];
   else
     return -1;
 }

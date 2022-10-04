@@ -81,6 +81,7 @@ struct lgar_bmi_parameters {
   double *layer_thickness_cm;
   int *layer_soil_type;  // allocate this to MAX_NUM_SOIL_LAYERS, integer equal to the soil type in each layer
   int num_layers;  // number of actual soil layers
+  int num_wetting_fronts;  // number of wetting fronts
   double *cum_layer_thickness_cm; // cumulative thickness of layers, allocate memory at run time
   double soil_depth; //depth of the computational domain
   double initial_psi_cm; // model initial (psi) condition
@@ -88,11 +89,12 @@ struct lgar_bmi_parameters {
   double forcing_resolution_h; // forcing resolution in hours
   int forcing_interval;
   int num_soil_types;          // must be less than or equal to MAX_NUM_SOIL_TYPES
-  double precipitation_cm; // rainfall precip in cm
+  double precipitation_cm_per_h; // rainfall precip in cm per hour
   double PET_cm;  // potential evapotranspiration in cm
   double AET_cm; // actual evapotranspiration in cm
   double *soil_moisture_layer; // array of thetas (mean soil moisture content) per layer; output option to other models (e.g. soil freeze-thaw)
-  double *soil_moisture_wetting_front; // array of thetas (soil moisture content) per wetting front; output to other models (e.g. soil freeze-thaw)
+  double *soil_moisture_wetting_fronts; // array of thetas (soil moisture content) per wetting front; output to other models (e.g. soil freeze-thaw)
+  double *soil_thickness_wetting_fronts; // array of thetas (soil moisture content) per wetting front; output to other models (e.g. soil freeze-thaw)
   double  wilting_point_psi_cm;
   double ponded_depth_cm;
   double precip_previous_timestep_cm;
