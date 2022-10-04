@@ -31,8 +31,42 @@ public:
     this->output_var_names[1] = "soil_moisture_wetting_front";
     this->output_var_names[2] = "soil_thickness_layer";
     this->output_var_names[3] = "soil_thickness_wetting_front";
-    this->output_var_names[4] = "actual_evapotranspiration";
+
+    // vis outputs
+    this->output_var_names[4] = "precipitation";
+    this->output_var_names[5] = "potential_evapotranspiration";
+    this->output_var_names[6] = "actual_evapotranspiration";
+    this->output_var_names[7] = "surface_runoff"; // direct surface runoff
+    this->output_var_names[8] = "giuh_runoff";
+    this->output_var_names[9] = "soil_storage";
+    this->output_var_names[10] = "total_discharge";
+    this->output_var_names[11] = "infiltration";
+    this->output_var_names[12] = "percolation";
+
+    /*
+    this->output_var_names[13] = "cum_precipitation";
+    this->output_var_names[14] = "cum_potential_evapotranspiration";
+    this->output_var_names[15] = "cum_actual_evapotranspiration";
+    this->output_var_names[16] = "cum_surface_runoff"; // direct surface runoff
+    this->output_var_names[17] = "cum_giuh_runoff";
+    this->output_var_names[18] = "cum_soil_storage";
+    this->output_var_names[19] = "cum_total_discharge";
+    this->output_var_names[20] = "cum_infiltration";
+    this->output_var_names[21] = "cum_percolation";
+    */
   };
+
+  //model->lgar_mass_balance.volprecip_cm += precip_timestep_cm;
+  //model->lgar_mass_balance.volAET_cm += AET_timestep_cm;
+  //   model->lgar_mass_balance.volPET_cm += PET_timestep_cm;
+  //model->lgar_mass_balance.volrunoff_cm += volrunoff_timestep_cm;
+  //model->lgar_mass_balance.volin_cm += volin_timestep_cm;
+  //  model->lgar_mass_balance.volend_cm = volend_timestep_cm; // soil storage
+  
+  //model->lgar_mass_balance.volrech_cm += volrech_timestep_cm; // percolation
+  
+  //model->lgar_mass_balance.volQ_cm += volQ_timestep_cm; // total discharge giuh + ground flow
+
   
   void Initialize(std::string config_file);
   
@@ -88,10 +122,9 @@ public:
   void GetGridNodesPerFace(const int grid, int *nodes_per_face);
   void global_mass_balance();
 private:
-  //soil_moisture_profile::smp_parameters* model;
   struct lgar_model_* model;
   static const int input_var_name_count = 2;
-  static const int output_var_name_count = 5;
+  static const int output_var_name_count = 13;
   
   std::string input_var_names[input_var_name_count];
   std::string output_var_names[output_var_name_count];
