@@ -63,7 +63,23 @@ extern void lgar_initialize(string config_file, struct lgar_model_ *model)
   
   InitFromConfigFile(config_file, model);
   model->lgar_bmi_params.shape[0] = model->lgar_bmi_params.num_layers;
-  
+
+  // initial number of wetting fronts are same are number of layers
+  model->lgar_bmi_params.num_wetting_fronts = model->lgar_bmi_params.num_layers;
+  model->lgar_bmi_params.soil_thickness_wetting_fronts = new double[model->lgar_bmi_params.num_wetting_fronts];
+  model->lgar_bmi_params.soil_moisture_wetting_fronts = new double[model->lgar_bmi_params.num_wetting_fronts];
+
+  // initialize thickness/depth and soil moisture of wetting fronts (used for model coupling)
+  struct wetting_front *current = head;
+  for (int i=0; i<model->lgar_bmi_params.num_wetting_fronts; i++) {
+    assert (current != NULL);
+    model->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
+    model->lgar_bmi_params.soil_thickness_wetting_fronts[i] = current->depth_cm;
+    current = current->next;
+  }
+
+  for (int i=0; i<model->lgar_bmi_params.num_wetting_fronts; i++) 
+    std::cout<<"WF = "<<model->lgar_bmi_params.soil_thickness_wetting_fronts[i]<< " "<<model->lgar_bmi_params.soil_moisture_wetting_fronts[i]<<"\n";
 }
 
 
@@ -286,6 +302,9 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
 
   model->lgar_bmi_params.ponded_depth_cm = 0.0; // initially we start with a dry surface (no surface ponding)
   model->lgar_bmi_params.nint = 120; // hacked, not needed to be an input option
+  model->lgar_bmi_params.num_wetting_fronts = model->lgar_bmi_params.num_layers;
+
+  assert (model->lgar_bmi_params.num_layers == listLength());
 
 }
 

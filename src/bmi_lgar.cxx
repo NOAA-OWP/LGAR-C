@@ -98,7 +98,7 @@ Update()
     state_previous = NULL;
     state_previous = listCopy(head);
     
-    precip_subtimestep_cm_per_h = model->lgar_bmi_params.precipitation_cm * mm_to_cm / double(subcycles); // rate; cm/hour
+    precip_subtimestep_cm_per_h = model->lgar_bmi_params.precipitation_cm_per_h * mm_to_cm / double(subcycles); // rate; cm/hour
     PET_subtimestep_cm = model->lgar_bmi_params.PET_cm * mm_to_cm / double(subcycles);
     ponded_depth_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h;
 
@@ -118,7 +118,7 @@ Update()
     double dry_depth;
     
     
-    if (PET_subtimestep_cm>0) {
+    if (PET_subtimestep_cm > 0.0) {
       // Calculate AET from PET and root zone soil moisture.  Note PET was reduced iff raining
       
       AET_subtimestep_cm = calc_aet(PET_subtimestep_cm, subtimestep_h, wilting_point_psi_cm, model->soil_properties, model->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon);
@@ -315,7 +315,18 @@ Update()
 
   //update number of wetting fronts
   model->lgar_bmi_params.num_wetting_fronts = listLength();
-    
+  model->lgar_bmi_params.soil_thickness_wetting_fronts = new double[model->lgar_bmi_params.num_wetting_fronts];
+  model->lgar_bmi_params.soil_moisture_wetting_fronts = new double[model->lgar_bmi_params.num_wetting_fronts];
+
+  // update thickness/depth and soil moisture of wetting fronts (used for model coupling)
+  struct wetting_front *current = head;
+  for (int i=0; i<model->lgar_bmi_params.num_wetting_fronts; i++) {
+    assert (current != NULL);
+    model->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
+    model->lgar_bmi_params.soil_thickness_wetting_fronts[i] = current->depth_cm;
+    current = current->next;
+  }
+  
   // add to mass balance timestep variables
   model->lgar_mass_balance.volprecip_timestep_cm = precip_timestep_cm;
   model->lgar_mass_balance.volin_timestep_cm = volin_timestep_cm;
@@ -358,6 +369,11 @@ Update()
 
 */
 
+struct lgar_model_* BmiLGAR::get_model()
+{
+  return model;
+}
+
 void BmiLGAR::
 global_mass_balance()
 {
@@ -398,7 +414,7 @@ GetVarGrid(std::string name)
 {
   if (name.compare("soil_storage_model") == 0)   // int
     return 0;
-  else if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
+  else if (name.compare("precipitation_rate") == 0 || name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
     return 1;
   else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("soil_storage") == 0) // double
     return 1;
@@ -406,7 +422,7 @@ GetVarGrid(std::string name)
     return 1;
   else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_thickness_layer") == 0) // array of doubles (fixed length)
     return 2;
-  else if (name.compare("soil_moisture_wetting_front") == 0 || name.compare("soil_thickness_wetting_front") == 0) // array of doubles (dynamic length)
+  else if (name.compare("soil_moisture_wetting_fronts") == 0 || name.compare("soil_thickness_wetting_fronts") == 0) // array of doubles (dynamic length)
     return 3; 
   else 
     return -1;
@@ -444,15 +460,17 @@ GetVarItemsize(std::string name)
 std::string BmiLGAR::
 GetVarUnits(std::string name)
 {
-  if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
+  if (name.compare("precipitation_rate") == 0)
+    return "cm h^-1";
+  else if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
     return "cm";
   else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("soil_storage") == 0) // double
     return "cm";
    else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
     return "cm";
-  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_front") == 0) // array of doubles 
+  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles 
     return "none";
-  else if (name.compare("soil_thickness_layer") == 0 || name.compare("soil_thickness_wetting_front") == 0) // array of doubles 
+  else if (name.compare("soil_thickness_layer") == 0 || name.compare("soil_thickness_wetting_fronts") == 0) // array of doubles 
     return "m"; 
   else 
     return "none";
@@ -475,15 +493,15 @@ GetVarNbytes(std::string name)
 std::string BmiLGAR::
 GetVarLocation(std::string name)
 {
-  if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
+  if (name.compare("precipitation_rate") == 0 || name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
     return "node";
   else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("soil_storage") == 0) // double
     return "node";
    else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
     return "node";
-  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_front") == 0) // array of doubles 
+  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles 
     return "node";
-  else if (name.compare("soil_thickness_layer") == 0 || name.compare("soil_thickness_wetting_front") == 0) // array of doubles 
+  else if (name.compare("soil_thickness_layer") == 0 || name.compare("soil_thickness_wetting_fronts") == 0) // array of doubles 
     return "node"; 
   else 
     return "none";
@@ -532,99 +550,14 @@ GetGridSize(const int grid)
 {
   if (grid == 0 || grid == 1)
     return 1;
-  else if (grid == 2) // number of layers 
-    return this->model->lgar_bmi_params.num_layers; //.shape[0];
-  else if (grid == 3)
-    return this->model->lgar_bmi_params.num_wetting_fronts; //this->model->lgar_bmi_params.shape[0];
+  else if (grid == 2) // number of layers (fixed)
+    return this->model->lgar_bmi_params.num_layers;
+  else if (grid == 3) // number of wetting fronts (dynamic)
+    return this->model->lgar_bmi_params.num_wetting_fronts;
   else
     return -1;
 }
 
-
-std::string BmiLGAR::
-GetGridType(const int grid)
-{
-  if (grid == 0)
-    return "uniform_rectilinear";
-  else
-    return "";
-}
-
-
-void BmiLGAR::
-GetGridX(const int grid, double *x)
-{
-  throw bmi_lgar::NotImplemented();
-}
-
-
-void BmiLGAR::
-GetGridY(const int grid, double *y)
-{
-  throw bmi_lgar::NotImplemented();
-}
-
-
-void BmiLGAR::
-GetGridZ(const int grid, double *z)
-{
-  throw bmi_lgar::NotImplemented();
-}
-
-
-int BmiLGAR::
-GetGridNodeCount(const int grid)
-{
-  throw bmi_lgar::NotImplemented();
-  /*
-  if (grid == 0)
-    return this->model->shape[0];
-  else
-    return -1;
-  */
-}
-
-
-int BmiLGAR::
-GetGridEdgeCount(const int grid)
-{
-  throw bmi_lgar::NotImplemented();
-}
-
-
-int BmiLGAR::
-GetGridFaceCount(const int grid)
-{
-  throw bmi_lgar::NotImplemented();
-}
-
-
-void BmiLGAR::
-GetGridEdgeNodes(const int grid, int *edge_nodes)
-{
-  throw bmi_lgar::NotImplemented();
-}
-
-
-void BmiLGAR::
-GetGridFaceEdges(const int grid, int *face_edges)
-{
-  throw bmi_lgar::NotImplemented();
-}
-
-
-void BmiLGAR::
-GetGridFaceNodes(const int grid, int *face_nodes)
-{
-  throw bmi_lgar::NotImplemented();
-}
-
-
-void BmiLGAR::
-GetGridNodesPerFace(const int grid, int *nodes_per_face)
-{
-  throw bmi_lgar::NotImplemented();
-}
 
 
 void BmiLGAR::
@@ -643,18 +576,34 @@ void *BmiLGAR::
 GetValuePtr (std::string name)
 {
  
-  if (name.compare("precipitation") == 0)
-    return (void*)(&this->model->lgar_bmi_params.precipitation_cm);
+  if (name.compare("precipitation_rate") == 0)
+    return (void*)(&this->model->lgar_bmi_params.precipitation_cm_per_h);
+  else if (name.compare("precipitation") == 0)
+    return (void*)(&this->model->lgar_mass_balance.volprecip_timestep_cm);
   else  if (name.compare("potential_evapotranspiration") == 0)
     return (void*)(&this->model->lgar_bmi_params.PET_cm);
   else  if (name.compare("actual_evapotranspiration") == 0)
     return (void*)(&this->model->lgar_bmi_params.AET_cm);
   else  if (name.compare("surface_runoff") == 0)
-    return (void*)(&this->model->lgar_mass_balance.volstart_timestep_cm);
+    return (void*)(&this->model->lgar_mass_balance.volrunoff_timestep_cm);
+  else  if (name.compare("giuh_runoff") == 0)
+    return (void*)(&this->model->lgar_mass_balance.volrunoff_giuh_timestep_cm);
+  else  if (name.compare("soil_storage") == 0)
+    return (void*)(&this->model->lgar_mass_balance.volrunoff_giuh_timestep_cm);
+  else  if (name.compare("total_discharge") == 0)
+    return (void*)(&this->model->lgar_mass_balance.volQ_timestep_cm);
+  else  if (name.compare("infiltration") == 0)
+    return (void*)(&this->model->lgar_mass_balance.volin_timestep_cm);
+  else  if (name.compare("percolation") == 0)
+    return (void*)(&this->model->lgar_mass_balance.volrech_timestep_cm);
   else if (name.compare("soil_moisture_layer") == 0)
     return (void*)this->model->lgar_bmi_params.soil_moisture_layer;
-  else if (name.compare("soil_moisture_wetting_front") == 0)
-    return (void*)this->model->lgar_bmi_params.soil_moisture_wetting_front;
+  else if (name.compare("soil_thickness_layer") == 0)
+    return (void*)this->model->lgar_bmi_params.soil_moisture_layer;
+  else if (name.compare("soil_moisture_wetting_fronts") == 0)
+    return (void*)this->model->lgar_bmi_params.soil_moisture_wetting_fronts;
+  else if (name.compare("soil_thickness_wetting_fronts") == 0)
+    return (void*)this->model->lgar_bmi_params.soil_thickness_wetting_fronts;
   else {
     std::stringstream errMsg;
     errMsg << "variable "<< name << " does not exist";
@@ -663,6 +612,20 @@ GetValuePtr (std::string name)
     }
   // delete it later
   return NULL;
+
+  /*
+   if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
+    return "node";
+  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("soil_storage") == 0) // double
+    return "node";
+   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
+    return "node";
+  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_front") == 0) // array of doubles 
+    return "node";
+  else if (name.compare("soil_thickness_layer") == 0 || name.compare("soil_thickness_wetting_front") == 0) // array of doubles 
+    return "node"; 
+  else
+    */
 }
 
 
@@ -799,6 +762,91 @@ GetTimeUnits() {
 double BmiLGAR::
 GetTimeStep () {
   return 0;
+}
+
+std::string BmiLGAR::
+GetGridType(const int grid)
+{
+  if (grid == 0)
+    return "uniform_rectilinear";
+  else
+    return "";
+}
+
+
+void BmiLGAR::
+GetGridX(const int grid, double *x)
+{
+  throw bmi_lgar::NotImplemented();
+}
+
+
+void BmiLGAR::
+GetGridY(const int grid, double *y)
+{
+  throw bmi_lgar::NotImplemented();
+}
+
+
+void BmiLGAR::
+GetGridZ(const int grid, double *z)
+{
+  throw bmi_lgar::NotImplemented();
+}
+
+
+int BmiLGAR::
+GetGridNodeCount(const int grid)
+{
+  throw bmi_lgar::NotImplemented();
+  /*
+  if (grid == 0)
+    return this->model->shape[0];
+  else
+    return -1;
+  */
+}
+
+
+int BmiLGAR::
+GetGridEdgeCount(const int grid)
+{
+  throw bmi_lgar::NotImplemented();
+}
+
+
+int BmiLGAR::
+GetGridFaceCount(const int grid)
+{
+  throw bmi_lgar::NotImplemented();
+}
+
+
+void BmiLGAR::
+GetGridEdgeNodes(const int grid, int *edge_nodes)
+{
+  throw bmi_lgar::NotImplemented();
+}
+
+
+void BmiLGAR::
+GetGridFaceEdges(const int grid, int *face_edges)
+{
+  throw bmi_lgar::NotImplemented();
+}
+
+
+void BmiLGAR::
+GetGridFaceNodes(const int grid, int *face_nodes)
+{
+  throw bmi_lgar::NotImplemented();
+}
+
+
+void BmiLGAR::
+GetGridNodesPerFace(const int grid, int *nodes_per_face)
+{
+  throw bmi_lgar::NotImplemented();
 }
 
 #endif

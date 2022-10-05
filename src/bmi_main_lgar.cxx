@@ -46,10 +46,13 @@ int main(int argc, char *argv[])
     fprintf(fp, "%s\n", model_name.c_str());
   }
   
-  {
-    std::string var_name_precip = "precipitation";
-    std::string var_name_pet = "potential_evapotranspiration";
-    
+  
+  std::string var_name_precip = "precipitation_rate";
+  std::string var_name_pet = "potential_evapotranspiration";
+  std::string var_name_wf = "soil_moisture_wetting_fronts";
+  std::string var_name_thickness_wf = "soil_thickness_wetting_fronts";
+
+  {   
     int grid, rank, *shape;
     double *var_s = NULL;
     double *var_sc = NULL;
@@ -82,10 +85,23 @@ int main(int argc, char *argv[])
     std::cout<<"----------------------------------- \n";
     std::cout<<"Timestep | "<<i<<" "<<time[i]<<"\n";
     std::cout<<"P, PET = "<<precipitation[i]<<" "<<PET[i]<<"\n";
-    lgar_model.SetValue("precipitation", &precipitation[i]);
-    lgar_model.SetValue("potential_evapotranspiration", &PET[i]);
+    lgar_model.SetValue(var_name_precip, &precipitation[i]);
+    lgar_model.SetValue(var_name_pet, &PET[i]);
 
     lgar_model.Update(); // Update model
+
+    int num_wetting_fronts =  lgar_model.get_model()->lgar_bmi_params.num_wetting_fronts;
+
+    double *soil_moisture_wetting_front = new double[num_wetting_fronts];
+    double *soil_thickness_wetting_front = new double[num_wetting_fronts];
+    //std::cout<<"Numb WF = "<< num_wetting_fronts<<"\n";
+    //model->lgar_bmi_params.soil_thickness_wetting_front = new double[model->lgar_bmi_params.num_wetting_fronts];
+    lgar_model.GetValue(var_name_wf,&soil_moisture_wetting_front[0]);
+    lgar_model.GetValue(var_name_thickness_wf,&soil_thickness_wetting_front[0]);
+
+    for (int j = 0; j < num_wetting_fronts; j++)
+      std::cout<<"WF main  = "<<soil_thickness_wetting_front[j]<<" "<<soil_moisture_wetting_front[j]<<"\n";
+
     /*
     
 
@@ -104,13 +120,12 @@ int main(int argc, char *argv[])
   lgar_model.global_mass_balance();
  
  
- /* 
   fprintf(fp, "Finalizing... ");
 
-  model.Finalize();
+  lgar_model.Finalize();
   fprintf(fp, "done\n");
   fclose(fp);
-    */
+  
   return SUCCESS;
 }
 
