@@ -7,7 +7,6 @@ using namespace std;
 #include "../bmi/bmi.hxx"
 #include "all.hxx"
 #include <stdexcept>
-//#include "../giuh/giuh.h"
 
 extern "C" {
 #include "../giuh/giuh.h"
@@ -33,12 +32,12 @@ public:
     this->output_var_names[3] = "soil_thickness_wetting_fronts";
 
     // vis outputs
-    this->output_var_names[4] = "precipitation";
-    this->output_var_names[5] = "potential_evapotranspiration";
-    this->output_var_names[6] = "actual_evapotranspiration";
-    this->output_var_names[7] = "surface_runoff"; // direct surface runoff
-    this->output_var_names[8] = "giuh_runoff";
-    this->output_var_names[9] = "soil_storage";
+    this->output_var_names[4]  = "precipitation";
+    this->output_var_names[5]  = "potential_evapotranspiration";
+    this->output_var_names[6]  = "actual_evapotranspiration";
+    this->output_var_names[7]  = "surface_runoff"; // direct surface runoff
+    this->output_var_names[8]  = "giuh_runoff";
+    this->output_var_names[9]  = "soil_storage";
     this->output_var_names[10] = "total_discharge";
     this->output_var_names[11] = "infiltration";
     this->output_var_names[12] = "percolation";
@@ -55,18 +54,6 @@ public:
     this->output_var_names[21] = "cum_percolation";
     */
   };
-
-  //model->lgar_mass_balance.volprecip_cm += precip_timestep_cm;
-  //model->lgar_mass_balance.volAET_cm += AET_timestep_cm;
-  //   model->lgar_mass_balance.volPET_cm += PET_timestep_cm;
-  //model->lgar_mass_balance.volrunoff_cm += volrunoff_timestep_cm;
-  //model->lgar_mass_balance.volin_cm += volin_timestep_cm;
-  //  model->lgar_mass_balance.volend_cm = volend_timestep_cm; // soil storage
-  
-  //model->lgar_mass_balance.volrech_cm += volrech_timestep_cm; // percolation
-  
-  //model->lgar_mass_balance.volQ_cm += volQ_timestep_cm; // total discharge giuh + ground flow
-
   
   void Initialize(std::string config_file);
   
@@ -133,6 +120,22 @@ private:
   int num_giuh_ordinates;
   double *giuh_ordinates;
   double *giuh_runoff_queue;
+
+  // unit conversion
+  //struct unit_conversion units;
+  struct bmi_unit_conversion {
+    double volprecip_timestep_m;
+    double volin_timestep_m;
+    double volend_timestep_m;
+    double volAET_timestep_m;
+    double volrech_timestep_m;
+    double volrunoff_timestep_m;
+    double volrunoff_giuh_timestep_m;
+    double volQ_timestep_m;
+    double volPET_timestep_m;
+  };
+
+  struct bmi_unit_conversion bmi_unit_conv;
 };
 
 

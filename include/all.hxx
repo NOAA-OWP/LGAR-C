@@ -74,6 +74,13 @@ extern struct wetting_front *head;  // GLOBALLY DEFINED pointer to the first lin
                                     // in subroutines a pain of referencing.  Since it is just one thing, 
                                     // making it global just makes everything easier.
 
+// unit conversion
+struct unit_conversion {
+  double cm_to_mm = 10;
+  double mm_to_cm = 0.1;
+  double cm_to_m = 0.01;
+};
+
 struct lgar_bmi_parameters {
   int shape[3];
   double spacing[8];
@@ -104,6 +111,7 @@ struct lgar_bmi_parameters {
   // giuh parameters
   int num_giuh_ordinates;
   double *giuh_ordinates;
+
 };
 
 struct lgar_mass_balance_variables {
@@ -140,6 +148,7 @@ struct lgar_model_
   struct soil_properties_* soil_properties; // dynamic allocation
   struct lgar_bmi_parameters lgar_bmi_params;
   struct lgar_mass_balance_variables lgar_mass_balance;
+  struct unit_conversion units;
 };
 
 
