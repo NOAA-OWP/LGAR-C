@@ -97,7 +97,7 @@ struct lgar_bmi_parameters {
   int forcing_interval;
   int num_soil_types;          // must be less than or equal to MAX_NUM_SOIL_TYPES
   double precipitation_cm_per_h; // rainfall precip in cm per hour
-  double PET_cm;  // potential evapotranspiration in cm
+  double PET_cm_per_h;  // potential evapotranspiration in cm
   double AET_cm; // actual evapotranspiration in cm
   double *soil_moisture_layer; // array of thetas (mean soil moisture content) per layer; output option to other models (e.g. soil freeze-thaw)
   double *soil_moisture_wetting_fronts; // array of thetas (soil moisture content) per wetting front; output to other models (e.g. soil freeze-thaw)
