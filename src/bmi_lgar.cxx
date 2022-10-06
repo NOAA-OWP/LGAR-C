@@ -48,6 +48,7 @@ Update()
 
   // local variables for readibility
   int subcycles = model->lgar_bmi_params.forcing_interval;
+  int num_layers = model->lgar_bmi_params.num_layers;
   
   // full timestep (timestep of the forcings)
   double precip_timestep_cm = 0.0;
@@ -55,7 +56,7 @@ Update()
   double ponded_depth_cm = 0.0;
   double AET_timestep_cm = 0.0;
   double volstart_timestep_cm = 0.0;
-  double volend_timestep_cm = 0.0; // this should not be reset to 0.0 in the for loop
+  double volend_timestep_cm = lgar_calc_mass_bal(num_layers,model->lgar_bmi_params.cum_layer_thickness_cm); //0.0; // this should not be reset to 0.0 in the for loop
   double volin_timestep_cm = 0.0;
   double volon_timestep_cm = 0.0;
   double volrunoff_timestep_cm = 0.0;
@@ -71,7 +72,7 @@ Update()
   double ponded_depth_subtimestep_cm;
   double AET_subtimestep_cm;
   double volstart_subtimestep_cm;
-  double volend_subtimestep_cm = 0.0; // this should not be reset to 0.0 in the for loop
+  double volend_subtimestep_cm = volend_timestep_cm; //0.0; // this should not be reset to 0.0 in the for loop
   double volin_subtimestep_cm;
   double volon_subtimestep_cm;
   double volrunoff_subtimestep_cm;
@@ -81,7 +82,6 @@ Update()
   double volrunoff_giuh_subtimestep_cm;
   double volQ_subtimestep_cm;
   
-  double num_layers;
   double subtimestep_h = model->lgar_bmi_params.timestep_h;
   int nint = model->lgar_bmi_params.nint;
   double wilting_point_psi_cm = model->lgar_bmi_params.wilting_point_psi_cm;
@@ -92,7 +92,7 @@ Update()
   for (int cycle=0; cycle < subcycles; cycle++) {
 
     if(VERBOSE > 1) {
-      std::cout<<"********* subcycle = "<<cycle<<"\n";
+      std::cout<<"============ Subcycle ========== "<< cycle <<"\n";
     }
     
     state_previous = NULL;
@@ -185,13 +185,14 @@ Update()
 	volrunoff_subtimestep_cm = 0.0;
       }
       else {
+	volrunoff_subtimestep_cm = (ponded_depth_subtimestep_cm - hp_cm_max);
 	volrunoff_timestep_cm += (ponded_depth_subtimestep_cm - hp_cm_max);
 	volon_timestep_cm = hp_cm_max;
 	ponded_depth_subtimestep_cm = hp_cm_max;
       }
     }
     
-    
+
     if (!create_surficial_front) {
       lgar_move_wetting_fronts(&volin_subtimestep_cm, subtimestep_h, wf_free_drainage_demand, volend_subtimestep_cm, num_layers, &AET_subtimestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->soil_properties);
       
@@ -229,11 +230,16 @@ Update()
     }
     
     if (fabs(local_mb) >1e-7) {
+      printf("local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volend_subtimestep_cm);
       printf("Local mass balance (in this timestep) is %.6e, larger than expected, needs some debugging...\n ",local_mb);
       abort();
     }
+
+    if(VERBOSE > 1) {
+      std::cout<<"Printing wetting fronts at this subtimestep... \n"
+      listPrint();
+    }
     
-    //listPrint();
     assert (head->depth_cm > 0.0); // check on negative layer depth
 
 
@@ -507,7 +513,6 @@ GetValuePtr (std::string name)
 {
  
   if (name.compare("precipitation_rate") == 0) {
-    std::cout<<"value ptr = "<<name<<"\n";
     return (void*)(&this->model->lgar_bmi_params.precipitation_cm_per_h);
   }
   else if (name.compare("precipitation") == 0) {

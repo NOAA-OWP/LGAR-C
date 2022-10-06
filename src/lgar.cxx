@@ -941,6 +941,8 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
       struct wetting_front *wf_free_drainage = listFindFront(wf_free_drainage_demand,NULL);
       
       double mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand+free_drainage_demand);
+
+      assert (old_mass > 0.0);
       
       if (wf_free_drainage->theta == theta_e_k1) {
 
