@@ -26,9 +26,9 @@ int main(int argc, char *argv[])
   BmiLGAR lgar_model;
   
   if (argc != 2) {
-    printf("Usage: run_bmifrozensoilcxx CONFIGURATION_FILE\n\n");
-    printf("Run the frozensoilcxx model through its BMI with a configuration file.\n");
-    printf("Output is written to the file `bmifrozensoilcxx.out`.\n");
+    printf("Usage: ./build/xlgar CONFIGURATION_FILE \n");
+    printf("Run the LASAM (Lumped Arid/semi-aric Model through its BMI with a configuration file.\n");
+    printf("Outputs are written to files `variables_data.csv and layers_data.csv`.\n");
     return SUCCESS;
   }
   
@@ -48,10 +48,24 @@ int main(int argc, char *argv[])
   
   
   std::string var_name_precip = "precipitation_rate";
-  std::string var_name_pet = "potential_evapotranspiration";
+  std::string var_name_pet = "potential_evapotranspiration_rate";
   std::string var_name_wf = "soil_moisture_wetting_fronts";
   std::string var_name_thickness_wf = "soil_thickness_wetting_fronts";
 
+  int num_output_var = 9;
+  std::vector<std::string> output_var_names(num_output_var);
+  std::vector<double> output_var_data(num_output_var);
+  
+  output_var_names[0] = "precipitation";
+  output_var_names[1] = "potential_evapotranspiration";
+  output_var_names[2] = "actual_evapotranspiration";
+  output_var_names[3] = "surface_runoff"; // direct surface runoff
+  output_var_names[4] = "giuh_runoff";
+  output_var_names[5] = "soil_storage";
+  output_var_names[6] = "total_discharge";
+  output_var_names[7] = "infiltration";
+  output_var_names[8] = "percolation";
+    
   {   
     int grid, rank, *shape;
     double *var_s = NULL;
@@ -78,8 +92,20 @@ int main(int argc, char *argv[])
   
   ReadForcingData(argv[1], time, precipitation, PET);
 
-  //for (int i =0; i < 7; i++)
-  //  std::cout<<"Time, P, PET = "<<time[i]<<" "<<precipitation[i]<<" "<<PET[i]<<"\n";
+
+  FILE *outdata_fptr = fopen("data_variables.csv", "w");      // write output variables (e.g. infiltration, storage etc.) to this file pointer
+  FILE *outlayer_fptr = fopen("data_layers.csv", "w");   // write output layers to this file pointer
+
+  // write heading (variable names)
+  fprintf(outdata_fptr,"Time,");
+  for (int j = 0; j < num_output_var; j++) {
+    fprintf(outdata_fptr,"%s",output_var_names[j].c_str());
+    if (j == num_output_var-1)
+      fprintf(outdata_fptr,"\n");
+    else
+      fprintf(outdata_fptr,",");
+  }
+
   
   for (int i = 0; i < nsteps; i++) {
     std::cout<<"----------------------------------- \n";
@@ -94,26 +120,28 @@ int main(int argc, char *argv[])
 
     double *soil_moisture_wetting_front = new double[num_wetting_fronts];
     double *soil_thickness_wetting_front = new double[num_wetting_fronts];
-    //std::cout<<"Numb WF = "<< num_wetting_fronts<<"\n";
-    //model->lgar_bmi_params.soil_thickness_wetting_front = new double[model->lgar_bmi_params.num_wetting_fronts];
+
     lgar_model.GetValue(var_name_wf,&soil_moisture_wetting_front[0]);
     lgar_model.GetValue(var_name_thickness_wf,&soil_thickness_wetting_front[0]);
 
-    for (int j = 0; j < num_wetting_fronts; j++)
-      std::cout<<"WF main  = "<<soil_thickness_wetting_front[j]<<" "<<soil_moisture_wetting_front[j]<<"\n";
+    // write bmi output variables to file
+    fprintf(outdata_fptr,"%s,",time[i].c_str());
+    for (int j = 0; j < num_output_var; j++) {
+      std::string name = output_var_names[j];
+      double value = 0.0;
+      lgar_model.GetValue(name,&value);
+      fprintf(outdata_fptr,"%6.10f",value);
+      if (j == num_output_var-1)
+	 fprintf(outdata_fptr,"\n");
+      else
+	fprintf(outdata_fptr,",");
+    }
 
-    /*
+
+    // write layers data to file
+    fprintf(outlayer_fptr,"# Timestep = %d, %s \n", i, time[i].c_str());
+    write_state(outlayer_fptr);
     
-
-    ftm_bmi_model.Update(); // Update model
-
-    ftm_bmi_model.GetValue("ice_fraction_schaake",&ice_frac_v);
-
-    ice_fraction[i] = ice_frac_v;
-    
-    if (golden_test)
-      outfile << i+1 << "," <<ice_frac_v << "\n";
-    */ 
   }
 
 
@@ -125,6 +153,9 @@ int main(int argc, char *argv[])
   lgar_model.Finalize();
   fprintf(fp, "done\n");
   fclose(fp);
+
+  fclose(outdata_fptr);
+  fclose(outlayer_fptr);
   
   return SUCCESS;
 }
@@ -212,3 +243,20 @@ ReadForcingData(std::string config_file, std::vector<std::string>& time, std::ve
  
 }
 
+
+extern void write_state(FILE *out){
+
+  struct wetting_front *current = head;
+
+  fprintf(out, "[");
+  while(current != NULL)
+  {
+    if (current == head)
+      fprintf(out,"(%lf,%lf,%d,%d,%lf)",current->depth_cm*10., current->theta, current->layer_num,current->front_num, current->psi_cm*10.);
+    else
+      fprintf(out,"|(%lf,%lf,%d,%d,%lf)",current->depth_cm*10., current->theta, current->layer_num,current->front_num, current->psi_cm*10.);
+  current = current->next;
+  }
+  fprintf(out, "]\n");
+
+}

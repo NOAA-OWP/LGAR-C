@@ -99,10 +99,11 @@ Update()
     state_previous = listCopy(head);
     
     precip_subtimestep_cm_per_h = model->lgar_bmi_params.precipitation_cm_per_h * mm_to_cm / double(subcycles); // rate; cm/hour
-    PET_subtimestep_cm = model->lgar_bmi_params.PET_cm * mm_to_cm / double(subcycles);
+    PET_subtimestep_cm = model->lgar_bmi_params.PET_cm_per_h * mm_to_cm / double(subcycles);
     ponded_depth_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h;
 
-    //printf("prcip = %lf %lf %lf %d \n", model->lgar_bmi_params.precipitation_cm, precip_subtimestep_cm, subtimestep_h, subcycles);
+    //printf("prcip = %lf %lf %lf %d \n", model->lgar_bmi_params.precipitation_cm_per_h, precip_subtimestep_cm, subtimestep_h, subcycles);
+
     AET_subtimestep_cm = 0.0;
     volstart_subtimestep_cm = 0.0;
     volin_subtimestep_cm = 0.0;
@@ -119,22 +120,11 @@ Update()
     
     
     if (PET_subtimestep_cm > 0.0) {
-      // Calculate AET from PET and root zone soil moisture.  Note PET was reduced iff raining
+      // Calculate AET from PET and root zone soil moisture.  Note PET was reduced if raining
       
       AET_subtimestep_cm = calc_aet(PET_subtimestep_cm, subtimestep_h, wilting_point_psi_cm, model->soil_properties, model->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon);
     }
     
-
-    // put local variables to state timstep variables
-    //model->lgar_mass_balance.volprecip_timestep_cm = precip_timestep_cm * timestep_h; // volume in cm
-    //model->lgar_mass_balance.volPET_timestep_cm = PET_timestep_cm;
-    //precip_timestep_cm += precip_subtimestep_cm * subtimestep_h; // volume in cm
-    //PET_timestep_cm = PET_subtimestep_cm;
-    
-    // put local variables to state global variables
-    //model->lgar_mass_balance.volprecip_cm += precip_timestep_cm * timestep_h;
-    //model->lgar_mass_balance.volPET_cm += fmax(PET_timestep_cm,0.0); // ensures non-negative PET
-    //volstart_timestep_cm = lgar_calc_mass_bal(num_layers,model->lgar_bmi_params.cum_layer_thickness_cm);
 
     precip_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h;
     precip_timestep_cm += precip_subtimestep_cm;
@@ -166,7 +156,6 @@ Update()
       state_previous = NULL;
       state_previous = listCopy(head);
       
-      // model->lgar_mass_balance.volin_cm += volin_timestep_cm;
       volin_timestep_cm += volin_subtimestep_cm;
       
     }
@@ -176,18 +165,9 @@ Update()
     if (ponded_depth_subtimestep_cm > 0 && !create_surficial_front) {
       
       volrunoff_subtimestep_cm = lgar_insert_water(&ponded_depth_subtimestep_cm, &volin_subtimestep_cm, precip_subtimestep_cm_per_h, dry_depth, nint, subtimestep_h, wf_free_drainage_demand, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm);
-      /*
-      model->lgar_mass_balance.volin_cm += volin_timestep_cm;
-      model->lgar_mass_balance.volrunoff_timestep_cm = volrunoff_timestep_cm;
-      model->lgar_mass_balance.volrunoff_cm += volrunoff_timestep_cm;
-      volrech_timestep_cm = volin_timestep_cm; // this gets updated later, probably not needed here
-      model->lgar_mass_balance.volon_cm = ponded_depth_cm;
-      */
 
       volin_timestep_cm += volin_subtimestep_cm;
       volrunoff_timestep_cm += volrunoff_subtimestep_cm;
-      //model->lgar_mass_balance.volrunoff_cm += volrunoff_timestep_cm;
-      // volrech_timestep_cm += volin_subtimestep_cm; // this gets updated later, probably not needed here
       volrech_subtimestep_cm = volin_subtimestep_cm; // this gets updated later, probably not needed here
       volon_timestep_cm += ponded_depth_subtimestep_cm;
       
@@ -199,30 +179,15 @@ Update()
       double hp_cm_max = 0.0; //h_p_max = 0.0;
       
       if (ponded_depth_subtimestep_cm < hp_cm_max) {
-	/*
-	model->lgar_mass_balance.volrunoff_cm += 0.0;
-	model->lgar_mass_balance.volon_cm = ponded_depth_cm;
-	ponded_depth_cm = 0.0;
-	model->lgar_mass_balance.volrunoff_timestep_cm = 0.0;
-	*/
 	volrunoff_timestep_cm += 0.0;
 	volon_timestep_cm = ponded_depth_subtimestep_cm;
 	ponded_depth_subtimestep_cm = 0.0;
 	volrunoff_subtimestep_cm = 0.0;
       }
       else {
-	/*
-	model->lgar_mass_balance.volrunoff_timestep_cm = ponded_depth_cm - hp_cm_max;
-	model->lgar_mass_balance.volrunoff_cm += (ponded_depth_cm - hp_cm_max);
-	model->lgar_mass_balance.volon_cm = hp_cm_max;
-	ponded_depth_cm = hp_cm_max;
-	*/
-	
 	volrunoff_timestep_cm += (ponded_depth_subtimestep_cm - hp_cm_max);
-	//model->lgar_mass_balance.volrunoff_cm += (ponded_depth_cm - hp_cm_max);
 	volon_timestep_cm = hp_cm_max;
 	ponded_depth_subtimestep_cm = hp_cm_max;
-	
       }
     }
     
@@ -232,68 +197,34 @@ Update()
       
       // this is the volume of water leaving through the bottom
       volrech_subtimestep_cm = volin_subtimestep_cm;
-      //model->lgar_mass_balance.volrech_timestep_cm = volrech_timestep_cm;
       volrech_timestep_cm += volrech_subtimestep_cm;
-      //printf("Mass in x = %lf %lf \n", volin_timestep_cm, volrech_timestep_cm);
     }
     
     
     int num_dzdt_calculated = lgar_dzdt_calc(nint, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm, ponded_depth_subtimestep_cm);
-    
-    /*
-    model->lgar_mass_balance.volAET_timestep_cm = AET_timestep_cm;
-    model->lgar_mass_balance.volAET_cm += AET_timestep_cm;
-    model->lgar_mass_balance.volrech_timestep_cm = volrech_timestep_cm;
-    model->lgar_mass_balance.volrech_cm += volrech_timestep_cm;
-    
-    volend_timestep_cm = lgar_calc_mass_bal(num_layers,model->lgar_bmi_params.cum_layer_thickness_cm);
-    
-    model->lgar_mass_balance.volend_timestep_cm = volend_timestep_cm;
-    model->lgar_mass_balance.volend_cm = volend_timestep_cm;
-    model->lgar_bmi_params.precip_previous_timestep_cm = precip_timestep_cm;
-    */
 
     AET_timestep_cm += AET_subtimestep_cm;
-    //model->lgar_mass_balance.volAET_cm += AET_timestep_cm;
     volrech_timestep_cm += volrech_subtimestep_cm;
-    //model->lgar_mass_balance.volrech_cm += volrech_timestep_cm;
     
     volend_subtimestep_cm = lgar_calc_mass_bal(num_layers,model->lgar_bmi_params.cum_layer_thickness_cm);
-    /*
-    model->lgar_mass_balance.volend_timestep_cm = volend_timestep_cm;
-    model->lgar_mass_balance.volend_cm = volend_timestep_cm;
-    model->lgar_bmi_params.precip_previous_timestep_cm = precip_timestep_cm;
-    */
     volend_timestep_cm = volend_subtimestep_cm;
-    //model->lgar_mass_balance.volend_cm = volend_timestep_cm;
-    //    precip_previous_subtimestep_cm = precip_subtimestep_cm;
     model->lgar_bmi_params.precip_previous_timestep_cm = precip_subtimestep_cm;
-	
-    //double local_mb = volstart_timestep_cm + model->lgar_mass_balance.volprecip_timestep_cm -  model->lgar_mass_balance.volrunoff_timestep_cm - model->lgar_mass_balance.volAET_timestep_cm - model->lgar_mass_balance.volon_cm - model->lgar_mass_balance.volrech_timestep_cm - volend_timestep_cm;
+    
     double local_mb = volstart_subtimestep_cm + precip_subtimestep_cm - volrunoff_subtimestep_cm - AET_subtimestep_cm - volon_subtimestep_cm - volrech_subtimestep_cm - volend_subtimestep_cm;
 
     
     // compute giuh runoff for the sub-timestep
-    //surface_runoff_cm = this->model->lgar_mass_balance.volrunoff_timestep_cm;
-    //model->lgar_mass_balance.volrunoff_giuh_timestep_cm = giuh_convolution_integral(surface_runoff_cm,num_giuh_ordinates, giuh_ordinates,giuh_runoff_queue);
-
     surface_runoff_subtimestep_cm = volrunoff_subtimestep_cm;
-    volrunoff_giuh_subtimestep_cm = giuh_convolution_integral(volrunoff_subtimestep_cm, num_giuh_ordinates,
-										    giuh_ordinates, giuh_runoff_queue);
+    volrunoff_giuh_subtimestep_cm = giuh_convolution_integral(volrunoff_subtimestep_cm, num_giuh_ordinates, giuh_ordinates, giuh_runoff_queue);
 
     surface_runoff_timestep_cm += surface_runoff_subtimestep_cm ;
-    //model->lgar_mass_balance.volrunoff_giuh_cm += model->lgar_mass_balance.volrunoff_giuh_timestep_cm;
     volrunoff_giuh_timestep_cm += volrunoff_giuh_subtimestep_cm;
 
     // total mass of water leaving the system, at this time it is the giuh-only, but later will add groundwater component as well.
-    // model->lgar_mass_balance.volQ_timestep_cm = model->lgar_mass_balance.volrunoff_giuh_timestep_cm;
-    //model->lgar_mass_balance.volQ_cm += model->lgar_mass_balance.volQ_timestep_cm;
 
     volQ_timestep_cm += volrunoff_giuh_subtimestep_cm;
-    //model->lgar_mass_balance.volQ_cm += model->lgar_mass_balance.volQ_timestep_cm;
     
     if(VERBOSE > 1) {
-      //      printf("local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_timestep_cm, model->lgar_mass_balance.volprecip_timestep_cm, volrunoff_timestep_cm,AET_timestep_cm, model->lgar_mass_balance.volend_timestep_cm);
       printf("local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volend_subtimestep_cm);
     }
     
@@ -304,11 +235,6 @@ Update()
     
     //listPrint();
     assert (head->depth_cm > 0.0); // check on negative layer depth
-    /*
-    if (head->depth_cm <= 0.0) {
-      printf("negative depth = %lf \n", head->depth_cm);
-      abort();
-      }*/
 
 
   } // end of cycle loop
@@ -398,20 +324,6 @@ void BmiLGAR::
 UpdateUntil(double t)
 {
   //model->LGARUpdate();
-  /*
-  if (model->soil_storage_model == "conceptual" || model->soil_storage_model == "Conceptual") {
-    model->LGARFromConceptualReservoir();
-  }
-  else if (model->soil_storage_model == "layered" || model->soil_storage_model == "Layered") {
-    model->LGARFromLayeredReservoir();
-  }
-  else {
-    std::stringstream errMsg;
-    errMsg << "Soil moisture profile OPTION provided in the config file is " << model->soil_storagemodel<< ", which should be either \'concepttual\' or \'layered\' " <<"\n";
-    throw std::runtime_error(errMsg.str());
-    
-    }*/
-  //  this->model->LGARVertical();
 }
 
 
@@ -428,7 +340,9 @@ GetVarGrid(std::string name)
 {
   if (name.compare("soil_storage_model") == 0)   // int
     return 0;
-  else if (name.compare("precipitation_rate") == 0 || name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
+  else if (name.compare("precipitation_rate") == 0 || name.compare("precipitation") == 0)
+    return 1;
+  else if (name.compare("potential_evapotranspiration_rate") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
     return 1;
   else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("soil_storage") == 0) // double
     return 1;
@@ -474,7 +388,7 @@ GetVarItemsize(std::string name)
 std::string BmiLGAR::
 GetVarUnits(std::string name)
 {
-  if (name.compare("precipitation_rate") == 0)
+  if (name.compare("precipitation_rate") == 0 || name.compare("potential_evapotranspiration_rate") == 0)
     return "cm h^-1";
   else if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
     return "m";
@@ -507,7 +421,9 @@ GetVarNbytes(std::string name)
 std::string BmiLGAR::
 GetVarLocation(std::string name)
 {
-  if (name.compare("precipitation_rate") == 0 || name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
+  if (name.compare("precipitation_rate") == 0 || name.compare("precipitation") == 0 ||
+      name.compare("potential_evapotranspiration") == 0 || name.compare("potential_evapotranspiration_rate") == 0
+      || name.compare("actual_evapotranspiration") == 0) // double
     return "node";
   else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("soil_storage") == 0) // double
     return "node";
@@ -590,11 +506,16 @@ void *BmiLGAR::
 GetValuePtr (std::string name)
 {
  
-  if (name.compare("precipitation_rate") == 0)
+  if (name.compare("precipitation_rate") == 0) {
+    std::cout<<"value ptr = "<<name<<"\n";
     return (void*)(&this->model->lgar_bmi_params.precipitation_cm_per_h);
+  }
   else if (name.compare("precipitation") == 0) {
     //return (void*)(&this->model->lgar_mass_balance.volprecip_timestep_cm);
     return (void*)(&bmi_unit_conv.volprecip_timestep_m);
+  }
+  else  if (name.compare("potential_evapotranspiration_rate") == 0) {
+    return (void*)(&this->model->lgar_bmi_params.PET_cm_per_h);
   }
   else  if (name.compare("potential_evapotranspiration") == 0) {
     // return (void*)(&this->model->lgar_bmi_params.PET_cm);
@@ -645,17 +566,6 @@ GetValuePtr (std::string name)
   // delete it later
   return NULL;
 }
-
-/*
-bmi_unit_conv.volprecip_timestep_m 
-  bmi_unit_conv.volin_timestep_m 
-  bmi_unit_conv.volend_timestep_m 
-  bmi_unit_conv.volAET_timestep_m 
-  bmi_unit_conv.volrech_timestep_m 
-  bmi_unit_conv.volrunoff_timestep_m 
-  bmi_unit_conv.volQ_timestep_m 
-  bmi_unit_conv.volPET_timestep_m 
-*/
 
 void BmiLGAR::
 GetValueAtIndices (std::string name, void *dest, int *inds, int len)
@@ -721,7 +631,7 @@ SetValueAtIndices (std::string name, int * inds, int len, void *src)
 std::string BmiLGAR::
 GetComponentName()
 {
-  return "Lumped Arid/Semi-arid (lgar-based) model";
+  return "LASAM (lumped arid/semi-arid model";
 }
 
 
