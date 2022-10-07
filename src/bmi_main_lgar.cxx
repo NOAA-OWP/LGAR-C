@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
   }
 
   
-  int nsteps = 2700; //7500.0;//57;
+  int nsteps = 7500; //2700; //7500.0;//57;
   std::vector<std::string> time;
   std::vector<double> precipitation;
   std::vector<double> PET;

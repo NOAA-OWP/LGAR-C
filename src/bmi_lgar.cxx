@@ -236,7 +236,7 @@ Update()
     }
 
     if(VERBOSE > 1) {
-      std::cout<<"Printing wetting fronts at this subtimestep... \n"
+      std::cout<<"Printing wetting fronts at this subtimestep... \n";
       listPrint();
     }
     
