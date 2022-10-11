@@ -13,6 +13,12 @@
 using namespace std;
 
 #define VERBOSE 0
+/* verbose = 0 (none)
+   verbose = 1 (low)
+   verbose = 2 (medium)
+   verbose = 3 (high)
+*/
+
 /*##################################################*/
 /*##################################################*/
 /*##################################################*/
@@ -78,15 +84,45 @@ extern void lgar_initialize(string config_file, struct lgar_model_ *model)
     current = current->next;
   }
 
-  for (int i=0; i<model->lgar_bmi_params.num_wetting_fronts; i++) 
-    std::cout<<"WF = "<<model->lgar_bmi_params.soil_thickness_wetting_fronts[i]<< " "<<model->lgar_bmi_params.soil_moisture_wetting_fronts[i]<<"\n";
 }
 
 
 extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
-{ 
+{
+  
   ifstream fp; //FILE *fp = fopen(config_file.c_str(),"r");
   fp.open(config_file);
+
+  // loop over the variables in the file to see if verbosity is provided, if not default is "none" (prints nothing)
+  while (fp) {
+    string line;
+    string param_key, param_value, param_unit;
+    
+    getline(fp, line);
+    
+    int loc_eq = line.find("=") + 1;
+    int loc_u = line.find("[");
+    param_key = line.substr(0,line.find("="));
+
+    param_value = line.substr(loc_eq,loc_u - loc_eq);
+    
+    if (param_key == "verbosity") {
+      verbosity = param_value;
+      if (verbosity.compare("none") != 0) {
+	std::cout<<"Verbosity is set to \' "<<verbosity<<"\' \n";
+	std::cout<<"          *****         \n";
+      }
+
+      fp.clear();
+      break;
+    }
+  }
+
+  
+  if (verbosity.compare("none") != 0) {
+    std::cout<<"------------- Initialization from config file ---------------------- \n";
+  }
+
   
   bool is_layer_thickness_set = false;
   bool is_initial_psi_set = false;
@@ -97,8 +133,11 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
   bool is_soil_params_file_set = false;
   bool is_max_soil_types_set = false;
   bool is_giuh_ordinates_set = false;
+  bool is_verbosity_set = false;
   
   string soil_params_file;
+
+
   
   while (fp) {
 
@@ -131,7 +170,6 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
       model->lgar_bmi_params.cum_layer_thickness_cm[0] = 0.0;
       
       for (unsigned int layer=1; layer <= vec.size(); layer++) {
-	//std::cout<<"vec = "<<layer<<" "<<vec[layer-1]<<"\n";
       	model->lgar_bmi_params.layer_thickness_cm[layer] = vec[layer-1];
 	model->lgar_bmi_params.cum_layer_thickness_cm[layer] = model->lgar_bmi_params.cum_layer_thickness_cm[layer-1] + vec[layer-1];
       }
@@ -141,8 +179,14 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
       model->lgar_bmi_params.soil_depth = vec[model->lgar_bmi_params.num_layers-1];
       
       is_layer_thickness_set = true;
-      for (int i=0; i<4; i++)
-      	std::cout<<"values "<<model->lgar_bmi_params.layer_thickness_cm[i]<<" "<<model->lgar_bmi_params.cum_layer_thickness_cm[i]<<"\n";
+
+      if (verbosity.compare("high") == 0) {
+	std::cout<<"Number of layers : "<<model->lgar_bmi_params.num_layers<<"\n";
+	for (int i=1; i<=model->lgar_bmi_params.num_layers; i++)
+	  std::cout<<"Thickness, cum. depth : "<<model->lgar_bmi_params.layer_thickness_cm[i]<<" , "<<model->lgar_bmi_params.cum_layer_thickness_cm[i]<<"\n";
+	std::cout<<"          *****         \n";
+      }
+      
       continue;
     }
     else if (param_key == "layer_soil_type") {
@@ -154,13 +198,11 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
       model->lgar_bmi_params.cum_layer_thickness_cm[0] = 0;
       
       for (unsigned int layer=1; layer <= vec.size(); layer++) {
-	//std::cout<<"vec = "<<layer<<" "<<vec[layer-1]<<"\n";
       	model->lgar_bmi_params.layer_soil_type[layer] = vec[layer-1];
       }
 
       is_layer_soil_type_set = true;
-      for (int i=0; i<4; i++)
-      	std::cout<<"soiltype "<<model->lgar_bmi_params.layer_soil_type[i]<<"\n";
+
       continue;
     }
     else if (param_key == "giuh_ordinates") {
@@ -175,13 +217,25 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
       model->lgar_bmi_params.num_giuh_ordinates = vec.size();
       
       is_giuh_ordinates_set = true;
-      for (int i=0; i<=model->lgar_bmi_params.num_giuh_ordinates; i++)
-      	std::cout<<"giuh ords "<<model->lgar_bmi_params.giuh_ordinates[i]<<"\n";
+      
+      if (verbosity.compare("high") == 0) {
+	for (int i=1; i<=model->lgar_bmi_params.num_giuh_ordinates; i++)
+	  std::cout<<"GIUH ordinates : "<<model->lgar_bmi_params.giuh_ordinates[i]<<"\n";
+	
+	std::cout<<"          *****         \n";
+      }
+
       continue;
     }
     else if (param_key == "initial_psi") {
       model->lgar_bmi_params.initial_psi_cm = stod(param_value);
       is_initial_psi_set = true;
+      
+      if (verbosity.compare("high") == 0) {
+	std::cout<<"Initial Psi : "<<model->lgar_bmi_params.initial_psi_cm<<"\n";
+	std::cout<<"          *****         \n";
+      }
+      
       continue;
     }
     else if (param_key == "max_soil_types") {
@@ -192,11 +246,23 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
     else if (param_key == "soil_params_file") {
       soil_params_file = param_value;
       is_soil_params_file_set = true;
+
+      if (verbosity.compare("high") == 0) {
+	std::cout<<"Soil paramaters file : "<<soil_params_file<<"\n";
+	std::cout<<"          *****         \n";
+      }
+      
       continue;
     }
     else if (param_key == "wilting_point_psi") {
       model->lgar_bmi_params.wilting_point_psi_cm = stod(param_value);
       is_wilting_point_psi_cm_set = true;
+
+      if (verbosity.compare("high") == 0) {
+	std::cout<<"Wilting point Psi [cm] : "<<model->lgar_bmi_params.wilting_point_psi_cm<<"\n";
+	std::cout<<"          *****         \n";
+      }
+      
       continue;
     }
     else if (param_key == "timestep") {
@@ -211,6 +277,11 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
       
       assert (model->lgar_bmi_params.timestep_h > 0);
       is_timestep_set = true;
+
+      if (verbosity.compare("high") == 0) {
+	std::cout<<"Model timestep [hours,seconds]: "<<model->lgar_bmi_params.timestep_h<<" , "<<model->lgar_bmi_params.timestep_h*3600<<"\n";
+	std::cout<<"          *****         \n";
+      }
       
       continue;
     }
@@ -226,6 +297,12 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
       
       assert (model->lgar_bmi_params.forcing_resolution_h > 0);
       is_forcing_resolution_set = true;
+
+      if (verbosity.compare("high") == 0) {
+	std::cout<<"Forcing resolution [hours]: "<<model->lgar_bmi_params.forcing_resolution_h<<"\n";
+	std::cout<<"          *****         \n";
+      }
+      
       continue;
     }
     
@@ -235,7 +312,12 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
 
   if(!is_max_soil_types_set)
      model->lgar_bmi_params.num_soil_types = 15;          // maximum number of soil types defaults to 15
-  
+
+  if (verbosity.compare("high") == 0) {
+    std::cout<<"Maximum number of soil types: "<<model->lgar_bmi_params.num_soil_types<<"\n";
+    std::cout<<"          *****         \n";
+  }
+   
   if(is_soil_params_file_set) {
     //allocate memory to create an array of structures to hold the soils properties data.
     //model->soil_properties = (struct soil_properties_*) malloc((model->lgar_bmi_params.num_layers+1)*sizeof(struct soil_properties_));
@@ -245,6 +327,13 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
     double wilting_point_psi_cm = model->lgar_bmi_params.wilting_point_psi_cm;
     lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types, wilting_point_psi_cm, model->soil_properties);
 
+    if (verbosity.compare("high") == 0) {
+      for (int layer=1; layer<=model->lgar_bmi_params.num_layers; layer++) {
+	int soil = model->lgar_bmi_params.layer_soil_type[layer];// layer_soil_type[layer];
+	std::cout<<"Soil type/name : "<<model->lgar_bmi_params.layer_soil_type[layer]<<" "<<model->soil_properties[soil].soil_name<<"\n";
+      }
+	std::cout<<"          *****         \n";
+    }
   }  
   
   if (!is_layer_thickness_set) {
@@ -291,11 +380,13 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
 
   InitializeWettingFronts(model->lgar_bmi_params.num_layers, model->lgar_bmi_params.initial_psi_cm, model->lgar_bmi_params.layer_soil_type, model->lgar_bmi_params.cum_layer_thickness_cm, model->soil_properties);
 
-#if VERBOSE > -1
-  printf("************* Initial conditions ******************** ");
-  listPrint();
-  printf("***************************************************** \n");
-#endif
+  
+
+  if (verbosity.compare("none") != 0) {
+    std::cout<<"--- Initial state/conditions --- \n";
+    listPrint();
+    std::cout<<"          *****         \n";
+  }
 
   // initial mass in the system
   model->lgar_mass_balance.volstart_cm = lgar_calc_mass_bal(model->lgar_bmi_params.num_layers,model->lgar_bmi_params.cum_layer_thickness_cm);
@@ -306,6 +397,15 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
 
   assert (model->lgar_bmi_params.num_layers == listLength());
 
+  if (verbosity.compare("high") == 0) {
+    std::cout<<"Initial ponded depth is set to zero. \n";
+    std::cout<<"No. of spatial intervals used in trapezoidal integration to compute G : "<<model->lgar_bmi_params.nint<<"\n";
+  }
+  
+  if (verbosity.compare("none") != 0) {
+    std::cout<<"------------- Initialization done! ---------------------- \n";
+    std::cout<<"--------------------------------------------------------- \n";
+  }
 }
 
 

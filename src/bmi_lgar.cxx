@@ -14,6 +14,8 @@
 #include "../include/all.hxx"
 
 
+string verbosity="none";
+
 void BmiLGAR::
 Initialize (std::string config_file)
 {
@@ -27,21 +29,20 @@ Initialize (std::string config_file)
   giuh_ordinates = new double[num_giuh_ordinates];
   giuh_runoff_queue = new double[num_giuh_ordinates+1];
   
-  for (int i=0; i<num_giuh_ordinates;i++) {
+  for (int i=0; i<num_giuh_ordinates;i++)
     giuh_ordinates[i] = model->lgar_bmi_params.giuh_ordinates[i+1]; // note lgar use 1 indexing
-    std::cout<<"giuh = "<<num_giuh_ordinates<<" "<<giuh_ordinates[i]<<"\n";
-  }
 
-  for (int i=0; i<=num_giuh_ordinates;i++) {
+  for (int i=0; i<=num_giuh_ordinates;i++)
     giuh_runoff_queue[i] = 0.0;
-  }
 
 }
 
 void BmiLGAR::
 Update()
 {
-  std::cout<<"LGAT BMI Update... \n";
+  if (verbosity.compare("none") != 0) {
+    std::cout<<"*** LASAM BMI Update... ***  \n";
+  }
   //   lgar_update(this->model); 
   //listPrint();
   double mm_to_cm = 0.1;
@@ -91,8 +92,8 @@ Update()
   
   for (int cycle=0; cycle < subcycles; cycle++) {
 
-    if(VERBOSE > 1) {
-      std::cout<<"============ Subcycle ========== "<< cycle <<"\n";
+    if (verbosity.compare("high") == 0 || verbosity.compare("medium") == 0) {
+      std::cout<<"----------- Subcycle ------------- "<< cycle <<" of "<<subcycles<<"\n";
     }
     
     state_previous = NULL;
@@ -102,7 +103,10 @@ Update()
     PET_subtimestep_cm = model->lgar_bmi_params.PET_cm_per_h * mm_to_cm / double(subcycles);
     ponded_depth_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h;
 
-    //printf("prcip = %lf %lf %lf %d \n", model->lgar_bmi_params.precipitation_cm_per_h, precip_subtimestep_cm, subtimestep_h, subcycles);
+    if (verbosity.compare("high") == 0 || verbosity.compare("medium") == 0) {
+      std::cout<<"Pr [cm/h], Pr [cm], subtimestep [h] = "<<model->lgar_bmi_params.precipitation_cm_per_h<<", "<< precip_subtimestep_cm<<", "<< subtimestep_h<<" ("<<subtimestep_h*3600<<" sec)"<<"\n";
+    }
+
 
     AET_subtimestep_cm = 0.0;
     volstart_subtimestep_cm = 0.0;

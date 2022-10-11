@@ -85,14 +85,17 @@ int main(int argc, char *argv[])
   }
 
   
-  int nsteps = 7500; //2700; //7500.0;//57;
+  int nsteps = 1; //7500; //2700; //7500.0;//57;
   std::vector<std::string> time;
   std::vector<double> precipitation;
   std::vector<double> PET;
   
   ReadForcingData(argv[1], time, precipitation, PET);
 
-
+  if (verbosity.compare("high") == 0) {
+    std::cout<<"Variables are written to file           : \'data_variables.csv\' \n";
+    std::cout<<"Wetting fronts state is written to file : \'data_layers.csv\' \n"; 
+  }
   FILE *outdata_fptr = fopen("data_variables.csv", "w");      // write output variables (e.g. infiltration, storage etc.) to this file pointer
   FILE *outlayer_fptr = fopen("data_layers.csv", "w");   // write output layers to this file pointer
 
@@ -108,9 +111,13 @@ int main(int argc, char *argv[])
 
   
   for (int i = 0; i < nsteps; i++) {
-    std::cout<<"----------------------------------- \n";
-    std::cout<<"Timestep | "<<i<<" "<<time[i]<<"\n";
-    std::cout<<"P, PET = "<<precipitation[i]<<" "<<PET[i]<<"\n";
+    
+    if (verbosity.compare("none") != 0) {
+      std::cout<<"---------------------------------------------------------\n";
+      std::cout<<"Timestep | "<<i<<" , "<<time[i]<<"\n";
+      std::cout<<"Rainfall [mm/h], PET [mm/h] = "<<precipitation[i]<<" , "<<PET[i]<<"\n";
+    }
+    
     lgar_model.SetValue(var_name_precip, &precipitation[i]);
     lgar_model.SetValue(var_name_pet, &PET[i]);
 

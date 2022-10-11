@@ -23,6 +23,7 @@ using namespace std;
 #define ONE 1
 
 #define VERBOSE 0
+extern string verbosity;
 
 #define use_bmi_flag FALSE       // TODO set to TRUE to run in BMI environment
 
