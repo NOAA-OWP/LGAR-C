@@ -92,7 +92,7 @@ Update()
   
   for (int cycle=1; cycle <= subcycles; cycle++) {
 
-    if (verbosity.compare("high") == 0 || verbosity.compare("medium") == 0) {
+    if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
       std::cout<<"*** ----------------- Subcycle ------------------: "<< cycle <<" of "<<subcycles<<"\n";
     }
     
@@ -103,7 +103,7 @@ Update()
     PET_subtimestep_cm = model->lgar_bmi_params.PET_cm_per_h * mm_to_cm / double(subcycles);
     ponded_depth_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h;
 
-    if (verbosity.compare("high") == 0 || verbosity.compare("medium") == 0) {
+    if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
       std::cout<<"Pr [cm/h], Pr [cm], subtimestep [h] = "<<model->lgar_bmi_params.precipitation_cm_per_h<<", "<< precip_subtimestep_cm<<", "<< subtimestep_h<<" ("<<subtimestep_h*3600<<" sec)"<<"\n";
     }
 
