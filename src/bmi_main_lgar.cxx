@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cmath>
 #include "fstream"
+#include <iomanip>
 
 #include "../bmi/bmi.hxx"
 #include "../include/all.hxx"
@@ -24,27 +25,22 @@ int main(int argc, char *argv[])
 {
   
   BmiLGAR lgar_model;
-  
+
+  bool is_IO_supress = true;
+
   if (argc != 2) {
     printf("Usage: ./build/xlgar CONFIGURATION_FILE \n");
     printf("Run the LASAM (Lumped Arid/semi-aric Model through its BMI with a configuration file.\n");
     printf("Outputs are written to files `variables_data.csv and layers_data.csv`.\n");
     return SUCCESS;
   }
-  
-  FILE *fp = fopen("bmi_file.out", "w");
-  fprintf(fp, "Configuration file = %s\n", argv[1]);
-  fprintf(fp, "Initializing... ");
 
+  time_t result = time(NULL);
+  clock_t start_time, end_time;
+  double elapsed;
+  start_time = clock();
+ 
   lgar_model.Initialize(argv[1]);
-  
-  fprintf(fp, "done\n");
-  
-  {
-    std::string model_name;
-    model_name = lgar_model.GetComponentName();
-    fprintf(fp, "%s\n", model_name.c_str());
-  }
   
   
   std::string var_name_precip = "precipitation_rate";
@@ -65,24 +61,6 @@ int main(int argc, char *argv[])
   output_var_names[6] = "total_discharge";
   output_var_names[7] = "infiltration";
   output_var_names[8] = "percolation";
-    
-  {   
-    int grid, rank, *shape;
-    double *var_s = NULL;
-    double *var_sc = NULL;
-
-    fprintf(fp, "variable = %s\n", var_name_precip.c_str());
-    fprintf(fp, "variable = %s\n", var_name_pet.c_str());
-    
-    grid = lgar_model.GetVarGrid(var_name_precip);
-
-    rank = lgar_model.GetGridRank(grid);
-    fprintf(fp, "rank = %d\n", rank);
-    shape = new int[rank];
-    lgar_model.GetGridShape(grid, shape);
-
-    fprintf(fp, "shape = %d x %d x %d\n", shape[0],1,1);
-  }
 
   
   int nsteps = 1; //7500; //2700; //7500.0;//57;
@@ -92,23 +70,29 @@ int main(int argc, char *argv[])
   
   ReadForcingData(argv[1], time, precipitation, PET);
 
-  if (verbosity.compare("high") == 0) {
+  if (verbosity.compare("high") == 0 && !is_IO_supress) {
     std::cout<<"Variables are written to file           : \'data_variables.csv\' \n";
     std::cout<<"Wetting fronts state is written to file : \'data_layers.csv\' \n"; 
   }
-  FILE *outdata_fptr = fopen("data_variables.csv", "w");      // write output variables (e.g. infiltration, storage etc.) to this file pointer
-  FILE *outlayer_fptr = fopen("data_layers.csv", "w");   // write output layers to this file pointer
 
-  // write heading (variable names)
-  fprintf(outdata_fptr,"Time,");
-  for (int j = 0; j < num_output_var; j++) {
-    fprintf(outdata_fptr,"%s",output_var_names[j].c_str());
-    if (j == num_output_var-1)
-      fprintf(outdata_fptr,"\n");
-    else
+  FILE *outdata_fptr = NULL;
+  FILE *outlayer_fptr = NULL;
+  
+  if (!is_IO_supress) {
+    outdata_fptr = fopen("data_variables.csv", "w");      // write output variables (e.g. infiltration, storage etc.) to this file pointer
+    outlayer_fptr = fopen("data_layers.csv", "w");   // write output layers to this file pointer
+
+    // write heading (variable names)
+    fprintf(outdata_fptr,"Time,");
+    for (int j = 0; j < num_output_var; j++) {
+      fprintf(outdata_fptr,"%s",output_var_names[j].c_str());
+      if (j == num_output_var-1)
+	fprintf(outdata_fptr,"\n");
+      else
       fprintf(outdata_fptr,",");
-  }
+    }
 
+  }
   
   for (int i = 0; i < nsteps; i++) {
     
@@ -123,47 +107,52 @@ int main(int argc, char *argv[])
 
     lgar_model.Update(); // Update model
 
-    int num_wetting_fronts =  lgar_model.get_model()->lgar_bmi_params.num_wetting_fronts;
-
-    double *soil_moisture_wetting_front = new double[num_wetting_fronts];
-    double *soil_thickness_wetting_front = new double[num_wetting_fronts];
-
-    lgar_model.GetValue(var_name_wf,&soil_moisture_wetting_front[0]);
-    lgar_model.GetValue(var_name_thickness_wf,&soil_thickness_wetting_front[0]);
-
-    // write bmi output variables to file
-    fprintf(outdata_fptr,"%s,",time[i].c_str());
-    for (int j = 0; j < num_output_var; j++) {
-      std::string name = output_var_names[j];
-      double value = 0.0;
-      lgar_model.GetValue(name,&value);
-      fprintf(outdata_fptr,"%6.10f",value);
-      if (j == num_output_var-1)
-	 fprintf(outdata_fptr,"\n");
-      else
-	fprintf(outdata_fptr,",");
+    if (!is_IO_supress) {
+      int num_wetting_fronts =  lgar_model.get_model()->lgar_bmi_params.num_wetting_fronts;
+      
+      double *soil_moisture_wetting_front = new double[num_wetting_fronts];
+      double *soil_thickness_wetting_front = new double[num_wetting_fronts];
+      
+      lgar_model.GetValue(var_name_wf,&soil_moisture_wetting_front[0]);
+      lgar_model.GetValue(var_name_thickness_wf,&soil_thickness_wetting_front[0]);
+      
+      // write bmi output variables to file
+      fprintf(outdata_fptr,"%s,",time[i].c_str());
+      
+      for (int j = 0; j < num_output_var; j++) {
+	std::string name = output_var_names[j];
+	double value = 0.0;
+	lgar_model.GetValue(name,&value);
+	fprintf(outdata_fptr,"%6.10f",value);
+	if (j == num_output_var-1)
+	  fprintf(outdata_fptr,"\n");
+	else
+	  fprintf(outdata_fptr,",");
+      }
+      
+      
+      // write layers data to file
+      fprintf(outlayer_fptr,"# Timestep = %d, %s \n", i, time[i].c_str());
+      write_state(outlayer_fptr);
     }
-
-
-    // write layers data to file
-    fprintf(outlayer_fptr,"# Timestep = %d, %s \n", i, time[i].c_str());
-    write_state(outlayer_fptr);
     
   }
 
 
   lgar_model.global_mass_balance();
- 
- 
-  fprintf(fp, "Finalizing... ");
 
-  lgar_model.Finalize();
-  fprintf(fp, "done\n");
-  fclose(fp);
+  if (outdata_fptr) {
+    fclose(outdata_fptr);
+    fclose(outlayer_fptr);
+  }
 
-  fclose(outdata_fptr);
-  fclose(outlayer_fptr);
+  end_time = clock();
   
+  elapsed = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+
+  std::cout<<setprecision(4);
+  std::cout<<"Time                       =   "<< elapsed <<" sec \n";
+   
   return SUCCESS;
 }
 

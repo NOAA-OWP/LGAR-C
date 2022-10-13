@@ -238,14 +238,14 @@ Update()
 
     volQ_timestep_cm += volrunoff_giuh_subtimestep_cm;
 
-    if (verbosity.compare("high") == 0 || verbosity.compare("medium") == 0) {
+    if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
       std::cout<<"Printing wetting fronts at this subtimestep... \n";
       listPrint();
     }
 
     bool unexpected_local_error = fabs(local_mb) > 1.0e-7 ? true : false;
     
-    if (verbosity.compare("high") == 0 || verbosity.compare("medium") == 0 || unexpected_local_error) {
+    if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0 || unexpected_local_error) {
       printf("\nLocal mass balance at this timestep... \n\
       Error         = %14.10f \n\
       Initial water = %14.10f \n\
