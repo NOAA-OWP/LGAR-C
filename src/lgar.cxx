@@ -741,10 +741,10 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
 			     struct soil_properties_ *soil_properties)
 {
 
-#if VERBOSE > 1
-  printf("wetting fronts before moving \n");
-  listPrint();
-#endif
+  if (verbosity.compare("high") == 0) {
+    printf("State before moving wetting fronts...\n");
+    listPrint();
+  }
   
   struct wetting_front *current;
   struct wetting_front *next;
@@ -788,9 +788,9 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
   //lgar_move_wetting_fronts()
   for (int l = number_of_wetting_fronts; l != 0; l--) {
 
-#if VERBOSE > 1
-    printf("Looping over wetting fronst = %d %d \n", l);
-#endif
+    if (verbosity.compare("high") == 0) {
+      printf("Looping over wetting front = %d %d \n", l);
+    }
     
     if (l == 1 && number_of_wetting_fronts >0) {
       current = listFindFront(l,NULL);
@@ -801,7 +801,7 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
       next_old = listFindFront(l+1,state_previous);
       previous_old = NULL;
     }
-    else if (l <number_of_wetting_fronts) {
+    else if (l < number_of_wetting_fronts) {
       current = listFindFront(l,NULL);
       next = listFindFront(l+1,NULL);
       previous = listFindFront(l-1,NULL);
@@ -810,7 +810,7 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
       next_old = listFindFront(l+1,state_previous);
       previous_old = listFindFront(l-1,state_previous);
     }
-    else if (l==number_of_wetting_fronts) {
+    else if (l == number_of_wetting_fronts) {
       current = listFindFront(l,NULL);
       next = NULL;
       previous = listFindFront(l-1,NULL);
@@ -836,11 +836,11 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
     layer_number_above = (l == 1) ? layer_num : previous->layer_num;
 
     layer_number_below = (l == last_wetting_front_index) ? layer_num + 1 : next->layer_num;
-
-#if VERBOSE > 1
-    printf ("****************** Cases ***************** \n");
-    printf ("Layers (wf, layer, above, below) == %d %d %d %d \n", l ,layer_num, layer_number_above, layer_number_below);
-#endif
+    
+    if (verbosity.compare("high") == 0) {
+       printf ("****************** Cases ***************** \n");
+       printf ("Layers (wf, layer, above, below) == %d %d %d %d \n", l ,layer_num, layer_number_above, layer_number_below);
+    }
     
     double free_drainage_demand = 0.0;
     double actual_ET_demand = *AET_demand_cm;
@@ -849,10 +849,10 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
     // todo. this condition can be replace by current->to_depth = FALSE && l<last_wetting_front_index
     /*************************************************************************************/
     if ( (l<last_wetting_front_index) && (layer_number_below!=layer_num) ) {
-#if VERBOSE > 1
-      printf("case (deepest wetting front) : layer_num_below (%d) != layer_num (%d) \n", layer_num, layer_number_below);
-      //listPrint();
-#endif
+      if (verbosity.compare("high") == 0) {
+	printf("case (deepest wetting front) : layer_num_below (%d) != layer_num (%d) \n", layer_num, layer_number_below);
+	//listPrint();
+      }
       
       current->theta = calc_theta_from_h(next->psi_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
       current->psi_cm = next->psi_cm;
@@ -862,10 +862,10 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
     /*************************************************************************************/
     
     if (l == number_of_wetting_fronts && layer_number_below != layer_num && number_of_wetting_fronts == num_layers) {
-      
-#if VERBOSE > 1
-      printf("case (number_of_wetting_fronts equal to num_layers) : l (%d) == num_layers (%d) == num_wetting_fronts(%d) \n", l, num_layers,number_of_wetting_fronts);
-#endif
+
+      if (verbosity.compare("high") == 0) {
+	printf("case (number_of_wetting_fronts equal to num_layers) : l (%d) == num_layers (%d) == num_wetting_fronts(%d) \n", l, num_layers,number_of_wetting_fronts);
+      }
       
       // local variables
       double vg_a_k, vg_m_k, vg_n_k, Ks_cm_per_s_k;
@@ -885,10 +885,6 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
       double prior_mass = (current_old->depth_cm - cum_layer_thickness_cm[layer_num-1]) * (current_old->theta-0.0); // 0.0 = next_old->theta
       
       double new_mass = (current->depth_cm - cum_layer_thickness_cm[layer_num-1]) * (current->theta-0.0); // 0.0 = next->theta;
-      
-#if VERBOSE > 1
-      printf ("prior_mass_layer = %6.12f \n", prior_mass);
-#endif
       
       for (int k=1; k<layer_num; k++) {
 	int soil_num_k  = soil_type[k];
@@ -913,7 +909,6 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
 	delta_thickness[k] = layer_thickness;
       }
       
-      //double xx = lgar_calc_mass_bal(0,cum_layer_thickness_cm);
       delta_thetas[layer_num] = 0.0; 
       delta_thickness[layer_num] = current->depth_cm - cum_layer_thickness_cm[layer_num-1];
       
@@ -929,8 +924,7 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
       
       double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
       current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-      //listPrint();
-      //abort();
+      
     }
 
 
@@ -939,9 +933,10 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
     
     if ( (l < last_wetting_front_index) && (layer_number_below == layer_num) ) {
       
-#if VERBOSE > 1
-      printf("case (wetting front within layer) : layer_num (%d) == layer_num_below (%d) \n", layer_num,layer_number_below);
-#endif
+      if (verbosity.compare("high") == 0) {
+	printf("case (wetting front within layer) : layer_num (%d) == layer_num_below (%d) \n", layer_num,layer_number_below);
+      }
+      
       if (layer_num == 1) {
 	
 	double free_drainage_demand = 0;
@@ -1025,11 +1020,11 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
       current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
     }
     
-    
-#if VERBOSE > 1
-    printf("*********** Cases for mass balance of wetting fronts are done!! ************** \n");
-    listPrint();
-#endif
+    if (verbosity.compare("high") == 0) {
+      printf("*********** Cases for mass balance of wetting fronts are done!! ************** \n");
+      listPrint();
+    }
+
     
     // if f_p (predicted infiltration) causes theta > theta_e, mass correction is needed. depth of the wetting front with theta > theta_e is increased to close the mass balance
     // this should be moved out of here to a subroutine; add a call to that subroutine
@@ -1060,7 +1055,7 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
 	}
 	
 	double psi_k = wf_free_drainage->depth_cm;
-	std::cout<<"B2 = "<<psi_k<<" "<<mass_balance_error<<" "<<current_mass<<" "<<mass_timestep<<" "<<old_mass<<"\n";
+	
 	while (mass_balance_error > tolerance) {
 	  
 	  if (current_mass<mass_timestep) {
@@ -1080,24 +1075,24 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
 	  
 	  current_mass = lgar_calc_mass_bal(0,cum_layer_thickness_cm);
 	  mass_balance_error = fabs(current_mass - mass_timestep);
-	  //printf("mass_balance_error = %lf %lf %lf \n", mass_balance_error, psi_k, current_mass);
-	   // break;
+	  
 	}	
-	std::cout<<"B3 = "<<psi_k<<"\n";
+	
       }
     }
-
-    // **************************** MERGING WETTING FRONT ********************************
     
-#if VERBOSE > 1
-    if (next != NULL) {
-      printf("********** Merging wetting fronts ********** \n");
-      //listPrint();
-    }
-    else
-      printf("********** No merging is needed ********** \n");
-#endif
+    // **************************** MERGING WETTING FRONT ********************************
 
+    if (verbosity.compare("high") == 0) {
+      
+      if (next != NULL) {
+	printf("********** Merging wetting fronts ********** \n");
+	//listPrint();
+      }
+      else
+	printf("********** Merging not needed ********** \n");
+    }
+    
     if (next != NULL) {
       // merge the wetting fronts and returns water leaving through the bottom boundary
       *ponded_depth_cm = lgar_merge_wetting_fronts(num_layers, current, cum_layer_thickness_cm, soil_type, soil_properties);
@@ -1113,10 +1108,10 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
   double mass_change = 0.0;
   
   lgar_fix_wet_over_dry_fronts(&mass_change, cum_layer_thickness_cm, soil_type, soil_properties);
-  
-#if VERBOSE > 1
-  printf ("mass change (wet_over_dry case) = %lf \n", mass_change);
-#endif
+
+  if (verbosity.compare("high") == 0) {
+    printf ("mass change/adjustment (dry_over_wet case) = %lf \n", mass_change);
+  }
 
   
   // adjust AET based on updated mass balance, this ensures to water/mass is lost from the system
@@ -1163,6 +1158,10 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
     current = current->next;
   }
 
+  if (verbosity.compare("high") == 0) {
+    printf("Moving/merging wetting fronts done... \n");
+  }
+  
 }
 
 

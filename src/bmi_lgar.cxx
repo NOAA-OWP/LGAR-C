@@ -90,10 +90,10 @@ Update()
   double AET_expon = 1.0;  // exponent that allows curvature of the rising portion of the Budyko curve (fix later!)
 
   
-  for (int cycle=0; cycle < subcycles; cycle++) {
+  for (int cycle=1; cycle <= subcycles; cycle++) {
 
     if (verbosity.compare("high") == 0 || verbosity.compare("medium") == 0) {
-      std::cout<<"----------- Subcycle ------------- "<< cycle <<" of "<<subcycles<<"\n";
+      std::cout<<"*** ----------------- Subcycle ------------------: "<< cycle <<" of "<<subcycles<<"\n";
     }
     
     state_previous = NULL;
@@ -144,6 +144,11 @@ Update()
     double mass_source_to_soil_timestep = 0.0;
     
     int wf_free_drainage_demand = wetting_front_free_drainage();
+
+    if (verbosity.compare("high") == 0 || verbosity.compare("medium") == 0) {
+      std::string flag = (create_surficial_front && !is_top_wf_saturated) == true ? "Yes" : "No";
+      std::cout<<"Superficial wetting front created? "<< flag << "\n";
+    }
     
     //if the follow is true, that would mean there is no wetting front in the top layer to accept the water, must create one.
     if(create_surficial_front && !is_top_wf_saturated)  {
@@ -161,10 +166,14 @@ Update()
       state_previous = listCopy(head);
       
       volin_timestep_cm += volin_subtimestep_cm;
-      
+
+      if (verbosity.compare("high") == 0) {
+	std::cout<<"New wetting front created...\n";
+	std::cout<<" "<<"\n";
+	listPrint();
+      }
     }
 
-    //listPrint();
 
     if (ponded_depth_subtimestep_cm > 0 && !create_surficial_front) {
       
@@ -180,7 +189,7 @@ Update()
     }
     else {
       //printf("wetting front created = %lf %d \n", ponded_depth_cm ,!create_surficial_front );
-      double hp_cm_max = 0.0; //h_p_max = 0.0;
+      double hp_cm_max = 0.0;
       
       if (ponded_depth_subtimestep_cm < hp_cm_max) {
 	volrunoff_timestep_cm += 0.0;
@@ -228,20 +237,44 @@ Update()
     // total mass of water leaving the system, at this time it is the giuh-only, but later will add groundwater component as well.
 
     volQ_timestep_cm += volrunoff_giuh_subtimestep_cm;
+
+    if (verbosity.compare("high") == 0 || verbosity.compare("medium") == 0) {
+      std::cout<<"Printing wetting fronts at this subtimestep... \n";
+      listPrint();
+    }
+
+    bool unexpected_local_error = fabs(local_mb) > 1.0e-7 ? true : false;
     
-    if(VERBOSE > 1) {
-      printf("local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volend_subtimestep_cm);
+    if (verbosity.compare("high") == 0 || verbosity.compare("medium") == 0 || unexpected_local_error) {
+      printf("\nLocal mass balance at this timestep... \n\
+      Error         = %14.10f \n\
+      Initial water = %14.10f \n\
+      Water added   = %14.10f \n\
+      Infiltration  = %14.10f \n\
+      Runoff        = %14.10f \n\
+      AET           = %14.10f \n\
+      Percolation   = %14.10f \n\
+      Final water   = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volin_timestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm, volend_subtimestep_cm);
+
+      if (unexpected_local_error) {
+	printf("Local mass balance (in this timestep) is %14.10f, larger than expected, needs some debugging...\n ",local_mb);
+	abort();
+      }
+	
     }
     
     if (fabs(local_mb) >1e-7) {
-      printf("local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volend_subtimestep_cm);
-      printf("Local mass balance (in this timestep) is %.6e, larger than expected, needs some debugging...\n ",local_mb);
+      printf("\nLocal mass balance at this timestep... \n\
+      Error         = %14.10f \n\
+      Initial water = %14.10f \n\
+      Water added   = %14.10f \n\
+      Infiltration  = %14.10f \n\
+      Runoff        = %14.10f \n\
+      AET           = %14.10f \n\
+      Percolation   = %14.10f \n\
+      Final water   = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volin_timestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm, volend_subtimestep_cm);
+      printf("Local mass balance (in this timestep) is %14.10f, larger than expected, needs some debugging...\n ",local_mb);
       abort();
-    }
-
-    if(VERBOSE > 1) {
-      std::cout<<"Printing wetting fronts at this subtimestep... \n";
-      listPrint();
     }
     
     assert (head->depth_cm > 0.0); // check on negative layer depth
@@ -271,7 +304,7 @@ Update()
   model->lgar_mass_balance.volrech_timestep_cm = volrech_timestep_cm;
   model->lgar_mass_balance.volrunoff_timestep_cm = volrunoff_timestep_cm;
   model->lgar_mass_balance.volrunoff_giuh_timestep_cm = volrunoff_giuh_timestep_cm;
-  model->lgar_mass_balance.volQ_timestep_cm = volQ_timestep_cm;//model->lgar_mass_balance.volQ_timestep_cm;
+  model->lgar_mass_balance.volQ_timestep_cm = volQ_timestep_cm;
   model->lgar_mass_balance.volPET_timestep_cm = PET_timestep_cm;
   
   // add to mass balance accumulated variables
@@ -297,7 +330,7 @@ Update()
   bmi_unit_conv.volrunoff_giuh_timestep_m = volrunoff_giuh_timestep_cm * model->units.cm_to_m;
   bmi_unit_conv.volQ_timestep_m = volQ_timestep_cm * model->units.cm_to_m;
   bmi_unit_conv.volPET_timestep_m = PET_timestep_cm * model->units.cm_to_m;
-  
+    
 }
 
 /*
