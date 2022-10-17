@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
   
   BmiLGAR lgar_model;
 
-  bool is_IO_supress = true;
+  bool is_IO_supress = false;
 
   if (argc != 2) {
     printf("Usage: ./build/xlgar CONFIGURATION_FILE \n");
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
   output_var_names[8] = "percolation";
 
   
-  int nsteps = 1; //7500; //2700; //7500.0;//57;
+  int nsteps = 7500; //2700; //7500.0;//57;
   std::vector<std::string> time;
   std::vector<double> precipitation;
   std::vector<double> PET;

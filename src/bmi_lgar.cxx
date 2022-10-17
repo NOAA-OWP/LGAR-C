@@ -70,6 +70,7 @@ Update()
   double precip_subtimestep_cm;
   double precip_subtimestep_cm_per_h;
   double PET_subtimestep_cm;
+  double PET_subtimestep_cm_per_h;
   double ponded_depth_subtimestep_cm;
   double AET_subtimestep_cm;
   double volstart_subtimestep_cm;
@@ -99,12 +100,16 @@ Update()
     state_previous = NULL;
     state_previous = listCopy(head);
     
-    precip_subtimestep_cm_per_h = model->lgar_bmi_params.precipitation_cm_per_h * mm_to_cm / double(subcycles); // rate; cm/hour
-    PET_subtimestep_cm = model->lgar_bmi_params.PET_cm_per_h * mm_to_cm / double(subcycles);
+    precip_subtimestep_cm_per_h = model->lgar_bmi_params.precipitation_mm_per_h * mm_to_cm / double(subcycles); // rate; cm/hour
+    PET_subtimestep_cm_per_h = model->lgar_bmi_params.PET_mm_per_h * mm_to_cm / double(subcycles);
     ponded_depth_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h;
 
+    precip_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h;
+    PET_subtimestep_cm = PET_subtimestep_cm_per_h * subtimestep_h;
+    
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::cout<<"Pr [cm/h], Pr [cm], subtimestep [h] = "<<model->lgar_bmi_params.precipitation_cm_per_h<<", "<< precip_subtimestep_cm<<", "<< subtimestep_h<<" ("<<subtimestep_h*3600<<" sec)"<<"\n";
+      std::cout<<"Pr [cm/h], Pr [cm/h] (subtimestep), subtimestep [h] = "<<model->lgar_bmi_params.precipitation_mm_per_h * mm_to_cm <<", "<< precip_subtimestep_cm <<", "<< subtimestep_h<<" ("<<subtimestep_h*3600<<" sec)"<<"\n";
+      std::cout<<"PET [cm/h], PET [cm/h] (subtimestep) "<<model->lgar_bmi_params.PET_mm_per_h * mm_to_cm <<", "<< PET_subtimestep_cm<<"\n";
     }
 
 
@@ -123,14 +128,13 @@ Update()
     double dry_depth;
     
     
-    if (PET_subtimestep_cm > 0.0) {
+    if (PET_subtimestep_cm_per_h > 0.0) {
       // Calculate AET from PET and root zone soil moisture.  Note PET was reduced if raining
       
-      AET_subtimestep_cm = calc_aet(PET_subtimestep_cm, subtimestep_h, wilting_point_psi_cm, model->soil_properties, model->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon);
+      AET_subtimestep_cm = calc_aet(PET_subtimestep_cm_per_h, subtimestep_h, wilting_point_psi_cm, model->soil_properties, model->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon);
     }
     
-
-    precip_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h;
+    
     precip_timestep_cm += precip_subtimestep_cm;
     PET_timestep_cm += fmax(PET_subtimestep_cm,0.0); // ensures non-negative PET
     volstart_subtimestep_cm = lgar_calc_mass_bal(num_layers,model->lgar_bmi_params.cum_layer_thickness_cm);
@@ -550,14 +554,14 @@ GetValuePtr (std::string name)
 {
  
   if (name.compare("precipitation_rate") == 0) {
-    return (void*)(&this->model->lgar_bmi_params.precipitation_cm_per_h);
+    return (void*)(&this->model->lgar_bmi_params.precipitation_mm_per_h);
   }
   else if (name.compare("precipitation") == 0) {
     //return (void*)(&this->model->lgar_mass_balance.volprecip_timestep_cm);
     return (void*)(&bmi_unit_conv.volprecip_timestep_m);
   }
   else  if (name.compare("potential_evapotranspiration_rate") == 0) {
-    return (void*)(&this->model->lgar_bmi_params.PET_cm_per_h);
+    return (void*)(&this->model->lgar_bmi_params.PET_mm_per_h);
   }
   else  if (name.compare("potential_evapotranspiration") == 0) {
     // return (void*)(&this->model->lgar_bmi_params.PET_cm);
