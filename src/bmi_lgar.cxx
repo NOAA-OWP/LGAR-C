@@ -15,6 +15,10 @@
 
 
 string verbosity="none";
+/* The `head` pointer stores the address in memory of the first member of the linked list containing all the wetting fronts. The contents of struct wetting_front are defined in "all.h" */
+
+struct wetting_front *head = NULL;
+struct wetting_front *state_previous = NULL;
 
 void BmiLGAR::
 Initialize (std::string config_file)

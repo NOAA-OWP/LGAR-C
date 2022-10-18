@@ -14,11 +14,6 @@ std::string GetForcingFile(std::string config_file);
 
 void ReadForcingData(std::string config_file, std::vector<std::string>& time, std::vector<double>& precip, std::vector<double>& pet);
 
-struct wetting_front *head = NULL;  //<- this pointer stores the address in memory of the first member of the linked
-                                    //   list containing all the wetting fronts.  That address is called "head".  
-                                    //   The contents of struct wetting_front are defined in "all.h"
-
-struct wetting_front *state_previous = NULL;
 
 #define SUCCESS 0
 int main(int argc, char *argv[])
