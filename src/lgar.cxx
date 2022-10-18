@@ -1766,12 +1766,16 @@ do
 }
 
 extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_types, double wilting_point_psi_cm,
-                                    struct soil_properties_ *soil_properties)
+				    struct soil_properties_ *soil_properties)
 {
   //###################################################################
   // READ THE SOIL PARAMS ******************************************
   // OPEN FILE TO READ IN THE vG parameters ffor standard soil types
   //###################################################################
+
+  if (verbosity.compare("high") == 0) {
+    std::cout<<"Reading Van Genuchton parameters files...\n";
+  }
   
   // local vars
   FILE *in_vG_params_fptr = NULL;

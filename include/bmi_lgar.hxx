@@ -24,7 +24,7 @@ class BmiLGAR : public bmixx::Bmi {
 public:
   BmiLGAR() {
     this->input_var_names[0] = "precipitation_rate";
-    this->input_var_names[1] = "potential_evapotranspiration";
+    this->input_var_names[1] = "potential_evapotranspiration_rate";
     
     this->output_var_names[0] = "soil_moisture_layer";
     this->output_var_names[1] = "soil_moisture_wetting_fronts";
