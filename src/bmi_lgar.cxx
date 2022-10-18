@@ -98,25 +98,33 @@ Update()
   for (int cycle=1; cycle <= subcycles; cycle++) {
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::cout<<"*** ----------------- Subcycle ------------------: "<< cycle <<" of "<<subcycles<<"\n";
+      std::cout<<"*** ----------------- Subcycle ------------------: "<< cycle <<" of "<<subcycles<<std::endl;
+      //printf("*** ----------- Subcycle ------------------: %d %d \n", cycle, subcycles);
     }
     
     state_previous = NULL;
     state_previous = listCopy(head);
+
+    // ensure precip and PET are non-negative
+    model->lgar_bmi_input_params->precipitation_mm_per_h = fmax(model->lgar_bmi_input_params->precipitation_mm_per_h, 0.0);
+    model->lgar_bmi_input_params->PET_mm_per_h = fmax(model->lgar_bmi_input_params->PET_mm_per_h, 0.0);
     
-    precip_subtimestep_cm_per_h = model->lgar_bmi_params.precipitation_mm_per_h * mm_to_cm / double(subcycles); // rate; cm/hour
-    PET_subtimestep_cm_per_h = model->lgar_bmi_params.PET_mm_per_h * mm_to_cm / double(subcycles);
+    precip_subtimestep_cm_per_h = model->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm / double(subcycles); // rate; cm/hour
+    // ensure PET is non-negative
+    PET_subtimestep_cm_per_h = model->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm / double(subcycles);
+
     ponded_depth_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h;
 
     precip_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h;
     PET_subtimestep_cm = PET_subtimestep_cm_per_h * subtimestep_h;
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::cout<<"Pr [cm/h], Pr [cm/h] (subtimestep), subtimestep [h] = "<<model->lgar_bmi_params.precipitation_mm_per_h * mm_to_cm <<", "<< precip_subtimestep_cm <<", "<< subtimestep_h<<" ("<<subtimestep_h*3600<<" sec)"<<"\n";
-      std::cout<<"PET [cm/h], PET [cm/h] (subtimestep) "<<model->lgar_bmi_params.PET_mm_per_h * mm_to_cm <<", "<< PET_subtimestep_cm<<"\n";
+      //printf("Precip, PET =:: %lf %lf \n", model->lgar_bmi_input_params->precipitation_mm_per_h, model->lgar_bmi_input_params->PET_mm_per_h);
+
+      std::cout<<"Pr [cm/h], Pr [cm/h] (subtimestep), subtimestep [h] = "<<model->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<", "<< precip_subtimestep_cm <<", "<< subtimestep_h<<" ("<<subtimestep_h*3600<<" sec)"<<"\n";
+      std::cout<<"PET [cm/h], PET [cm/h] (subtimestep) "<<model->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<", "<< PET_subtimestep_cm<<"\n";
     }
-
-
+    
     AET_subtimestep_cm = 0.0;
     volstart_subtimestep_cm = 0.0;
     volin_subtimestep_cm = 0.0;
@@ -247,7 +255,7 @@ Update()
     volQ_timestep_cm += volrunoff_giuh_subtimestep_cm;
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::cout<<"Printing wetting fronts at this subtimestep... \n";
+      printf("Printing wetting fronts at this subtimestep... \n");
       listPrint();
     }
 
@@ -328,7 +336,7 @@ Update()
 
 
   // unit conversion
-   // add to mass balance timestep variables
+  // add to mass balance timestep variables
   bmi_unit_conv.volprecip_timestep_m = precip_timestep_cm * model->units.cm_to_m;
   bmi_unit_conv.volin_timestep_m = volin_timestep_cm * model->units.cm_to_m;
   bmi_unit_conv.volend_timestep_m = volend_timestep_cm * model->units.cm_to_m;
@@ -338,7 +346,8 @@ Update()
   bmi_unit_conv.volrunoff_giuh_timestep_m = volrunoff_giuh_timestep_cm * model->units.cm_to_m;
   bmi_unit_conv.volQ_timestep_m = volQ_timestep_cm * model->units.cm_to_m;
   bmi_unit_conv.volPET_timestep_m = PET_timestep_cm * model->units.cm_to_m;
-    
+  
+  this->model->lgar_bmi_params.time += 3600;
 }
 
 /*
@@ -374,13 +383,14 @@ global_mass_balance()
 void BmiLGAR::
 UpdateUntil(double t)
 {
-  //model->LGARUpdate();
+  this->Update();
 }
 
 
 void BmiLGAR::
 Finalize()
 {
+  global_mass_balance();
   // if (this->model)
   //  this->model->~LGAR();
 }
@@ -558,14 +568,16 @@ GetValuePtr (std::string name)
 {
  
   if (name.compare("precipitation_rate") == 0) {
-    return (void*)(&this->model->lgar_bmi_params.precipitation_mm_per_h);
+    //return (void*)(&this->model->lgar_bmi_params.precipitation_mm_per_h);
+    return (void*)(&this->model->lgar_bmi_input_params->precipitation_mm_per_h);
   }
   else if (name.compare("precipitation") == 0) {
     //return (void*)(&this->model->lgar_mass_balance.volprecip_timestep_cm);
     return (void*)(&bmi_unit_conv.volprecip_timestep_m);
   }
   else  if (name.compare("potential_evapotranspiration_rate") == 0) {
-    return (void*)(&this->model->lgar_bmi_params.PET_mm_per_h);
+    //return (void*)(&this->model->lgar_bmi_params.PET_mm_per_h);
+    return (void*)(&this->model->lgar_bmi_input_params->PET_mm_per_h);
   }
   else  if (name.compare("potential_evapotranspiration") == 0) {
     // return (void*)(&this->model->lgar_bmi_params.PET_cm);
@@ -737,7 +749,8 @@ GetEndTime () {
 
 double BmiLGAR::
 GetCurrentTime () {
-  return 0.0;
+  return this->model->lgar_bmi_params.time;
+  //  return 0.0;
 }
 
 

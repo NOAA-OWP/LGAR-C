@@ -84,6 +84,18 @@ extern void lgar_initialize(string config_file, struct lgar_model_ *model)
     current = current->next;
   }
 
+  model->lgar_mass_balance.volprecip_cm = 0.0;
+  model->lgar_mass_balance.volin_cm = 0.0;
+  model->lgar_mass_balance.volend_cm = 0.0;
+  model->lgar_mass_balance.volAET_cm = 0.0;
+  model->lgar_mass_balance.volrech_cm = 0.0;
+  model->lgar_mass_balance.volrunoff_cm = 0.0;
+  model->lgar_mass_balance.volrunoff_giuh_cm = 0.0;
+  model->lgar_mass_balance.volQ_cm = 0.0;
+  model->lgar_mass_balance.volPET_cm = 0.0;
+  model->lgar_mass_balance.volon_cm = 0.0;
+
+  
 }
 
 
@@ -401,13 +413,15 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
     std::cout<<"Initial ponded depth is set to zero. \n";
     std::cout<<"No. of spatial intervals used in trapezoidal integration to compute G : "<<model->lgar_bmi_params.nint<<"\n";
   }
+
+  model->lgar_bmi_input_params = new lgar_bmi_input_parameters;
+  model->lgar_bmi_params.time = 0.0;
   
   if (verbosity.compare("none") != 0) {
     std::cout<<"------------- Initialization done! ---------------------- \n";
     std::cout<<"--------------------------------------------------------- \n";
   }
 }
-
 
 //###################################################################
 // calculate the initial theta and wilting point moisture content
@@ -670,7 +684,7 @@ extern void lgar_global_mass_balance(struct lgar_model_ *model, double *giuh_run
   double volin = model->lgar_mass_balance.volin_cm;
   double volrech = model->lgar_mass_balance.volrech_cm;
   double volend = model->lgar_mass_balance.volend_cm;
-  double volend_giuh = model->lgar_mass_balance.volrunoff_giuh_cm;
+  double volrunoff_giuh = model->lgar_mass_balance.volrunoff_giuh_cm;
   double volend_giuh_cm = 0.0;
   double total_Q_cm = model->lgar_mass_balance.volQ_cm;
   //check if the giuh queue have some water left at the end of simulaiton; needs to be included in the global mass balance
@@ -691,7 +705,7 @@ extern void lgar_global_mass_balance(struct lgar_model_ *model, double *giuh_run
  printf("final water in soil        = %14.10f cm\n", volend);
  printf("water remaining on surface = %14.10f cm\n", volon);
  printf("surface runoff             = %14.10f cm\n", volrunoff);
- printf("giuh runoff                = %14.10f cm\n", volrunoff);
+ printf("giuh runoff                = %14.10f cm\n", volrunoff_giuh);
  printf("total percolation          = %14.10f cm\n", volrech);
  printf("total AET                  = %14.10f cm\n", volAET);
  printf("total PET                  = %14.10f cm\n", volPET);
