@@ -82,6 +82,12 @@ struct unit_conversion {
   double cm_to_m = 0.01;
 };
 
+// structure contains parameters that will be set by the bmi and not through the config file
+struct lgar_bmi_input_parameters {
+  double precipitation_mm_per_h; // rainfall precip in mm per hour (input)
+  double PET_mm_per_h;  // potential evapotranspiration in mm (input)
+};
+  
 struct lgar_bmi_parameters {
   int shape[3];
   double spacing[8];
@@ -97,8 +103,6 @@ struct lgar_bmi_parameters {
   double forcing_resolution_h; // forcing resolution in hours
   int forcing_interval;
   int num_soil_types;          // must be less than or equal to MAX_NUM_SOIL_TYPES
-  double precipitation_mm_per_h; // rainfall precip in mm per hour (input)
-  double PET_mm_per_h;  // potential evapotranspiration in mm (input)
   double AET_cm; // actual evapotranspiration in cm
   double *soil_moisture_layer; // array of thetas (mean soil moisture content) per layer; output option to other models (e.g. soil freeze-thaw)
   double *soil_moisture_wetting_fronts; // array of thetas (soil moisture content) per wetting front; output to other models (e.g. soil freeze-thaw)
@@ -107,7 +111,7 @@ struct lgar_bmi_parameters {
   double ponded_depth_cm;
   double precip_previous_timestep_cm;
   int nint = 120;    // the number of trapezoids used in integrating the Geff function
-
+  double time; // current time [s]
 
   // giuh parameters
   int num_giuh_ordinates;
@@ -150,6 +154,7 @@ struct lgar_model_
   struct lgar_bmi_parameters lgar_bmi_params;
   struct lgar_mass_balance_variables lgar_mass_balance;
   struct unit_conversion units;
+  struct lgar_bmi_input_parameters* lgar_bmi_input_params;
 };
 
 
