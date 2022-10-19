@@ -563,50 +563,28 @@ void *BmiLGAR::
 GetValuePtr (std::string name)
 {
  
-  if (name.compare("precipitation_rate") == 0) {
-    //return (void*)(&this->model->lgar_bmi_params.precipitation_mm_per_h);
+  if (name.compare("precipitation_rate") == 0)
     return (void*)(&this->model->lgar_bmi_input_params->precipitation_mm_per_h);
-  }
-  else if (name.compare("precipitation") == 0) {
-    //return (void*)(&this->model->lgar_mass_balance.volprecip_timestep_cm);
+  else if (name.compare("precipitation") == 0)
     return (void*)(&bmi_unit_conv.volprecip_timestep_m);
-  }
-  else  if (name.compare("potential_evapotranspiration_rate") == 0) {
-    //return (void*)(&this->model->lgar_bmi_params.PET_mm_per_h);
+  else  if (name.compare("potential_evapotranspiration_rate") == 0)
     return (void*)(&this->model->lgar_bmi_input_params->PET_mm_per_h);
-  }
-  else  if (name.compare("potential_evapotranspiration") == 0) {
-    // return (void*)(&this->model->lgar_bmi_params.PET_cm);
+  else  if (name.compare("potential_evapotranspiration") == 0)
     return (void*)(&bmi_unit_conv.volPET_timestep_m);
-  }
-  else  if (name.compare("actual_evapotranspiration") == 0) {
-    // return (void*)(&this->model->lgar_bmi_params.AET_cm);
+  else  if (name.compare("actual_evapotranspiration") == 0)
     return (void*)(&bmi_unit_conv.volAET_timestep_m);
-  }
-  else  if (name.compare("surface_runoff") == 0) {
-    //return (void*)(&this->model->lgar_mass_balance.volrunoff_timestep_cm);
+  else  if (name.compare("surface_runoff") == 0)
     return (void*)(&bmi_unit_conv.volrunoff_timestep_m);
-  }
-  else  if (name.compare("giuh_runoff") == 0) {
-    // return (void*)(&this->model->lgar_mass_balance.volrunoff_giuh_timestep_cm);
+  else  if (name.compare("giuh_runoff") == 0)
     return (void*)(&bmi_unit_conv.volrunoff_giuh_timestep_m);
-  }
-  else  if (name.compare("soil_storage") == 0) {
-    // return (void*)(&this->model->lgar_mass_balance.volrunoff_giuh_timestep_cm);
+  else  if (name.compare("soil_storage") == 0)
     return (void*)(&bmi_unit_conv.volend_timestep_m);
-  }
-  else  if (name.compare("total_discharge") == 0) {
-    // return (void*)(&this->model->lgar_mass_balance.volQ_timestep_cm);
+  else  if (name.compare("total_discharge") == 0)
     return (void*)(&bmi_unit_conv.volQ_timestep_m);
-  }
-  else  if (name.compare("infiltration") == 0) {
-    // return (void*)(&this->model->lgar_mass_balance.volin_timestep_cm);
+  else  if (name.compare("infiltration") == 0)
     return (void*)(&bmi_unit_conv.volin_timestep_m);
-  }
-  else  if (name.compare("percolation") == 0) {
-    // return (void*)(&this->model->lgar_mass_balance.volrech_timestep_cm);
+  else  if (name.compare("percolation") == 0)
     return (void*)(&bmi_unit_conv.volrech_timestep_m);
-  }
   else if (name.compare("soil_moisture_layer") == 0)
     return (void*)this->model->lgar_bmi_params.soil_moisture_layer;
   else if (name.compare("soil_thickness_layer") == 0)
@@ -621,6 +599,7 @@ GetValuePtr (std::string name)
     throw std::runtime_error(errMsg.str());
     return NULL;
     }
+  
   // delete it later
   return NULL;
 }
