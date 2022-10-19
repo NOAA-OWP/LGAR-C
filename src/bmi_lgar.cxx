@@ -45,7 +45,7 @@ void BmiLGAR::
 Update()
 {
   if (verbosity.compare("none") != 0) {
-    std::cout<<"*** LASAM BMI Update... ***  \n";
+    std::cerr<<"*** LASAM BMI Update... ***  \n";
   }
   //   lgar_update(this->model); 
   //listPrint();
@@ -98,8 +98,7 @@ Update()
   for (int cycle=1; cycle <= subcycles; cycle++) {
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::cout<<"*** ----------------- Subcycle ------------------: "<< cycle <<" of "<<subcycles<<std::endl;
-      //printf("*** ----------- Subcycle ------------------: %d %d \n", cycle, subcycles);
+      std::cerr<<"*** ----------------- Subcycle ------------------: "<< cycle <<" of "<<subcycles<<std::endl;
     }
     
     state_previous = NULL;
@@ -108,8 +107,19 @@ Update()
     // ensure precip and PET are non-negative
     model->lgar_bmi_input_params->precipitation_mm_per_h = fmax(model->lgar_bmi_input_params->precipitation_mm_per_h, 0.0);
     model->lgar_bmi_input_params->PET_mm_per_h = fmax(model->lgar_bmi_input_params->PET_mm_per_h, 0.0);
+
+    /* Note unit conversion:
+       Pr and PET are rates (fluxes) in mm/h
+       Pr [mm/h] * 1h/3600sec = Pr [mm/3600sec]
+       Model timestep (dt) = 300 sec (5 minutes for example)
+       convert rate to amount
+       Pr [mm/3600sec] * dt [300 sec] = Pr[mm] * 300/3600.
+       in the code lines below, subtimestep_h is this factor 300/3600 (see initialize from config in lgar.cxx)
+    */
     
     precip_subtimestep_cm_per_h = model->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm / double(subcycles); // rate; cm/hour
+
+
     // ensure PET is non-negative
     PET_subtimestep_cm_per_h = model->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm / double(subcycles);
 
@@ -117,12 +127,12 @@ Update()
 
     precip_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h;
     PET_subtimestep_cm = PET_subtimestep_cm_per_h * subtimestep_h;
-    
-    if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      //printf("Precip, PET =:: %lf %lf \n", model->lgar_bmi_input_params->precipitation_mm_per_h, model->lgar_bmi_input_params->PET_mm_per_h);
 
-      std::cout<<"Pr [cm/h], Pr [cm/h] (subtimestep), subtimestep [h] = "<<model->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<", "<< precip_subtimestep_cm <<", "<< subtimestep_h<<" ("<<subtimestep_h*3600<<" sec)"<<"\n";
-      std::cout<<"PET [cm/h], PET [cm/h] (subtimestep) "<<model->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<", "<< PET_subtimestep_cm<<"\n";
+    //using cerr instead of cout due to some cout buffering issues when running on ngen, cerr doesn't buffer so it prints immediately to the sreeen.
+    if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
+
+      std::cerr<<"Pr [cm/h], Pr [cm] (subtimestep), subtimestep [h] = "<<model->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<", "<< precip_subtimestep_cm <<", "<< subtimestep_h<<" ("<<subtimestep_h*3600<<" sec)"<<"\n";
+      std::cerr<<"PET [cm/h], PET [cm] (subtimestep) = "<<model->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<", "<< PET_subtimestep_cm<<"\n";
     }
     
     AET_subtimestep_cm = 0.0;
@@ -163,7 +173,7 @@ Update()
 
     if (verbosity.compare("high") == 0 || verbosity.compare("medium") == 0) {
       std::string flag = (create_surficial_front && !is_top_wf_saturated) == true ? "Yes" : "No";
-      std::cout<<"Superficial wetting front created? "<< flag << "\n";
+      std::cerr<<"Superficial wetting front created? "<< flag << "\n";
     }
     
     //if the follow is true, that would mean there is no wetting front in the top layer to accept the water, must create one.
@@ -184,8 +194,8 @@ Update()
       volin_timestep_cm += volin_subtimestep_cm;
 
       if (verbosity.compare("high") == 0) {
-	std::cout<<"New wetting front created...\n";
-	std::cout<<" "<<"\n";
+	std::cerr<<"New wetting front created...\n";
+	std::cerr<<" "<<"\n";
 	listPrint();
       }
     }
@@ -277,20 +287,6 @@ Update()
 	abort();
       }
 	
-    }
-    
-    if (fabs(local_mb) >1e-7) {
-      printf("\nLocal mass balance at this timestep... \n\
-      Error         = %14.10f \n\
-      Initial water = %14.10f \n\
-      Water added   = %14.10f \n\
-      Infiltration  = %14.10f \n\
-      Runoff        = %14.10f \n\
-      AET           = %14.10f \n\
-      Percolation   = %14.10f \n\
-      Final water   = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volin_timestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm, volend_subtimestep_cm);
-      printf("Local mass balance (in this timestep) is %14.10f, larger than expected, needs some debugging...\n ",local_mb);
-      abort();
     }
     
     assert (head->depth_cm > 0.0); // check on negative layer depth
