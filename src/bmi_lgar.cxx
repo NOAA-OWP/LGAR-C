@@ -179,9 +179,9 @@ Update()
     
     int wf_free_drainage_demand = wetting_front_free_drainage();
 
-    if (verbosity.compare("high") == 0 || verbosity.compare("medium") == 0) {
+    if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
       std::string flag = (create_surficial_front && !is_top_wf_saturated) == true ? "Yes" : "No";
-      std::cerr<<"Superficial wetting front created? "<< flag << "\n";
+      std::cerr<<"Create superficial wetting front? "<< flag << "\n";
     }
     
     //if the follow is true, that would mean there is no wetting front in the top layer to accept the water, must create one.
@@ -218,11 +218,11 @@ Update()
       volrech_subtimestep_cm = volin_subtimestep_cm; // this gets updated later, probably not needed here
       volon_timestep_cm += ponded_depth_subtimestep_cm;
       
-      //printf("Mass in = %lf %lf %lf \n", volin_subtimestep_cm, volrech_subtimestep_cm, volrunoff_subtimestep_cm);
+      printf("Mass in = %lf %lf %lf \n", volin_subtimestep_cm, volrech_subtimestep_cm, volrunoff_subtimestep_cm);
       if (volrunoff_subtimestep_cm < 0) abort();  
     }
     else {
-      //printf("wetting front created = %lf %d \n", ponded_depth_cm ,!create_surficial_front );
+      printf("wetting front created = %lf %d \n", ponded_depth_cm ,!create_surficial_front );
       double hp_cm_max = 0.0;
       
       if (ponded_depth_subtimestep_cm < hp_cm_max) {
@@ -241,11 +241,14 @@ Update()
     
 
     if (!create_surficial_front) {
+      double volin_subtimestep_cm_temp = volin_subtimestep_cm;  // passing this for mass balance only, the method modifies it and returns percolated value, so we need to keep its original value stored to copy it back
       lgar_move_wetting_fronts(&volin_subtimestep_cm, subtimestep_h, wf_free_drainage_demand, volend_subtimestep_cm, num_layers, &AET_subtimestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->soil_properties);
       
       // this is the volume of water leaving through the bottom
       volrech_subtimestep_cm = volin_subtimestep_cm;
       volrech_timestep_cm += volrech_subtimestep_cm;
+
+      volin_subtimestep_cm = volin_subtimestep_cm_temp;
     }
     
     
@@ -288,7 +291,7 @@ Update()
       Runoff        = %14.10f \n\
       AET           = %14.10f \n\
       Percolation   = %14.10f \n\
-      Final water   = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volin_timestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm, volend_subtimestep_cm);
+      Final water   = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volin_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm, volend_subtimestep_cm);
 
       if (unexpected_local_error) {
 	printf("Local mass balance (in this timestep) is %14.10f, larger than expected, needs some debugging...\n ",local_mb);
