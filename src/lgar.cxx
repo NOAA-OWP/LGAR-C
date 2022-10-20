@@ -84,6 +84,12 @@ extern void lgar_initialize(string config_file, struct lgar_model_ *model)
     current = current->next;
   }
 
+
+  // initialize bmi input variables to -1.0 (on purpose), this should be assigned (non-negative) and if not, the code will throw an error in the Update method
+  model->lgar_bmi_input_params->precipitation_mm_per_h = -1.0;
+  model->lgar_bmi_input_params->PET_mm_per_h = -1.0;
+
+  // initialize all global mass balance variables to zero
   model->lgar_mass_balance.volprecip_cm = 0.0;
   model->lgar_mass_balance.volin_cm = 0.0;
   model->lgar_mass_balance.volend_cm = 0.0;

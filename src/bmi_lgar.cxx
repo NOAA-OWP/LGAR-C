@@ -94,7 +94,15 @@ Update()
   double AET_thresh_Theta = 0.85;    // scaled soil moisture (0-1) above which AET=PET (fix later!)
   double AET_expon = 1.0;  // exponent that allows curvature of the rising portion of the Budyko curve (fix later!)
 
-  
+  if (verbosity.compare("high") == 0) {
+
+    std::cerr<<"Pr [cm/h] (timestep) = "<<model->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<"\n";
+    assert (model->lgar_bmi_input_params->precipitation_mm_per_h >= 0.0);
+
+    std::cerr<<"Pr [cm/h] (timestep) = "<<model->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<"\n";
+    assert(model->lgar_bmi_input_params->PET_mm_per_h >=0.0);
+  }
+       
   for (int cycle=1; cycle <= subcycles; cycle++) {
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
@@ -343,7 +351,7 @@ Update()
   bmi_unit_conv.volQ_timestep_m = volQ_timestep_cm * model->units.cm_to_m;
   bmi_unit_conv.volPET_timestep_m = PET_timestep_cm * model->units.cm_to_m;
   
-  this->model->lgar_bmi_params.time += 3600;
+  
 }
 
 /*
@@ -380,6 +388,11 @@ void BmiLGAR::
 UpdateUntil(double t)
 {
   this->Update();
+  this->model->lgar_bmi_params.time += t;
+
+  if (verbosity.compare("high") == 0)
+    std::cerr<<"Forcings timestep (dt) = "<<t<<" sec \n";
+  
 }
 
 
@@ -387,8 +400,6 @@ void BmiLGAR::
 Finalize()
 {
   global_mass_balance();
-  // if (this->model)
-  //  this->model->~LGAR();
 }
 
 

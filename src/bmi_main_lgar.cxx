@@ -88,6 +88,8 @@ int main(int argc, char *argv[])
     }
 
   }
+
+  double dt = 3600;
   
   for (int i = 0; i < nsteps; i++) {
     
@@ -100,7 +102,7 @@ int main(int argc, char *argv[])
     lgar_model.SetValue(var_name_precip, &precipitation[i]);
     lgar_model.SetValue(var_name_pet, &PET[i]);
 
-    lgar_model.Update(); // Update model
+    lgar_model.UpdateUntil(dt); // Update model
 
     if (!is_IO_supress) {
       int num_wetting_fronts =  lgar_model.get_model()->lgar_bmi_params.num_wetting_fronts;
