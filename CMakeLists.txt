@@ -13,14 +13,22 @@ set(Red         "${Esc}[31m")
 
 option(NGEN "NGEN" OFF)
 option(STANDALONE "STANDALONE" OFF)
+option(UNITTEST "UNITTEST" OFF)
 
 if(NGEN)
   message("ngen framework build!")
   add_definitions(-DNGEN)
 endif()
+message("${NGEN} ${STANDALONE}")
 
 if(STANDALONE)
+ set(exe_name "lasam_standalone")
  message("Standalone build!")
+endif()
+
+if(UNITTEST)
+ set(exe_name "lasam_unitest")
+ message("Unittest build!")
 endif()
 
 # set the project name
@@ -54,11 +62,12 @@ IF((NOT ${NGEN}) AND (NOT ${STANDALONE}))
 ENDIF((NOT ${NGEN}) AND (NOT ${STANDALONE}))
 
 if(STANDALONE)
-  add_executable(lasam ./src/bmi_main_lgar.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.h ./giuh/giuh.c)
-  target_link_libraries(lasam PRIVATE m)
+  add_executable(${exe_name} ./src/bmi_main_lgar.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.h ./giuh/giuh.c)
+  target_link_libraries(${exe_name} PRIVATE m)
+elseif(UNITTEST)
+  add_executable(${exe_name} ./test/main_unit_test_bmi.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.h ./giuh/giuh.c)
+  target_link_libraries(${exe_name} PRIVATE m)
 endif()
-
-
 
 
 # ngen LASAM (add shared library)
@@ -94,3 +103,6 @@ configure_file(lasambmi.pc.in lasambmi.pc @ONLY)
 install(FILES ${CMAKE_BINARY_DIR}/lasambmi.pc DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/pkgconfig)
 
 
+unset(STANDALONE CACHE)
+unset(UNITTEST CACHE)
+unset(NGEN CACHE)
