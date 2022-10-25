@@ -353,28 +353,22 @@ Update()
   bmi_unit_conv.volrunoff_giuh_timestep_m = volrunoff_giuh_timestep_cm * model->units.cm_to_m;
   bmi_unit_conv.volQ_timestep_m = volQ_timestep_cm * model->units.cm_to_m;
   bmi_unit_conv.volPET_timestep_m = PET_timestep_cm * model->units.cm_to_m;
+
+
+  // Update time
+  this->model->lgar_bmi_params.time += this->model->lgar_bmi_params.forcing_resolution_h * 3600; // convert hour to seconds
   
+  if (verbosity.compare("high") == 0)
+    std::cerr<<"Current time = "<<this->model->lgar_bmi_params.time / 3600.<<" hours \n";
   
 }
 
-/*
+
 void BmiLGAR::
-Update()
+UpdateUntil(double t)
 {
-  lgar_update(this->model);
-  
-  //double surface_runoff_m = this->model->lgar_mass_balance.volrunoff_timestep_cm;
-
-  //double giuh_runoff_cm = 10 * giuh_convolution_integral(surface_runoff_m,num_giuh_ordinates,
-  //						 giuh_ordinates,giuh_runoff_queue);
-  //std::cout<<"giuh runoff "<<giuh_runoff_cm<<" "<<surface_runoff_m<<"\n";
-
-  //this->model->lgar_mass_balance = this->model->lgar_mass_balance.volrunoff_giuh_timestep_cm;
-  //massbal_struct->vol_out_giuh+=giuh_runoff_m;
-  //abort();
+  this->Update();
 }
-
-*/
 
 struct lgar_model_* BmiLGAR::get_model()
 {
@@ -386,18 +380,6 @@ global_mass_balance()
 {
   lgar_global_mass_balance(this->model, giuh_runoff_queue);
 }
-
-void BmiLGAR::
-UpdateUntil(double t)
-{
-  this->Update();
-  this->model->lgar_bmi_params.time += t;
-
-  if (verbosity.compare("high") == 0)
-    std::cerr<<"Forcings timestep (dt) = "<<t<<" sec \n";
-  
-}
-
 
 void BmiLGAR::
 Finalize()
@@ -751,7 +733,7 @@ GetTimeUnits() {
 
 double BmiLGAR::
 GetTimeStep () {
-  return 0;
+  return this->model->lgar_bmi_params.forcing_resolution_h * 3600; // convert hours to seconds
 }
 
 std::string BmiLGAR::

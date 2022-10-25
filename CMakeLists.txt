@@ -19,7 +19,7 @@ if(NGEN)
   message("ngen framework build!")
   add_definitions(-DNGEN)
 endif()
-message("${NGEN} ${STANDALONE}")
+#message("${NGEN} ${STANDALONE}")
 
 if(STANDALONE)
  set(exe_name "lasam_standalone")
