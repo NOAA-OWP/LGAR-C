@@ -391,7 +391,7 @@ Finalize()
 int BmiLGAR::
 GetVarGrid(std::string name)
 {
-  if (name.compare("soil_storage_model") == 0)   // int
+  if (name.compare("soil_storage_model") == 0 || name.compare("soil_num_wetting_fronts") == 0)   // int
     return 0;
   else if (name.compare("precipitation_rate") == 0 || name.compare("precipitation") == 0)
     return 1;
@@ -401,7 +401,7 @@ GetVarGrid(std::string name)
     return 1;
   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
     return 1;
-  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_thickness_layer") == 0) // array of doubles (fixed length)
+  else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_thickness_layer") == 0) // array of doubles (fixed length)
     return 2;
   else if (name.compare("soil_moisture_wetting_fronts") == 0 || name.compare("soil_thickness_wetting_fronts") == 0) // array of doubles (dynamic length)
     return 3; 
@@ -449,7 +449,7 @@ GetVarUnits(std::string name)
     return "m";
    else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
     return "m";
-  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles 
+  else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles 
     return "none";
   else if (name.compare("soil_thickness_layer") == 0 || name.compare("soil_thickness_wetting_fronts") == 0) // array of doubles 
     return "m"; 
@@ -482,9 +482,9 @@ GetVarLocation(std::string name)
     return "node";
    else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
     return "node";
-  else if (name.compare("soil_moisture_layer") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles 
+  else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles 
     return "node";
-  else if (name.compare("soil_thickness_layer") == 0 || name.compare("soil_thickness_wetting_fronts") == 0) // array of doubles 
+  else if (name.compare("soil_thickness_layer") == 0 || name.compare("soil_thickness_wetting_fronts") == 0 || name.compare("soil_num_wetting_fronts") == 0) // array of doubles 
     return "node"; 
   else 
     return "none";
@@ -558,37 +558,38 @@ GetValue (std::string name, void *dest)
 void *BmiLGAR::
 GetValuePtr (std::string name)
 {
- 
   if (name.compare("precipitation_rate") == 0)
     return (void*)(&this->model->lgar_bmi_input_params->precipitation_mm_per_h);
   else if (name.compare("precipitation") == 0)
     return (void*)(&bmi_unit_conv.volprecip_timestep_m);
-  else  if (name.compare("potential_evapotranspiration_rate") == 0)
+  else if (name.compare("potential_evapotranspiration_rate") == 0)
     return (void*)(&this->model->lgar_bmi_input_params->PET_mm_per_h);
-  else  if (name.compare("potential_evapotranspiration") == 0)
+  else if (name.compare("potential_evapotranspiration") == 0)
     return (void*)(&bmi_unit_conv.volPET_timestep_m);
-  else  if (name.compare("actual_evapotranspiration") == 0)
+  else if (name.compare("actual_evapotranspiration") == 0)
     return (void*)(&bmi_unit_conv.volAET_timestep_m);
-  else  if (name.compare("surface_runoff") == 0)
+  else if (name.compare("surface_runoff") == 0)
     return (void*)(&bmi_unit_conv.volrunoff_timestep_m);
-  else  if (name.compare("giuh_runoff") == 0)
+  else if (name.compare("giuh_runoff") == 0)
     return (void*)(&bmi_unit_conv.volrunoff_giuh_timestep_m);
-  else  if (name.compare("soil_storage") == 0)
+  else if (name.compare("soil_storage") == 0)
     return (void*)(&bmi_unit_conv.volend_timestep_m);
-  else  if (name.compare("total_discharge") == 0)
+  else if (name.compare("total_discharge") == 0)
     return (void*)(&bmi_unit_conv.volQ_timestep_m);
-  else  if (name.compare("infiltration") == 0)
+  else if (name.compare("infiltration") == 0)
     return (void*)(&bmi_unit_conv.volin_timestep_m);
-  else  if (name.compare("percolation") == 0)
+  else if (name.compare("percolation") == 0)
     return (void*)(&bmi_unit_conv.volrech_timestep_m);
-  else if (name.compare("soil_moisture_layer") == 0)
-    return (void*)this->model->lgar_bmi_params.soil_moisture_layer;
+  else if (name.compare("soil_moisture_layers") == 0)
+    return (void*)this->model->lgar_bmi_params.soil_moisture_layers; // this is probably not needed
   else if (name.compare("soil_thickness_layer") == 0)
-    return (void*)this->model->lgar_bmi_params.soil_moisture_layer;
+    return (void*)this->model->lgar_bmi_params.soil_moisture_layers;  // this too and, if needed, change soil_moisture_layers to soil_thickness_layers
   else if (name.compare("soil_moisture_wetting_fronts") == 0)
     return (void*)this->model->lgar_bmi_params.soil_moisture_wetting_fronts;
   else if (name.compare("soil_thickness_wetting_fronts") == 0)
     return (void*)this->model->lgar_bmi_params.soil_thickness_wetting_fronts;
+  else if (name.compare("soil_num_wetting_fronts") == 0)
+    return (void*)(&model->lgar_bmi_params.num_wetting_fronts);
   else {
     std::stringstream errMsg;
     errMsg << "variable "<< name << " does not exist";

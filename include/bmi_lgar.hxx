@@ -26,21 +26,22 @@ public:
     this->input_var_names[0] = "precipitation_rate";
     this->input_var_names[1] = "potential_evapotranspiration_rate";
     
-    this->output_var_names[0] = "soil_moisture_layer";
+    this->output_var_names[0] = "soil_moisture_layers";
     this->output_var_names[1] = "soil_moisture_wetting_fronts";
-    this->output_var_names[2] = "soil_thickness_layer";
+    this->output_var_names[2] = "soil_thickness_layers";
     this->output_var_names[3] = "soil_thickness_wetting_fronts";
-
+    this->output_var_names[4] = "soil_num_wetting_fronts";
+    
     // vis outputs
-    this->output_var_names[4]  = "precipitation";
-    this->output_var_names[5]  = "potential_evapotranspiration";
-    this->output_var_names[6]  = "actual_evapotranspiration";
-    this->output_var_names[7]  = "surface_runoff"; // direct surface runoff
-    this->output_var_names[8]  = "giuh_runoff";
-    this->output_var_names[9]  = "soil_storage";
-    this->output_var_names[10] = "total_discharge";
-    this->output_var_names[11] = "infiltration";
-    this->output_var_names[12] = "percolation";
+    this->output_var_names[5]  = "precipitation";
+    this->output_var_names[6]  = "potential_evapotranspiration";
+    this->output_var_names[7]  = "actual_evapotranspiration";
+    this->output_var_names[8]  = "surface_runoff"; // direct surface runoff
+    this->output_var_names[9]  = "giuh_runoff";
+    this->output_var_names[10]  = "soil_storage";
+    this->output_var_names[11] = "total_discharge";
+    this->output_var_names[12] = "infiltration";
+    this->output_var_names[13] = "percolation";
 
     /*
     this->output_var_names[13] = "cum_precipitation";
@@ -113,7 +114,7 @@ public:
 private:
   struct lgar_model_* model;
   static const int input_var_name_count = 2;
-  static const int output_var_name_count = 13;
+  static const int output_var_name_count = 14;
   
   std::string input_var_names[input_var_name_count];
   std::string output_var_names[output_var_name_count];
