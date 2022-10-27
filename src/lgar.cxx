@@ -80,7 +80,7 @@ extern void lgar_initialize(string config_file, struct lgar_model_ *model)
   for (int i=0; i<model->lgar_bmi_params.num_wetting_fronts; i++) {
     assert (current != NULL);
     model->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
-    model->lgar_bmi_params.soil_thickness_wetting_fronts[i] = current->depth_cm;
+    model->lgar_bmi_params.soil_thickness_wetting_fronts[i] = current->depth_cm * model->units.cm_to_m;
     current = current->next;
   }
 

@@ -218,11 +218,9 @@ Update()
       volrech_subtimestep_cm = volin_subtimestep_cm; // this gets updated later, probably not needed here
       volon_timestep_cm += ponded_depth_subtimestep_cm;
       
-      printf("Mass in = %lf %lf %lf \n", volin_subtimestep_cm, volrech_subtimestep_cm, volrunoff_subtimestep_cm);
       if (volrunoff_subtimestep_cm < 0) abort();  
     }
     else {
-      printf("wetting front created = %lf %d \n", ponded_depth_cm ,!create_surficial_front );
       double hp_cm_max = 0.0;
       
       if (ponded_depth_subtimestep_cm < hp_cm_max) {
@@ -317,6 +315,8 @@ Update()
     model->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
     model->lgar_bmi_params.soil_thickness_wetting_fronts[i] = current->depth_cm * model->units.cm_to_m;
     current = current->next;
+    if (verbosity.compare("high") == 0)
+      std::cerr<<"Wetting fronts (bmi outputs) (depth in meters, theta)= "<<model->lgar_bmi_params.soil_thickness_wetting_fronts[i]<<" "<<model->lgar_bmi_params.soil_moisture_wetting_fronts[i]<<"\n";
   }
   
   // add to mass balance timestep variables
