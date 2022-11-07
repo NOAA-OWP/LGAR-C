@@ -127,7 +127,7 @@ double calc_K_from_Se(double Se, double Ksat, double m)
 /***********************************/
 /* function to calculate K from Se */
 /***********************************/
-return(Ksat*sqrt(Se)*pow( 1.0-    pow(1.0-   pow(Se,1.0/m)  ,m)     ,2.0));  // same units as Ksat 
+return (Ksat * sqrt(Se) * pow(1.0 - pow(1.0 - pow(Se,1.0/m), m), 2.0));  // same units as Ksat 
 }
 
 double calc_h_from_Se(double Se, double alpha, double m, double n)

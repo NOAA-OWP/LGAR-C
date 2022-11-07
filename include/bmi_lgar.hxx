@@ -25,6 +25,7 @@ public:
   BmiLGAR() {
     this->input_var_names[0] = "precipitation_rate";
     this->input_var_names[1] = "potential_evapotranspiration_rate";
+    this->input_var_names[2] = "soil_temperature_profile";
     
     this->output_var_names[0] = "soil_moisture_layers";
     this->output_var_names[1] = "soil_moisture_wetting_fronts";
@@ -113,7 +114,7 @@ public:
   
 private:
   struct lgar_model_* model;
-  static const int input_var_name_count = 2;
+  static const int input_var_name_count = 3;
   static const int output_var_name_count = 14;
   
   std::string input_var_names[input_var_name_count];

@@ -96,6 +96,7 @@ struct lgar_bmi_parameters {
   int *layer_soil_type;  // allocate this to MAX_NUM_SOIL_LAYERS, integer equal to the soil type in each layer
   int num_layers;  // number of actual soil layers
   int num_wetting_fronts;  // number of wetting fronts
+  int num_cells_temp; // number of cells of the discretized soil temperature profile
   double *cum_layer_thickness_cm; // cumulative thickness of layers, allocate memory at run time
   double soil_depth; //depth of the computational domain
   double initial_psi_cm; // model initial (psi) condition
@@ -107,12 +108,16 @@ struct lgar_bmi_parameters {
   double *soil_moisture_layers; // array of thetas (mean soil moisture content) per layer; output option to other models (e.g. soil_moisture_profiles)
   double *soil_moisture_wetting_fronts; // array of thetas (soil moisture content) per wetting front; output to other models (e.g. soil freeze-thaw)
   double *soil_thickness_wetting_fronts; // array of thetas (soil moisture content) per wetting front; output to other models (e.g. soil freeze-thaw)
+  double *soil_temperature;   // soil temperature (1D array) [K]; input from other models (e.g. soil freeze-thaw)
+  double *soil_temperature_z; // soil discretization of the temperature profile (1D array) [m]; input from other models (e.g. soil freeze-thaw), depth from the surface in meters
+  double *frozen_factor; // frozen factor added to the hydraulic conductivity due to coupling to soil freeze-thaw
   double  wilting_point_psi_cm;
   double ponded_depth_cm;
   double precip_previous_timestep_cm;
   int nint = 120;    // the number of trapezoids used in integrating the Geff function
   double time; // current time [s]
 
+  int sft_coupled = 0; // if true, lasam coupled to soil freeze thaw modeling, default is uncoupled version 
   // giuh parameters
   int num_giuh_ordinates;
   double *giuh_ordinates;
@@ -211,25 +216,25 @@ extern double calc_Geff(double theta1, double theta2, double theta_e, double the
 /*########################################*/
 extern double lgar_calc_mass_bal(int num_soil_layers, double *cum_layer_thickness);
 
-extern int lgar_dzdt_calc(int nint, int *soil_type, struct soil_properties_ *soil_properties, 
-                     double *cum_layer_thickness, double h_p);  // called derivs() in Python code
+extern int lgar_dzdt_calc(int nint, int *soil_type, struct soil_properties_ *soil_properties,
+			  double *cum_layer_thickness, double h_p, double *frozen_factor);  // called derivs() in Python code
 extern double lgar_calc_dry_depth(int nint, double time_step_s, int *soil_type, 
                                   struct soil_properties_ *soil_properties, double *cum_layer_thickness_cm,
-                                  double *deltheta);
+                                  double *deltheta, double *frozen_factor);
 extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_types, double wilting_point_psi_cm,
                                     struct soil_properties_ *soil_properties);
 extern void lgar_create_surfacial_front(double *ponded_depth_cm, double *volin, double dry_depth, double theta1,
                                         int *soil_type, struct soil_properties_ *soil_properties, 
-                                        double *cum_layer_thickness_cm, int nint, double dt);
+                                        double *cum_layer_thickness_cm, int nint, double dt, double *frozen_factor);
 extern double lgar_insert_water(double *ponded_depth, double *volin_this_timestep, double precip_timestep_cm, double dry_depth, int nint, double time_step_s, int wf_free_drainge_demand,
-                              int *soil_type, struct soil_properties_ *soil_properties, double *cum_layer_thickness_cm);
-extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s, int wf_free_drainage_demand, double old_mass, int number_of_layers, double *actual_ET_demand, double *cum_layer_thickness_cm, int *soil_type_by_layer, struct soil_properties_ *soil_properties);
+				int *soil_type, struct soil_properties_ *soil_properties, double *cum_layer_thickness_cm, double *frozen_factor);
+extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s, int wf_free_drainage_demand, double old_mass, int number_of_layers, double *actual_ET_demand,  double *cum_layer_thickness_cm, int *soil_type_by_layer, struct soil_properties_ *soil_properties, double *frozen_factor);
 
 extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm, double new_mass, double prior_mass,
 					double depth_cm_old, double *delta_theta,
 					double *layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
 
-extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *current, double* cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
+extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *current, double* cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties, double *frozen_factor);
 
 extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
   
@@ -243,7 +248,7 @@ extern void lgar_initialize(string config_file, struct lgar_model_ *lgar_model);
 //extern void lgar_update(struct lgar_model_ *lgar_model);
 extern void InitFromConfigFile(string config_file, struct lgar_model_ *model);
 extern vector<double> ReadVectorData(string key);
-extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm, struct soil_properties_ *soil_properties);
+extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm, struct soil_properties_ *soil_properties, double *frozen_factor);
 extern void lgar_global_mass_balance(struct lgar_model_ *lgar_model, double *giuh_runoff_queue);
 
 /********************************************************************/
@@ -253,6 +258,12 @@ extern void lgar_global_mass_balance(struct lgar_model_ *lgar_model, double *giu
 extern double calc_aet(double PET_timestep_cm, double time_step_s, double wilting_point_psi_cm,
                        struct soil_properties_ *soil_props, int *soil_type, double AET_thresh_Theta, double AET_expon);                             
 extern void write_state(FILE *out);
+
+
+/********************************************************************/
+/* Function used in coupling with seasonally frozen soil modules  */
+/********************************************************************/
+extern void frozen_factor_hydraulic_conductivity(struct lgar_bmi_parameters lgar_bmi_params);
 
 /*###################################################################*/
 /*   1- and 2-D int and double memory allocation function prototypes */

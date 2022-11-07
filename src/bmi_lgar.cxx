@@ -47,6 +47,16 @@ Update()
   if (verbosity.compare("none") != 0) {
     std::cerr<<"*** LASAM BMI Update... ***  \n";
   }
+
+  if (model->lgar_bmi_params.sft_coupled) {
+    std::cerr<<"soil prop A = "<<model->soil_properties[14].Ksat_cm_per_s<<"\n";
+    frozen_factor_hydraulic_conductivity(model->lgar_bmi_params);
+    for (int i=1; i<=3;i++) {
+      std::cerr<<"FA = "<<model->lgar_bmi_params.frozen_factor[i]<<"\n";
+      assert (model->lgar_bmi_params.frozen_factor[i] == 1.0 );
+    }
+  }
+  //abort();
   //   lgar_update(this->model); 
   //listPrint();
   double mm_to_cm = 0.1;
@@ -189,12 +199,12 @@ Update()
       
       double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
       
-      lgar_move_wetting_fronts(&temp_pd, subtimestep_h, wf_free_drainage_demand, volend_subtimestep_cm, num_layers, &AET_subtimestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->soil_properties);
+      lgar_move_wetting_fronts(&temp_pd, subtimestep_h, wf_free_drainage_demand, volend_subtimestep_cm, num_layers, &AET_subtimestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.frozen_factor);
       
-      dry_depth = lgar_calc_dry_depth(nint, subtimestep_h, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm,&delta_theta);
+      dry_depth = lgar_calc_dry_depth(nint, subtimestep_h, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm,&delta_theta, model->lgar_bmi_params.frozen_factor);
       
       double theta1 = head->theta;
-      lgar_create_surfacial_front(&ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth, theta1, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm, nint, subtimestep_h);
+      lgar_create_surfacial_front(&ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth, theta1, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm, nint, subtimestep_h, model->lgar_bmi_params.frozen_factor);
       
       state_previous = NULL;
       state_previous = listCopy(head);
@@ -211,7 +221,7 @@ Update()
 
     if (ponded_depth_subtimestep_cm > 0 && !create_surficial_front) {
       
-      volrunoff_subtimestep_cm = lgar_insert_water(&ponded_depth_subtimestep_cm, &volin_subtimestep_cm, precip_subtimestep_cm_per_h, dry_depth, nint, subtimestep_h, wf_free_drainage_demand, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm);
+      volrunoff_subtimestep_cm = lgar_insert_water(&ponded_depth_subtimestep_cm, &volin_subtimestep_cm, precip_subtimestep_cm_per_h, dry_depth, nint, subtimestep_h, wf_free_drainage_demand, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.frozen_factor);
 
       volin_timestep_cm += volin_subtimestep_cm;
       volrunoff_timestep_cm += volrunoff_subtimestep_cm;
@@ -240,7 +250,7 @@ Update()
 
     if (!create_surficial_front) {
       double volin_subtimestep_cm_temp = volin_subtimestep_cm;  // passing this for mass balance only, the method modifies it and returns percolated value, so we need to keep its original value stored to copy it back
-      lgar_move_wetting_fronts(&volin_subtimestep_cm, subtimestep_h, wf_free_drainage_demand, volend_subtimestep_cm, num_layers, &AET_subtimestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->soil_properties);
+      lgar_move_wetting_fronts(&volin_subtimestep_cm, subtimestep_h, wf_free_drainage_demand, volend_subtimestep_cm, num_layers, &AET_subtimestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.frozen_factor);
       
       // this is the volume of water leaving through the bottom
       volrech_subtimestep_cm = volin_subtimestep_cm;
@@ -250,7 +260,7 @@ Update()
     }
     
     
-    int num_dzdt_calculated = lgar_dzdt_calc(nint, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm, ponded_depth_subtimestep_cm);
+    int num_dzdt_calculated = lgar_dzdt_calc(nint, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm, ponded_depth_subtimestep_cm, model->lgar_bmi_params.frozen_factor);
 
     AET_timestep_cm += AET_subtimestep_cm;
     volrech_timestep_cm += volrech_subtimestep_cm;
@@ -354,13 +364,15 @@ Update()
   bmi_unit_conv.volQ_timestep_m = volQ_timestep_cm * model->units.cm_to_m;
   bmi_unit_conv.volPET_timestep_m = PET_timestep_cm * model->units.cm_to_m;
 
-
   // Update time
   this->model->lgar_bmi_params.time += this->model->lgar_bmi_params.forcing_resolution_h * 3600; // convert hour to seconds
   
   if (verbosity.compare("high") == 0)
     std::cerr<<"Current time = "<<this->model->lgar_bmi_params.time / 3600.<<" hours \n";
-  
+
+  //  for (int i= 0; i<model->lgar_bmi_params.num_cells_temp; i++)
+  // std::cerr<<"Soil temperature in LASAM "<<model->lgar_bmi_params.soil_temperature[i]<<"\n";
+
 }
 
 
@@ -404,7 +416,9 @@ GetVarGrid(std::string name)
   else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_thickness_layer") == 0) // array of doubles (fixed length)
     return 2;
   else if (name.compare("soil_moisture_wetting_fronts") == 0 || name.compare("soil_thickness_wetting_fronts") == 0) // array of doubles (dynamic length)
-    return 3; 
+    return 3;
+  else if (name.compare("soil_temperature_profile") == 0) // array of doubles (fixed and of the size of soil temperature profile)
+    return 4; 
   else 
     return -1;
 }
@@ -417,7 +431,7 @@ GetVarType(std::string name)
   
   if (var_grid == 0)
     return "int";
-  else if (var_grid == 1 || var_grid == 2 || var_grid == 3) 
+  else if (var_grid == 1 || var_grid == 2 || var_grid == 3 || var_grid == 4) 
     return "double";
   else
     return "";
@@ -431,7 +445,7 @@ GetVarItemsize(std::string name)
 
    if (var_grid == 0)
     return sizeof(int);
-  else if (var_grid == 1 || var_grid == 2 || var_grid == 3)
+  else if (var_grid == 1 || var_grid == 2 || var_grid == 3 || var_grid == 4)
     return sizeof(double);
   else
     return 0;
@@ -452,7 +466,9 @@ GetVarUnits(std::string name)
   else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles 
     return "none";
   else if (name.compare("soil_thickness_layer") == 0 || name.compare("soil_thickness_wetting_fronts") == 0) // array of doubles 
-    return "m"; 
+    return "m";
+  else if (name.compare("soil_temperature_profile") == 0)
+    return "K";
   else 
     return "none";
   
@@ -485,7 +501,9 @@ GetVarLocation(std::string name)
   else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles 
     return "node";
   else if (name.compare("soil_thickness_layer") == 0 || name.compare("soil_thickness_wetting_fronts") == 0 || name.compare("soil_num_wetting_fronts") == 0) // array of doubles 
-    return "node"; 
+    return "node";
+  else if (name.compare("soil_temperature_profile") == 0)
+    return "node";
   else 
     return "none";
 }
@@ -494,9 +512,10 @@ GetVarLocation(std::string name)
 void BmiLGAR::
 GetGridShape(const int grid, int *shape)
 {
-  if (grid == 2) {
-    shape[0] = this->model->lgar_bmi_params.shape[0];
-  }
+  if (grid == 2)
+    shape[0] = this->model->lgar_bmi_params.num_layers;
+  else if (grid == 3) // number of wetting fronts (dynamic)
+    shape[1] = this->model->lgar_bmi_params.num_wetting_fronts;
 }
 
 
@@ -521,7 +540,7 @@ GetGridOrigin (const int grid, double *origin)
 int BmiLGAR::
 GetGridRank(const int grid)
 {
-  if (grid == 0 || grid == 1 || grid == 2 || grid == 3)
+  if (grid == 0 || grid == 1 || grid == 2 || grid == 3 || grid == 4)
     return 1;
   else
     return -1;
@@ -537,6 +556,8 @@ GetGridSize(const int grid)
     return this->model->lgar_bmi_params.num_layers;
   else if (grid == 3) // number of wetting fronts (dynamic)
     return this->model->lgar_bmi_params.num_wetting_fronts;
+  else if (grid == 4) // number of cells (discretized temperature profile, input from SFT)
+    return this->model->lgar_bmi_params.num_cells_temp;
   else
     return -1;
 }
@@ -590,6 +611,8 @@ GetValuePtr (std::string name)
     return (void*)this->model->lgar_bmi_params.soil_thickness_wetting_fronts;
   else if (name.compare("soil_num_wetting_fronts") == 0)
     return (void*)(&model->lgar_bmi_params.num_wetting_fronts);
+  else if (name.compare("soil_temperature_profile") == 0)
+    return (void*)this->model->lgar_bmi_params.soil_temperature;
   else {
     std::stringstream errMsg;
     errMsg << "variable "<< name << " does not exist";
