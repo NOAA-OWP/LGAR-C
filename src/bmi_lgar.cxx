@@ -48,17 +48,10 @@ Update()
     std::cerr<<"*** LASAM BMI Update... ***  \n";
   }
 
-  if (model->lgar_bmi_params.sft_coupled) {
-    std::cerr<<"soil prop A = "<<model->soil_properties[14].Ksat_cm_per_s<<"\n";
+  if (model->lgar_bmi_params.sft_coupled)
     frozen_factor_hydraulic_conductivity(model->lgar_bmi_params);
-    for (int i=1; i<=3;i++) {
-      std::cerr<<"FA = "<<model->lgar_bmi_params.frozen_factor[i]<<"\n";
-      assert (model->lgar_bmi_params.frozen_factor[i] == 1.0 );
-    }
-  }
-  //abort();
-  //   lgar_update(this->model); 
-  //listPrint();
+  
+  //   lgar_update(this->model);
   double mm_to_cm = 0.1;
 
   // local variables for readibility
