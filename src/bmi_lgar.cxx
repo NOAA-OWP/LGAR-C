@@ -192,12 +192,12 @@ Update()
       
       double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
       
-      lgar_move_wetting_fronts(&temp_pd, subtimestep_h, wf_free_drainage_demand, volend_subtimestep_cm, num_layers, &AET_subtimestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.frozen_factor);
+      lgar_move_wetting_fronts(subtimestep_h, &temp_pd, wf_free_drainage_demand, volend_subtimestep_cm, num_layers, &AET_subtimestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->lgar_bmi_params.frozen_factor, model->soil_properties);
       
-      dry_depth = lgar_calc_dry_depth(nint, subtimestep_h, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm,&delta_theta, model->lgar_bmi_params.frozen_factor);
+      dry_depth = lgar_calc_dry_depth(nint, subtimestep_h, &delta_theta, model->lgar_bmi_params.layer_soil_type, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.frozen_factor, model->soil_properties);
       
       double theta1 = head->theta;
-      lgar_create_surfacial_front(&ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth, theta1, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm, nint, subtimestep_h, model->lgar_bmi_params.frozen_factor);
+      lgar_create_surfacial_front(nint, subtimestep_h, &ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth, theta1, model->lgar_bmi_params.layer_soil_type, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.frozen_factor, model->soil_properties);
       
       state_previous = NULL;
       state_previous = listCopy(head);
@@ -214,7 +214,7 @@ Update()
 
     if (ponded_depth_subtimestep_cm > 0 && !create_surficial_front) {
       
-      volrunoff_subtimestep_cm = lgar_insert_water(&ponded_depth_subtimestep_cm, &volin_subtimestep_cm, precip_subtimestep_cm_per_h, dry_depth, nint, subtimestep_h, wf_free_drainage_demand, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.frozen_factor);
+      volrunoff_subtimestep_cm = lgar_insert_water(nint, subtimestep_h, &ponded_depth_subtimestep_cm, &volin_subtimestep_cm, precip_subtimestep_cm_per_h, dry_depth, wf_free_drainage_demand, model->lgar_bmi_params.layer_soil_type, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.frozen_factor, model->soil_properties);
 
       volin_timestep_cm += volin_subtimestep_cm;
       volrunoff_timestep_cm += volrunoff_subtimestep_cm;
@@ -243,7 +243,7 @@ Update()
 
     if (!create_surficial_front) {
       double volin_subtimestep_cm_temp = volin_subtimestep_cm;  // passing this for mass balance only, the method modifies it and returns percolated value, so we need to keep its original value stored to copy it back
-      lgar_move_wetting_fronts(&volin_subtimestep_cm, subtimestep_h, wf_free_drainage_demand, volend_subtimestep_cm, num_layers, &AET_subtimestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.frozen_factor);
+      lgar_move_wetting_fronts(subtimestep_h, &volin_subtimestep_cm, wf_free_drainage_demand, volend_subtimestep_cm, num_layers, &AET_subtimestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->lgar_bmi_params.frozen_factor, model->soil_properties);
       
       // this is the volume of water leaving through the bottom
       volrech_subtimestep_cm = volin_subtimestep_cm;
@@ -253,7 +253,7 @@ Update()
     }
     
     
-    int num_dzdt_calculated = lgar_dzdt_calc(nint, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm, ponded_depth_subtimestep_cm, model->lgar_bmi_params.frozen_factor);
+    int num_dzdt_calculated = lgar_dzdt_calc(nint, ponded_depth_subtimestep_cm, model->lgar_bmi_params.layer_soil_type, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.frozen_factor, model->soil_properties);
 
     AET_timestep_cm += AET_subtimestep_cm;
     volrech_timestep_cm += volrech_subtimestep_cm;

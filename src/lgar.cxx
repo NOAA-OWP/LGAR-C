@@ -452,7 +452,7 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
   for (int i=0; i <= model->lgar_bmi_params.num_layers; i++)
     model->lgar_bmi_params.frozen_factor[i] = 1.0;
   
-  InitializeWettingFronts(model->lgar_bmi_params.num_layers, model->lgar_bmi_params.initial_psi_cm, model->lgar_bmi_params.layer_soil_type, model->lgar_bmi_params.cum_layer_thickness_cm, model->soil_properties, model->lgar_bmi_params.frozen_factor);
+  InitializeWettingFronts(model->lgar_bmi_params.num_layers, model->lgar_bmi_params.initial_psi_cm, model->lgar_bmi_params.layer_soil_type, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.frozen_factor, model->soil_properties);
 
   
 
@@ -490,7 +490,7 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
 // calculate the initial theta and wilting point moisture content
 // ffor the soil in each layer from initial_psi and assumed wilting point psi
 // and create initial fronts and include them in each of the soil layers
-extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm, struct soil_properties_ *soil_properties, double *frozen_factor)
+extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm, double *frozen_factor, struct soil_properties_ *soil_properties)
 {
   int soil;
   int front=0;
@@ -857,9 +857,9 @@ extern int wetting_front_free_drainage() {
 }
 
 // it moves wetting fronts, merge wetting fronts and does the mass balance correction if needed
-extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s, int wf_free_drainage_demand,
+extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm, int wf_free_drainage_demand,
 				     double old_mass, int num_layers, double *AET_demand_cm, double *cum_layer_thickness_cm,
-				     int *soil_type, struct soil_properties_ *soil_properties, double *frozen_factor)
+				     int *soil_type, double *frozen_factor, struct soil_properties_ *soil_properties)
 {
 
   if (verbosity.compare("high") == 0) {
@@ -1217,7 +1217,8 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
     
     if (next != NULL) {
       // merge the wetting fronts and returns water leaving through the bottom boundary
-      *ponded_depth_cm = lgar_merge_wetting_fronts(num_layers, current, cum_layer_thickness_cm, soil_type, soil_properties, frozen_factor);
+      *ponded_depth_cm = lgar_merge_wetting_fronts(num_layers, current, cum_layer_thickness_cm,
+						   soil_type, frozen_factor, soil_properties);
     }
 
    
@@ -1290,7 +1291,9 @@ extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s
 
 
 
-extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *current, double* cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties, double *frozen_factor)
+extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *current,
+					double* cum_layer_thickness_cm, int *soil_type,
+					double *frozen_factor, struct soil_properties_ *soil_properties)
 {
   double theta,Se,theta_e,theta_r;
   double delta_theta;
@@ -1575,9 +1578,10 @@ extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_
 
 }
 
-extern double lgar_insert_water(double *ponded_depth_cm, double *volin_this_timestep, double precip_timestep_cm,
-				double dry_depth, int nint, double time_step_s, int wf_free_drainage_demand,
-				int *soil_type, struct soil_properties_ *soil_properties, double *cum_layer_thickness_cm, double *frozen_factor)
+extern double lgar_insert_water(int nint, double time_step_s, double *ponded_depth_cm, double *volin_this_timestep,
+				double precip_timestep_cm, double dry_depth, int wf_free_drainage_demand,
+				int *soil_type, double *cum_layer_thickness_cm, double *frozen_factor,
+				struct soil_properties_ *soil_properties)
 {
 
   // This subroutine inserts precipitation into the soil
@@ -1715,9 +1719,10 @@ extern double lgar_insert_water(double *ponded_depth_cm, double *volin_this_time
   return runoff;
 }
 
-extern void lgar_create_surfacial_front(double *ponded_depth_cm, double *volin, double dry_depth, double theta1,
-                                        int *soil_type, struct soil_properties_ *soil_properties,   
-                                        double *cum_layer_thickness_cm, int nint,double time_step_s, double *frozen_factor)
+extern void lgar_create_surfacial_front(int nint,double time_step_s, double *ponded_depth_cm, double *volin,
+					double dry_depth, double theta1, int *soil_type,   
+                                        double *cum_layer_thickness_cm, double *frozen_factor,
+					struct soil_properties_ *soil_properties)
 {
   // This subroutine is called iff there is no surfacial front, it creates a new front and inserts ponded depth
   // into the soil.  Note ponded_depth_cm is a pointer.   Access it's value as (*ponded_depth_cm).
@@ -1787,9 +1792,9 @@ extern void lgar_create_surfacial_front(double *ponded_depth_cm, double *volin, 
 }
 
 
-extern double lgar_calc_dry_depth(int nint, double time_step_s, int *soil_type, 
-                                  struct soil_properties_ *soil_properties, double *cum_layer_thickness_cm,
-                                  double *delta_theta, double *frozen_factor)
+extern double lgar_calc_dry_depth(int nint, double time_step_s, double *delta_theta, int *soil_type, 
+                                   double *cum_layer_thickness_cm,
+                                   double *frozen_factor, struct soil_properties_ *soil_properties)
 {
   // This routine calculates the "dry depth" of a newly created wetting front in the top soil layer after
   // a non-rainy period or a big increase in rainrate  on an unsaturated first layer.
@@ -1971,8 +1976,8 @@ extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil
 }
 
 
-extern int lgar_dzdt_calc(int nint, int *soil_type, struct soil_properties_ *soil_properties, 
-                          double *cum_layer_thickness_cm, double h_p, double *frozen_factor)   // called derivs() in python
+extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_layer_thickness_cm, double *frozen_factor,
+			  struct soil_properties_ *soil_properties)   // called derivs() in python
 {
 
 /****************************************/

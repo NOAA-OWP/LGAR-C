@@ -216,27 +216,40 @@ extern double calc_Geff(double theta1, double theta2, double theta_e, double the
 /*########################################*/
 extern double lgar_calc_mass_bal(int num_soil_layers, double *cum_layer_thickness);
 
-extern int lgar_dzdt_calc(int nint, int *soil_type, struct soil_properties_ *soil_properties,
-			  double *cum_layer_thickness, double h_p, double *frozen_factor);  // called derivs() in Python code
-extern double lgar_calc_dry_depth(int nint, double time_step_s, int *soil_type, 
-                                  struct soil_properties_ *soil_properties, double *cum_layer_thickness_cm,
-                                  double *deltheta, double *frozen_factor);
+extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_layer_thickness, double *frozen_factor,
+			  struct soil_properties_ *soil_properties);  // called derivs() in Python code
+
+extern double lgar_calc_dry_depth(int nint, double time_step_s, double *deltheta, int *soil_type, 
+                                  double *cum_layer_thickness_cm, double *frozen_factor,
+				  struct soil_properties_ *soil_properties);
+
 extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_types, double wilting_point_psi_cm,
                                     struct soil_properties_ *soil_properties);
-extern void lgar_create_surfacial_front(double *ponded_depth_cm, double *volin, double dry_depth, double theta1,
-                                        int *soil_type, struct soil_properties_ *soil_properties, 
-                                        double *cum_layer_thickness_cm, int nint, double dt, double *frozen_factor);
-extern double lgar_insert_water(double *ponded_depth, double *volin_this_timestep, double precip_timestep_cm, double dry_depth, int nint, double time_step_s, int wf_free_drainge_demand,
-				int *soil_type, struct soil_properties_ *soil_properties, double *cum_layer_thickness_cm, double *frozen_factor);
-extern void lgar_move_wetting_fronts(double *ponded_depth_cm, double time_step_s, int wf_free_drainage_demand, double old_mass, int number_of_layers, double *actual_ET_demand,  double *cum_layer_thickness_cm, int *soil_type_by_layer, struct soil_properties_ *soil_properties, double *frozen_factor);
 
-extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm, double new_mass, double prior_mass,
-					double depth_cm_old, double *delta_theta,
-					double *layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
+extern void lgar_create_surfacial_front(int nint, double time_step_s, double *ponded_depth_cm,
+					double *volin, double dry_depth, double theta1,
+					int *soil_type, double *cum_layer_thickness_cm,
+					double *frozen_factor, struct soil_properties_ *soil_properties);
 
-extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *current, double* cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties, double *frozen_factor);
+extern double lgar_insert_water(int nint, double time_step_s, double *ponded_depth, double *volin_this_timestep,
+				double precip_timestep_cm, double dry_depth, int wf_free_drainge_demand,
+				int *soil_type, double *cum_layer_thickness_cm, double *frozen_factor,
+				struct soil_properties_ *soil_properties);
 
-extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
+extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm, int wf_free_drainage_demand,
+				     double old_mass, int number_of_layers, double *actual_ET_demand,
+				     double *cum_layer_thickness_cm, int *soil_type_by_layer, double *frozen_factor,
+				     struct soil_properties_ *soil_properties);
+
+extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm, double new_mass,
+				      double prior_mass, double depth_cm_old, double *delta_theta,
+				      double *layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
+
+extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *current, double* cum_layer_thickness_cm,
+					int *soil_type, double *frozen_factor, struct soil_properties_ *soil_properties);
+
+extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
+					 struct soil_properties_ *soil_properties);
   
 extern int wetting_front_free_drainage();
 
@@ -248,7 +261,7 @@ extern void lgar_initialize(string config_file, struct lgar_model_ *lgar_model);
 //extern void lgar_update(struct lgar_model_ *lgar_model);
 extern void InitFromConfigFile(string config_file, struct lgar_model_ *model);
 extern vector<double> ReadVectorData(string key);
-extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm, struct soil_properties_ *soil_properties, double *frozen_factor);
+extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm, double *frozen_factor, struct soil_properties_ *soil_properties);
 extern void lgar_global_mass_balance(struct lgar_model_ *lgar_model, double *giuh_runoff_queue);
 
 /********************************************************************/
