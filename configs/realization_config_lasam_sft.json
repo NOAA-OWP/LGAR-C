@@ -37,9 +37,9 @@
                                     "main_output_variable": "z",
                                     "uses_forcing_file": false,
                                     "model_params": {
-					"sloth_soil_storage(1,double,1,node)" : 0.0,
-					"soil_storage_change(1,double,1,node)" : 0.0,
-					"TMP_ground_surface(1,double,1,node)" : 275.15
+					"sloth_soil_storage(1,double,m,node)" : 0.0,
+					"soil_storage_change(1,double,m,node)" : 0.0,
+					"TMP_ground_surface(1,double,K,node)" : 275.15
                                     }
 				}
                             },
@@ -48,7 +48,7 @@
 				"params": {
 				    "model_type_name": "bmi_smp",
 				    "library_file": "./extern/SoilMoistureProfiles/cmake_build/libsmpbmi",
-				    "init_config": "./extern/SoilMoistureProfiles/SoilMoistureProfiles/config/config_lasam_sft_ngen.txt",
+				    "init_config": "./extern/SoilMoistureProfiles/SoilMoistureProfiles/config/config_layered.txt",
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "soil_water_table",
 				    "variables_names_map" : {
@@ -78,7 +78,7 @@
 				"params": {
 				    "model_type_name": "bmi_lasam",
 				    "library_file": "./extern/LGAR-C/cmake_build/liblasambmi",
-				    "init_config": "./extern/LGAR-C/configs/config_lasam_ngen.txt",
+				    "init_config": "./extern/LGAR-C/configs/config_lasam_sft_ngen.txt",
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "precipitation_rate",
 				    "variables_names_map" : {
