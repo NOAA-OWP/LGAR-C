@@ -8,18 +8,13 @@
         "cat-27": {
             "formulations": [
                 {
-		    
-		    "name": "bmi_c++",
-		    "params": {
-			"model_type_name": "bmi_lasam",
-			"library_file": "./extern/LGAR-C/cmake_build/liblasambmi",
-			"init_config": "./extern/LGAR-C/configs/config_lasam_ngen.txt",
+		    "name": "bmi_multi",
+                    "params": {
+			"model_type_name": "bmi_multi_lasam",
+			"forcing_file": "",
+			"init_config": "",
 			"allow_exceed_end_time": true,
-			"main_output_variable": "precipitation_rate",
-			"variables_names_map" : {
-			    "precipitation_rate" : "P(mm)",
-			    "potential_evapotranspiration_rate" : "PET(mm)" 
-			},
+			"main_output_variable": "total_discharge",
 			"output_variables" : [
 			    "precipitation",
 			    "potential_evapotranspiration",
@@ -31,13 +26,54 @@
 			    "infiltration",
 			    "percolation"
 			],
+			"modules": [
+			    {
+				"name": "bmi_c++",
+				"params": {
+                                    "model_type_name": "bmi_c++_sloth",
+                                    "library_file": "./extern/sloth/cmake_build/libslothmodel",
+                                    "init_config": "/dev/null",
+                                    "allow_exceed_end_time": true,
+                                    "main_output_variable": "z",
+                                    "uses_forcing_file": false,
+                                    "model_params": {
+					"soil_temperature_profile(1,double,K,node)" : 275.15
+                                    }
+				}
+                            },
+			    {
+				"name": "bmi_c++",
+				"params": {
+				    "model_type_name": "bmi_lasam",
+				    "library_file": "./extern/LGAR-C/cmake_build/liblasambmi",
+				    "init_config": "./extern/LGAR-C/configs/config_lasam_ngen.txt",
+				    "allow_exceed_end_time": true,
+				    "main_output_variable": "precipitation_rate",
+				    "variables_names_map" : {
+					"precipitation_rate" : "P(mm)",
+					"potential_evapotranspiration_rate" : "PET(mm)" 
+				    },
+				    "output_variables" : [
+					"precipitation",
+					"potential_evapotranspiration",
+					"actual_evapotranspiration",
+					"surface_runoff",
+					"giuh_runoff",
+					"soil_storage",
+					"total_discharge",
+					"infiltration",
+					"percolation"
+				    ],
+				    "uses_forcing_file": false
+				}
+			    }
+			],
 			"uses_forcing_file": false
 		    }
 		}
             ],
             "forcing": {
-		"path" : "./extern/LGAR-C/forcing/Phillipsburg_data2_PET_updated_ngen.csv",
-		"provider": "CsvPerFeature"
+		"path" : "./extern/LGAR-C/forcing/Phillipsburg_data2_PET_updated_ngen.csv"
             }
         }
     }

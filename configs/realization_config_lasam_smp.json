@@ -38,7 +38,8 @@
                                     "uses_forcing_file": false,
                                     "model_params": {
 					"sloth_soil_storage(1,double,m,node)" : 0.0,
-					"soil_storage_change(1,double,m,node)" : 0.0
+					"soil_storage_change(1,double,m,node)" : 0.0,
+					"soil_temperature_profile(1,double,K,node)" : 275.15
                                     }
 				}
                             },
@@ -90,8 +91,7 @@
 		}
             ],
             "forcing": {
-		"path" : "./extern/LGAR-C/forcing/Phillipsburg_data2_PET_updated_ngen.csv",
-		"provider": "CsvPerFeature"
+		"path" : "./extern/LGAR-C/forcing/Phillipsburg_data2_PET_updated_ngen.csv"
             }
         }
     }
