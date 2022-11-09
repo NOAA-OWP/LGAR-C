@@ -406,7 +406,7 @@ GetVarGrid(std::string name)
     return 1;
   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
     return 1;
-  else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_thickness_layer") == 0) // array of doubles (fixed length)
+  else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_thickness_layers") == 0) // array of doubles (fixed length)
     return 2;
   else if (name.compare("soil_moisture_wetting_fronts") == 0 || name.compare("soil_thickness_wetting_fronts") == 0) // array of doubles (dynamic length)
     return 3;
@@ -458,7 +458,7 @@ GetVarUnits(std::string name)
     return "m";
   else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles 
     return "none";
-  else if (name.compare("soil_thickness_layer") == 0 || name.compare("soil_thickness_wetting_fronts") == 0) // array of doubles 
+  else if (name.compare("soil_thickness_layers") == 0 || name.compare("soil_thickness_wetting_fronts") == 0) // array of doubles 
     return "m";
   else if (name.compare("soil_temperature_profile") == 0)
     return "K";
@@ -493,7 +493,7 @@ GetVarLocation(std::string name)
     return "node";
   else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles 
     return "node";
-  else if (name.compare("soil_thickness_layer") == 0 || name.compare("soil_thickness_wetting_fronts") == 0 || name.compare("soil_num_wetting_fronts") == 0) // array of doubles 
+  else if (name.compare("soil_thickness_layers") == 0 || name.compare("soil_thickness_wetting_fronts") == 0 || name.compare("soil_num_wetting_fronts") == 0) // array of doubles 
     return "node";
   else if (name.compare("soil_temperature_profile") == 0)
     return "node";
@@ -596,7 +596,7 @@ GetValuePtr (std::string name)
     return (void*)(&bmi_unit_conv.volrech_timestep_m);
   else if (name.compare("soil_moisture_layers") == 0)
     return (void*)this->model->lgar_bmi_params.soil_moisture_layers; // this is probably not needed
-  else if (name.compare("soil_thickness_layer") == 0)
+  else if (name.compare("soil_thickness_layers") == 0)
     return (void*)this->model->lgar_bmi_params.soil_moisture_layers;  // this too and, if needed, change soil_moisture_layers to soil_thickness_layers
   else if (name.compare("soil_moisture_wetting_fronts") == 0)
     return (void*)this->model->lgar_bmi_params.soil_moisture_wetting_fronts;
@@ -681,7 +681,7 @@ SetValueAtIndices (std::string name, int * inds, int len, void *src)
 std::string BmiLGAR::
 GetComponentName()
 {
-  return "LASAM (lumped arid/semi-arid model";
+  return "LASAM (Lumped Arid/Semi-arid Model)";
 }
 
 
