@@ -1,5 +1,12 @@
-# Unit test for Soil Moisture Profiles model
-Usage: run `./run_unittest.sh` (replace/set $CXX to your g++ compiler)
+# Unit test for Lumped Arid/Semi-arid Model (LASAM)
+Build instructions:
+- mkdir build && cd build
+- cmake ../ -DUNITTEST:BOOL=ON
+- make
+
+Running instructions:
+- cd test
+- run `./run_unittest.sh`
 
 Multiple checks are performed:
 1. Check number of input/output variables
