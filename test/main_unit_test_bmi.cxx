@@ -443,9 +443,9 @@ int main(int argc, char *argv[])
   std::cout<<RESET<<"\n";
   
   std::cout<<"************* Output variables ***************** \n";
-  model.UpdateUntil(3600.0);
+  model.Update();
 
-  // Benchmark values of wetting fronts depth and moisture (b is for benchmakr)
+  // Benchmark values of wetting fronts depth and moisture (b is for benchmark)
   std::vector<double> depth_wf_b = {1.867679, 44.00,175.0, 200.0}; // in cm
   std::vector<double> theta_wf_b = {0.22438078320970, 0.13189262181112, 0.20696418908685, 0.25000990545822};
   
