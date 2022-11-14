@@ -530,27 +530,23 @@ int main(int argc, char *argv[])
   std::cout<<"| *************************************** \n";
   std::cout<<RESET<<"\n";
 
-    if (fabs(infiltration_check_cm - infiltration_computed * m_to_cm) > 1.E-5) {
-      std::cerr<<"Error between benchmark and simulated infiltration is "<< fabs(infiltration_check_cm - infiltration_computed * m_to_cm) << " which is unexpected. Aborting... \n";
-      abort();
-  }
-  if (fabs(PET_check_cm - PET_computed * m_to_cm) > 1.E-5) {
-    std::cerr<<"Error between benchmark and simulated PET is "<< fabs(PET_check_cm - PET_computed * m_to_cm) << " which is unexpected. Aborting... \n";
-    abort();
-  }
-  if (fabs(AET_check_cm - AET_computed * m_to_cm) > 1.E-5) {
-    std::cerr<<"Error between benchmark and simulated AET is "<< fabs(AET_check_cm - AET_computed * m_to_cm) << " which is unexpected. Aborting... \n";
-    abort();
+  if (fabs(infiltration_check_cm - infiltration_computed * m_to_cm) > 1.E-5) {
+    std::stringstream errMsg;
+    errMsg << "Error between benchmark and simulated infiltration is "<< fabs(infiltration_check_cm - infiltration_computed * m_to_cm) << " which is unexpected. \n";
+    throw std::runtime_error(errMsg.str());
   }
   
-  /*
+  if (fabs(PET_check_cm - PET_computed * m_to_cm) > 1.E-5) {
     std::stringstream errMsg;
-    errMsg << "Number of input variables are different. "<< count_in << " != "<< num_input_vars << "\n";
+    errMsg << "Error between benchmark and simulated PET is "<< fabs(PET_check_cm - PET_computed * m_to_cm) << " which is unexpected. \n";
     throw std::runtime_error(errMsg.str());
-  std::cout<<BLUE<<"\n";
-  model.global_mass_balance();
-  std::cout<<RESET<<"\n";
-  */
+  }
+  
+  if (fabs(AET_check_cm - AET_computed * m_to_cm) > 1.E-5) {
+    std::stringstream errMsg;
+    errMsg << "Error between benchmark and simulated AET is "<< fabs(AET_check_cm - AET_computed * m_to_cm) << " which is unexpected. \n";
+    throw std::runtime_error(errMsg.str());
+  }
   
   return FAILURE;
 }
