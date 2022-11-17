@@ -2,22 +2,14 @@
 #define LGAR_CXX_INCLUDED
 
 #include "../include/all.hxx"
-//#include "../src/aet.cxx"
 #include <iostream>
 #include <fstream>
-//#include <stdio.h>
-//#include <stdlib.h>
 #include <string.h>
 #include <sstream>
 
 using namespace std;
 
 #define VERBOSE 0
-/* verbose = 0 (none)
-   verbose = 1 (low)
-   verbose = 2 (medium)
-   verbose = 3 (high)
-*/
 
 /*##################################################*/
 /*##################################################*/
@@ -63,7 +55,14 @@ using namespace std;
 //  V        -------------------------------------------4------         -- depth_cm(f4)
 // depth
 
-
+// ############################################################################################
+/*
+  @param soil_moisture_wetting_fronts  : 1D array of thetas (soil moisture content) per wetting front;
+                                         output to other models (e.g. soil freeze-thaw)
+  @param soil_thickness_wetting_fronts : 1D array of absolute depths of the wetting fronts [meters];
+					 output to other models (e.g. soil freeze-thaw) 
+*/
+// ############################################################################################
 extern void lgar_initialize(string config_file, struct lgar_model_ *model)
 {
   
@@ -102,10 +101,41 @@ extern void lgar_initialize(string config_file, struct lgar_model_ *model)
   model->lgar_mass_balance.volPET_cm = 0.0;
   model->lgar_mass_balance.volon_cm = 0.0;
 
-  
 }
 
 
+// #############################################################################################################################
+/*
+  Read and initialize values from a configuration file
+  @param verbosity              : supress all outputs, file writing if 'none', screen output and write file if 'high'
+  @param layer_thickness_cm     : 1D (double) array of layer thicknesses in cm, read from config file
+  @param layer_soil_type        : 1D (int) array of layers soil type, read from config file, each integer represent a soil type
+  @param num_layers             : number of actual soil layers
+  @param num_wetting_fronts     : number of wetting fronts
+  @param num_cells_temp         : number of cells of the discretized soil temperature profile
+  @param cum_layer_thickness_cm : 1D (double) array of cumulative thickness of layers, allocate memory at run time
+  @param soil_depth             : depth of the computational domain (i.e., depth of the last/deepest soil layer from the surface)
+  @param initial_psi_cm         : model initial (psi) condition
+  @param timestep_h             : model timestep in hours
+  @param forcing_resolution_h   : forcing resolution in hours
+  @param forcing_interval       : factor equals to forcing_resolution_h/timestep_h (used to determine model subtimestep's forcings)
+  @param num_soil_types         : number of soil types; must be less than or equal to MAX_NUM_SOIL_TYPES
+  @param AET_cm                 : actual evapotranspiration in cm
+  @param soil_temperature       : 1D (double) array of soil temperature [K]; bmi input for coupling lasam to soil freeze thaw model
+  @param soil_temperature_z     : 1D (double) array of soil discretization associated with temperature profile [m];
+                                  depth from the surface in meters 
+  @param frozen_factor          : frozen factor causing the hydraulic conductivity to decrease due to frozen soil
+                                  (when coupled to soil freeze thaw model)
+  @param wilting_point_psi_cm   : wilting point (the amount of water not available for plants or not accessible by plants)
+  @param ponded_depth_cm        : amount of water on the surface not available for surface drainage (initialized to zero)
+  @param nint                   : number of trapezoids used in integrating the Geff function (set to 120)
+  @param time                   : current time [s] (initially set to zero)
+  @param sft_coupled            : model coupling flag. if true, lasam is coupled to soil freeze thaw model; default is uncoupled version
+  @param giuh_ordinates         : geomorphological instantaneous unit hydrograph
+  @param num_giuh_ordinates     : number of giuh ordinates
+*/
+
+// #############################################################################################################################
 extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
 {
   
@@ -142,7 +172,6 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
     std::cerr<<"------------- Initialization from config file ---------------------- \n";
   }
 
-  
   bool is_layer_thickness_set = false;
   bool is_initial_psi_set = false;
   bool is_timestep_set = false;
@@ -156,7 +185,6 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
   bool is_soil_z_set = false;
   
   string soil_params_file;
-
 
   
   while (fp) {
@@ -486,10 +514,12 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
   }
 }
 
-//###################################################################
-// calculate the initial theta and wilting point moisture content
-// ffor the soil in each layer from initial_psi and assumed wilting point psi
-// and create initial fronts and include them in each of the soil layers
+//##############################################################################
+/*
+  calculates initial theta (soil moisture content) and hydraulic conductivity
+  from the prescribed psi value for each of the soil layers
+*/
+// #############################################################################
 extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm, double *frozen_factor, struct soil_properties_ *soil_properties)
 {
   int soil;
@@ -521,12 +551,13 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
 
 }
 
+// ##################################################################################
 /*
-Reads 1D data from the config file
-- used for reading soil discretization (1D)
-- used for reading layers depth from the surface if model `layered` is chosen
+  Reads 1D data from the config file
+  - used for reading soil discretization (1D)
+  - used for reading layers depth from the surface if model `layered` is chosen
 */
-
+// ##################################################################################
 extern vector<double>
 ReadVectorData(string key)
 {
@@ -562,7 +593,13 @@ ReadVectorData(string key)
   return value;
 }
 
-
+// ############################################################################################
+/*
+  calculates frozen factor based on L. Wang et al. (www.hydrol-earth-syst-sci.net/14/557/2010/)
+  uses layered-average soil temperatures and an exponential function to compute frozen fraction
+  for each layer
+ */
+// ############################################################################################
 extern void frozen_factor_hydraulic_conductivity(struct lgar_bmi_parameters lgar_bmi_params)
 {
   
@@ -780,6 +817,11 @@ extern void lgar_update(struct lgar_model_ *model)
 */
 
 
+// #########################################################################################
+/*
+  calculates global mass balance at the end of simulation
+*/
+// #########################################################################################
 extern void lgar_global_mass_balance(struct lgar_model_ *model, double *giuh_runoff_queue_cm)
 {
   double volstart = model->lgar_mass_balance.volstart_cm;
@@ -794,13 +836,14 @@ extern void lgar_global_mass_balance(struct lgar_model_ *model, double *giuh_run
   double volrunoff_giuh = model->lgar_mass_balance.volrunoff_giuh_cm;
   double volend_giuh_cm = 0.0;
   double total_Q_cm = model->lgar_mass_balance.volQ_cm;
+  
   //check if the giuh queue have some water left at the end of simulaiton; needs to be included in the global mass balance
   // hold on; this is probably not needed as we have volrunoff in the balance; revist AJK
   for(int i=1; i <= model->lgar_bmi_params.num_giuh_ordinates; i++)
     volend_giuh_cm += giuh_runoff_queue_cm[i];
     
     
-  double global_error_cm = volstart + volprecip - volrunoff - volAET - volon -volrech -volend;
+  double global_error_cm = volstart + volprecip - volrunoff - volAET - volon - volrech - volend;
   
   
  printf("\n---------------------- Simulation Summary  ------------------------ \n");
@@ -818,16 +861,18 @@ extern void lgar_global_mass_balance(struct lgar_model_ *model, double *giuh_run
  printf("total PET                  = %14.10f cm\n", volPET);
  printf("total discharge (Q)        = %14.10f cm\n", total_Q_cm);
  printf("global balance             =   %.6e cm\n", global_error_cm);
+ 
 }
 
-// calculate precipitation mass that will be added to the layers
-extern double potential_infiltration()
-{
-  // in the main -- this should only be called for the condition (self.precip_data[i]>0)&(self.precip_data[i-1]>0)
-  return 0.0;
-
-}
-
+// ############################################################################################
+/*
+ finds the wetting front that corresponds to psi (head) value closest to zero
+ (i.e., saturation in terms of psi). This is the wetting front that experiences infiltration
+ and actual ET based on precipitatona and PET, respectively. For example, the actual ET
+ is extracted from this wetting front plus the wetting fronts above it.
+ Note: the free_drainage name came from its python version, which is probably not the correct name. 
+ */
+// ############################################################################################
 extern int wetting_front_free_drainage() {
   
   int wf_that_supplies_free_drainage_demand = 1;
@@ -856,7 +901,21 @@ extern int wetting_front_free_drainage() {
   return  wf_that_supplies_free_drainage_demand;
 }
 
-// it moves wetting fronts, merge wetting fronts and does the mass balance correction if needed
+// #######################################################################################################
+/*
+  the function moves wetting fronts, merge wetting fronts and does the mass balance correction when needed
+  @param current : wetting front pointing to the current node of the current state
+  @param next    : wetting front pointing to the next node of the current state
+  @param previous    : wetting front pointing to the previous node of the current state
+  @param current_old : wetting front pointing to the current node of the previous state
+  @param next_old    : wetting front pointing to the next node of the previous state
+  @param previous_old    : wetting front pointing to the previous node of the previous state
+  @param head : pointer to the first wetting front in the list of the current state
+  @param head_old : pointer to the first wetting front in the list of the previous state
+
+  Note: '_old' denotes the wetting_front or variables at the previous timestep (or state)  
+*/
+// #######################################################################################################
 extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm, int wf_free_drainage_demand,
 				     double old_mass, int num_layers, double *AET_demand_cm, double *cum_layer_thickness_cm,
 				     int *soil_type, double *frozen_factor, struct soil_properties_ *soil_properties)
@@ -899,14 +958,14 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
   int last_wetting_front_index = number_of_wetting_fronts;
   int layer_number_above, layer_number_below;
 
-  double precip_mass_to_add = (*ponded_depth_cm);
+  double precip_mass_to_add = (*ponded_depth_cm); // water to be added to the soil
 
   *ponded_depth_cm = 0.0;
 
   /* ************************************************************ */
-  // main loop advancing all wetting fronts and dooing the mass balance
-
-  //lgar_move_wetting_fronts()
+  // main loop advancing all wetting fronts and doing the mass balance
+  // loop goes over deepest to top most wetting front
+  
   for (int l = number_of_wetting_fronts; l != 0; l--) {
 
     if (verbosity.compare("high") == 0) {
@@ -952,11 +1011,9 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
     theta       = current->theta;
     Se          = calc_Se_from_theta(theta, theta_e, theta_r);
     psi_cm      = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-    
-    //K_cm_per_s  = calc_K_from_Se(Se, Ks_cm_per_s, vg_m); // unused
-    
-    layer_number_above = (l == 1) ? layer_num : previous->layer_num;
 
+    // fine indices of above and below layers
+    layer_number_above = (l == 1) ? layer_num : previous->layer_num;
     layer_number_below = (l == last_wetting_front_index) ? layer_num + 1 : next->layer_num;
     
     if (verbosity.compare("high") == 0) {
@@ -968,20 +1025,43 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
     double actual_ET_demand = *AET_demand_cm;
     
     // case to check if the wetting front is at the interface, i.e. deepest wetting front within a layer
+    // psi of the layer below is already known/updated, so we that psi to compute the theta of the deepest current layer
     // todo. this condition can be replace by current->to_depth = FALSE && l<last_wetting_front_index
+    /*             _____________
+       layer_above             |
+                            ___|
+			   |
+                   ________|____    <----- wetting fronts at the interface have same psi value        
+		           |
+       layer current    ___|
+                       |
+                   ____|________
+       layer_below     | 
+                  _____|________
+    */
     /*************************************************************************************/
     if ( (l<last_wetting_front_index) && (layer_number_below!=layer_num) ) {
       if (verbosity.compare("high") == 0) {
-	printf("case (deepest wetting front) : layer_num_below (%d) != layer_num (%d) \n", layer_num, layer_number_below);
-	//listPrint();
+	printf("case (deepest wetting front within layer) : layer_num (%d) != layer_num_below (%d) \n", layer_num, layer_number_below);
       }
       
       current->theta = calc_theta_from_h(next->psi_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
       current->psi_cm = next->psi_cm;
     }
 
-    // case to check if the number of wetting fronst are equal to the number of layers, i.e., one wetting front per layer
+    // case to check if the number of wetting fronts are equal to the number of layers, i.e., one wetting front per layer
     /*************************************************************************************/
+    /* For example, 3 layers and 3 wetting fronts in a state. psi profile is constant, and theta profile is non-uniform due
+       to different van Genuchten parameters
+                theta profile       psi profile  (constant head)      
+               _____________       ______________
+                         |                   |
+               __________|__       __________|___    
+	               |                     | 
+               ________|____       __________|___
+                   |                         |
+               ____|________       __________|___
+    */
     
     if (l == number_of_wetting_fronts && layer_number_below != layer_num && number_of_wetting_fronts == num_layers) {
 
@@ -1003,7 +1083,8 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
       
       double psi_cm = current->psi_cm;
       double psi_cm_below = 0.0;
-      
+
+      // mass = delta(depth) * delta(theta)
       double prior_mass = (current_old->depth_cm - cum_layer_thickness_cm[layer_num-1]) * (current_old->theta-0.0); // 0.0 = next_old->theta
       
       double new_mass = (current->depth_cm - cum_layer_thickness_cm[layer_num-1]) * (current->theta-0.0); // 0.0 = next->theta;
@@ -1015,7 +1096,8 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
 	vg_a_k    = soil_properties[soil_num_k].vg_alpha_per_cm;
 	vg_m_k    = soil_properties[soil_num_k].vg_m;
 	vg_n_k    = soil_properties[soil_num_k].vg_n;
-	
+
+	// using psi_cm_old for all layers because the psi is constant across layers in this particular case
 	double theta_old             = calc_theta_from_h(psi_cm_old, vg_a_k, vg_m_k, vg_n_k, theta_e_k,theta_r_k);
 	double theta_below_old       = 0.0;
 	double local_delta_theta_old = theta_old - theta_below_old;
@@ -1039,29 +1121,38 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
       if (wf_free_drainage_demand == l)
 	prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
       
-      
+      // theta mass balance computes new theta that conserves the mass; new theta is assigned to the current wetting front
       double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass, current->depth_cm, delta_thetas, delta_thickness, soil_type, soil_properties);
 
       current->theta = fmin(theta_new, theta_e);
       
       double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
       current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
+
+      /* note: theta and psi of the current wetting front are updated here based on the wetting front's mass balance,
+	 upper wetting fronts will be updated later in the lgar_merge_ module (the place where all state variables are updated
+	 before proceeding to the next timestep. */
       
     }
 
 
-    // case to check if the wetting fronst is within the layer
+    // case to check if the 'current' wetting front is within the layer and not at the layer's interface
+    // layer_number == layer_num_below means there is another wetting front below the current wetting front
+    // and they both belong to the same layer (in simple words, wetting fronts not at the interface)
+    // l < last_wetting_front_index means that the current wetting front is not the deepest wetting front in the domain
     /*************************************************************************************/
     
-    if ( (l < last_wetting_front_index) && (layer_number_below == layer_num) ) {
+    if ( (l < last_wetting_front_index) && (layer_num == layer_number_below) ) {
       
       if (verbosity.compare("high") == 0) {
-	printf("case (wetting front within layer) : layer_num (%d) == layer_num_below (%d) \n", layer_num,layer_number_below);
+	printf("case (wetting front within a layer) : layer_num (%d) == layer_num_below (%d) \n", layer_num,layer_number_below);
       }
-      
+
+      // if wetting front is the most surficial wetting front
       if (layer_num == 1) {
 	
 	double free_drainage_demand = 0;
+	// prior mass = mass contained in the current old wetting front
 	double prior_mass = current_old->depth_cm * (current_old->theta -  next_old->theta);
 	
 	if (wf_free_drainage_demand == l)
@@ -1076,6 +1167,21 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
 	
       }
       else {
+
+	/*
+	  this note is copied from Python version:
+	  "However, calculation of theta via mass balance is a bit trickier. This is because each wetting front
+	  in deeper layers can be thought of as extending all the way to the surface, in terms of psi values.
+	  For example, a wetting front in layer 2 with a theta value of 0.4 will in reality extend to layer
+	  1 with a theta value that is different (usually smaller) due to different soil hydraulic properties.
+	  But, the theta value of this extended wetting front is not recorded in current or previous states.
+          So, simply from states, the mass balance of a wetting front that, in terms of psi, extends between
+	  multiple layers cannot be calculated. Therefore, the theta values that the current wetting front *would*
+	  have in above layers is calculated from the psi value of the current wetting front, with the assumption
+	  that the hydraulic head of this wetting front is the same all the way up to the surface.
+
+	  - LGAR paper (currently under review) has a better description, using diagrams, of the mass balance of wetting fronts
+	*/
 	
 	double vg_a_k, vg_m_k, vg_n_k, Ks_cm_per_s_k;
 	double theta_e_k, theta_r_k;
@@ -1091,11 +1197,15 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
 	
 	double psi_cm = current->psi_cm;
 	double psi_cm_below = next->psi_cm;
-	
-	double prior_mass = (current_old->depth_cm - cum_layer_thickness_cm[layer_num-1]) * (current_old->theta-next_old->theta);
-	
-	double new_mass = (current->depth_cm - cum_layer_thickness_cm[layer_num-1]) * (current->theta-next->theta);
-	
+
+	// mass = delta(depth) * delta(theta)
+	//      = difference in current and next wetting front thetas times depth of the current wetting front
+	double prior_mass = (current_old->depth_cm - cum_layer_thickness_cm[layer_num-1]) * (current_old->theta - next_old->theta);	
+	double new_mass = (current->depth_cm - cum_layer_thickness_cm[layer_num-1]) * (current->theta - next->theta);
+
+	// compute mass in the layers above the current wetting front
+	// use the psi of the current wetting front and van Genuchten parameters of
+	// the respective layers to get the total mass above the current wetting front
 	for (int k=1; k<layer_num; k++) {
 	  
 	  theta_e_k = soil_properties[soil_num-k].theta_e;
@@ -1112,7 +1222,7 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
 	  prior_mass += (layer_thickness * local_delta_theta_old);
 	  
 	  //-------------------------------------------
-	  // do the same for current state
+	  // do the same for the current state
 	  double theta = calc_theta_from_h(psi_cm, vg_a_k, vg_m_k, vg_n_k, theta_e_k, theta_r_k);
 	  
 	  double theta_below = calc_theta_from_h(psi_cm_below, vg_a_k, vg_m_k, vg_n_k, theta_e_k, theta_r_k);
@@ -1130,7 +1240,8 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
 	
 	if (wf_free_drainage_demand == l)
 	  prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
-	
+
+	// theta mass balance computes new theta that conserves the mass; new theta is assigned to the current wetting front
 	double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass, current->depth_cm, delta_thetas, delta_thickness, soil_type, soil_properties);
 	
 	current->theta = fmin(theta_new, theta_e);
@@ -1148,8 +1259,10 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
     }
 
     
-    // if f_p (predicted infiltration) causes theta > theta_e, mass correction is needed. depth of the wetting front with theta > theta_e is increased to close the mass balance
-    // this should be moved out of here to a subroutine; add a call to that subroutine
+    // if f_p (predicted infiltration) causes theta > theta_e, mass correction is needed.
+    // depth of the wetting front is increased to close the mass balance when theta > theta_e.
+    // l == 1 is the last iteration (top most wetting front), so do a check on the mass balance)
+    // this part should be moved out of here to a subroutine; add a call to that subroutine
     if (l == 1) {
 
       int soil_num_k1  = soil_type[wf_free_drainage_demand];
@@ -1157,7 +1270,7 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
 	
       struct wetting_front *wf_free_drainage = listFindFront(wf_free_drainage_demand,NULL);
       
-      double mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand+free_drainage_demand);
+      double mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand + free_drainage_demand);
 
       assert (old_mass > 0.0);
       
@@ -1177,10 +1290,11 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
 	}
 	
 	double psi_k = wf_free_drainage->depth_cm;
-	
+
+	// loop to adjust the depth for mass balance
 	while (mass_balance_error > tolerance) {
 	  
-	  if (current_mass<mass_timestep) {
+	  if (current_mass < mass_timestep) {
 	    psi_k = psi_k + 0.01 * factor;
 	    switched = false;
 	  }
@@ -1206,17 +1320,14 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
     // **************************** MERGING WETTING FRONT ********************************
 
     if (verbosity.compare("high") == 0) {
-      
-      if (next != NULL) {
+      if (next != NULL)
 	printf("********** Merging wetting fronts ********** \n");
-	//listPrint();
-      }
       else
 	printf("********** Merging not needed ********** \n");
     }
     
     if (next != NULL) {
-      // merge the wetting fronts and returns water leaving through the bottom boundary
+      // merge wetting fronts, function also returns water leaving through the bottom boundary
       *ponded_depth_cm = lgar_merge_wetting_fronts(num_layers, current, cum_layer_thickness_cm,
 						   soil_type, frozen_factor, soil_properties);
     }
@@ -1239,12 +1350,12 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
   
   // adjust AET based on updated mass balance, this ensures to water/mass is lost from the system
   
-  if (*AET_demand_cm >0 && mass_change !=0) {
+  if (*AET_demand_cm > 0 && mass_change != 0) {
     if (mass_change > 0)
       *AET_demand_cm -= mass_change;
     else {
       *AET_demand_cm += mass_change; // this is not going to happen
-      printf("This should not happen!");
+      printf("This should not happen (inside lgar.cxx)!");
       abort();
     }
   }
@@ -1252,7 +1363,7 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
 
   // do a general mass check again
   
-  double mass_after_move =lgar_calc_mass_bal(0,cum_layer_thickness_cm);
+  double mass_after_move = lgar_calc_mass_bal(0,cum_layer_thickness_cm);
 
   double mass_correction = mass_before_move+precip_mass_to_add - (mass_after_move+ *AET_demand_cm) ;
 
@@ -1290,11 +1401,17 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
 }
 
 
-
+// ############################################################################################
+/*
+  the function merges wetting fronts; called from lgar_move_wetting_fronts.
+  also the function updates variables in the list for non-merging wetting fronts
+*/
+// ############################################################################################
 extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *current,
 					double* cum_layer_thickness_cm, int *soil_type,
 					double *frozen_factor, struct soil_properties_ *soil_properties)
 {
+  // local variables
   double theta,Se,theta_e,theta_r;
   double delta_theta;
   double vg_a, vg_m, vg_n, Ks_cm_per_s;
@@ -1302,178 +1419,191 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
   int layer_num, soil_num;
   double bottom_flux_cm=0.0;
   
-    double column_depth = cum_layer_thickness_cm[num_layers];
-    //layer_num = current->layer_num;
+  double column_depth = cum_layer_thickness_cm[num_layers];
+  
 
-    layer_num   = current->layer_num;
-    soil_num    = soil_type[layer_num];
-    theta_e     = soil_properties[soil_num].theta_e;
-    theta_r     = soil_properties[soil_num].theta_r;
-    vg_a        = soil_properties[soil_num].vg_alpha_per_cm;
-    vg_m        = soil_properties[soil_num].vg_m;
-    vg_n        = soil_properties[soil_num].vg_n;
-    theta       = current->theta;
-    Se          = calc_Se_from_theta(theta, theta_e, theta_r);
-    psi_cm      = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-    //K_cm_per_s  = calc_K_from_Se(Se, Ks_cm_per_s, vg_m); // unused
+  layer_num   = current->layer_num;
+  soil_num    = soil_type[layer_num];
+  theta_e     = soil_properties[soil_num].theta_e;
+  theta_r     = soil_properties[soil_num].theta_r;
+  vg_a        = soil_properties[soil_num].vg_alpha_per_cm;
+  vg_m        = soil_properties[soil_num].vg_m;
+  vg_n        = soil_properties[soil_num].vg_n;
+  theta       = current->theta;
+  Se          = calc_Se_from_theta(theta, theta_e, theta_r);
+  psi_cm      = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
     
-    struct wetting_front *next = current->next; //listFindFront(l+2,NULL); // next->next;
-    struct wetting_front *next_to_next = current->next->next; //listFindFront(l+2,NULL); // next->next;
+  struct wetting_front *next = current->next; //listFindFront(l+2,NULL); // next->next;
+  struct wetting_front *next_to_next = current->next->next; //listFindFront(l+2,NULL); // next->next;
       
-      // case a wetting front passing another wetting front within a layer
-      /**********************************************************/
-      
-      if ( (current->depth_cm > next->depth_cm) && (current->layer_num == next->layer_num) && !next->to_bottom) {
+  // case : wetting front passing another wetting front within a layer
+  /**********************************************************/
+  // current->depth_cm > next->depth_cm ensures the merging is needed
+  // current->layer_num == next->layer_num ensures wetting fronts are in the same layer
+  // !next->to_bottom ensures the next wetting front is not the deepest wetting front in the layer
+  if ( (current->depth_cm > next->depth_cm) && (current->layer_num == next->layer_num) && !next->to_bottom) {
 
-	double current_mass_this_layer = current->depth_cm * (current->theta - next->theta) + next->depth_cm*(next->theta - next_to_next->theta);
-	current->depth_cm = current_mass_this_layer / (current->theta - next_to_next->theta);
+    double current_mass_this_layer = current->depth_cm * (current->theta - next->theta) + next->depth_cm*(next->theta - next_to_next->theta);
+    current->depth_cm = current_mass_this_layer / (current->theta - next_to_next->theta);
 
-	double theta_e_k        = soil_properties[soil_num].theta_e;
-	double theta_r_k        = soil_properties[soil_num].theta_r;
-	double vg_a_k           = soil_properties[soil_num].vg_alpha_per_cm;
-	double vg_m_k           = soil_properties[soil_num].vg_m;
-	double vg_n_k           = soil_properties[soil_num].vg_n;
-	double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
-	double Se_k             = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
-	current->psi_cm         = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-	current->K_cm_per_s     = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k); // AJ - K_temp in python version for 1st layer
+    double theta_e_k        = soil_properties[soil_num].theta_e;
+    double theta_r_k        = soil_properties[soil_num].theta_r;
+    double vg_a_k           = soil_properties[soil_num].vg_alpha_per_cm;
+    double vg_m_k           = soil_properties[soil_num].vg_m;
+    double vg_n_k           = soil_properties[soil_num].vg_n;
+    double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
+    double Se_k             = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
+    current->psi_cm         = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
+    current->K_cm_per_s     = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k); // AJ - K_temp in python version for 1st layer
 
 #if VERBOSE > 1
-	printf ("Deleting wetting front (before)... \n");
-	listPrint();
+    printf ("Deleting wetting front (before)... \n");
+    listPrint();
 #endif
-	listDeleteFront(next->front_num);
-
+    listDeleteFront(next->front_num);
+    
 #if VERBOSE > 1
-	printf ("Deleting wetting front (after) ... \n");
-	listPrint();
+    printf ("Deleting wetting front (after) ... \n");
+    listPrint();
 #endif
-
-      }
+    
+  }
       
-      // case wetting front passing the layer depth
-      /**********************************************************/
-      // or use next_to_next != NULL
-      if (current->depth_cm > cum_layer_thickness_cm[layer_num] && current->depth_cm < column_depth) {
-	double current_theta = fmin(theta_e, current->theta);
-	double overshot_depth = current->depth_cm - next->depth_cm;
+  // case : wetting front passing the layer depth
+  /**********************************************************/
+  // or use next_to_next != NULL
+  // current->depth_cm > cum_layer_thickness_cm[layer_num] ensures wetting front is passing the layer depth
+  // current->depth_cm < column_depth ensures the wetting front depth is not greater than the domain depth,
+  // which is the absolute depth of the deepest layer
+  
+  if (current->depth_cm > cum_layer_thickness_cm[layer_num] && current->depth_cm < column_depth) {
+    
+    double current_theta = fmin(theta_e, current->theta);
+    double overshot_depth = current->depth_cm - next->depth_cm;
+    
+    double next_theta_e   = soil_properties[soil_num+1].theta_e;
+    double next_theta_r   = soil_properties[soil_num+1].theta_r;
+    double next_vg_a      = soil_properties[soil_num+1].vg_alpha_per_cm;
+    double next_vg_m      = soil_properties[soil_num+1].vg_m;
+    double next_vg_n      = soil_properties[soil_num+1].vg_n;
+    double Ksat_cm_per_s  = soil_properties[soil_num+1].Ksat_cm_per_s * frozen_factor[current->layer_num];
+    
+    double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
+    current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
+    
+    current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m); // AJ check Ksat_cm_per_s here current or next?
 
-	// Given theta return psi_cm, Se or K_cm_per_s etc.
-	
-	double next_theta_e   = soil_properties[soil_num+1].theta_e;
-	double next_theta_r   = soil_properties[soil_num+1].theta_r;
-	double next_vg_a      = soil_properties[soil_num+1].vg_alpha_per_cm;
-	double next_vg_m      = soil_properties[soil_num+1].vg_m;
-	double next_vg_n      = soil_properties[soil_num+1].vg_n;
-	double Ksat_cm_per_s  = soil_properties[soil_num+1].Ksat_cm_per_s * frozen_factor[current->layer_num];
+    // current psi with van Gunechton properties of the next layer to get new theta
+    double theta_new = calc_theta_from_h(current->psi_cm, next_vg_a, next_vg_m, next_vg_n, next_theta_e, next_theta_r);
+    
+    double mbal_correction = overshot_depth * (current_theta - next->theta);
+    double mbal_Z_correction = mbal_correction / (theta_new - next_to_next->theta); // this is the new wetting front depth
+    
+    double depth_new = cum_layer_thickness_cm[layer_num] + mbal_Z_correction; // this is the new wetting front theta
 
-	double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
-	current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-
-	current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m); // AJ check Ksat_cm_per_s here current or next?
-	
-	double theta_new = calc_theta_from_h(current->psi_cm, next_vg_a, next_vg_m, next_vg_n, next_theta_e, next_theta_r);
-	
-	double mbal_correction = overshot_depth*(current_theta-next->theta);
-	double mbal_Z_correction = mbal_correction/(theta_new - next_to_next->theta);
-
-	double depth_new = cum_layer_thickness_cm[layer_num] + mbal_Z_correction;
-
-	if (depth_new < next_to_next->depth_cm) {
-	  next->theta = current->theta;
-	  current = listDeleteFront(current->front_num);
-	  int num_fronts = listLength();
-	  struct wetting_front *current_temp = current;
-	  current = listInsertFrontAtDepth(num_fronts, cum_layer_thickness_cm,cum_layer_thickness_cm[layer_num]+mbal_Z_correction, theta_new);
-	}
-	else {
-	  next->theta = current->theta; // assign current theta to next layer theta before deleting the wetting front
-
-	  current = listDeleteFront(current->front_num);
-
-	  current = current->next; // this is points to the next_to_next node (w.r.t the original list)
-
-	  double current_mass_this_layer =  mbal_Z_correction * (theta_new - current->theta) + (current->depth_cm - cum_layer_thickness_cm[layer_num])*(current->theta - current->next->theta);
-
-	  // spread the mass by the space (Mass = Depth * space)
-	  // Q : can this depth ever get greater than the next layer depth??
-	  current->depth_cm = cum_layer_thickness_cm[layer_num] + current_mass_this_layer / (current->theta - current->next->theta);
-	  
-	  current->theta = theta_new;
-
-	  int soil_num = soil_type[current->layer_num];
-	  
-	  double theta_e_k   = soil_properties[soil_num].theta_e;
-	  double theta_r_k   = soil_properties[soil_num].theta_r;
-	  double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
-	  double vg_m_k      = soil_properties[soil_num].vg_m;
-	  double vg_n_k      = soil_properties[soil_num].vg_n;
-	  double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
-	  
-	  double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
-	  current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-	  current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);
-	}
-	
-      }
-      // case wetting front moving (no merging) within a layer; just update values (check if this is actually needed)
-      /**********************************************************/
-      else if (current->depth_cm < next->depth_cm && current->to_bottom == false) {
-	double theta_e_k   = soil_properties[soil_num].theta_e;
-	double theta_r_k   = soil_properties[soil_num].theta_r;
-	double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
-	double vg_m_k      = soil_properties[soil_num].vg_m;
-	double vg_n_k      = soil_properties[soil_num].vg_n;
-	double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
-
-	double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
-	current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-	current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);	
-      }
-
-      // case wetting front stationary (not moving) and the deepest wetting front in the layer, again just update values
-      /**********************************************************/
-      else if (current->to_bottom == true) {
-	double theta_e_k   = soil_properties[soil_num].theta_e;
-	double theta_r_k   = soil_properties[soil_num].theta_r;
-	double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
-	double vg_m_k      = soil_properties[soil_num].vg_m;
-	double vg_n_k      = soil_properties[soil_num].vg_n;
-	double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
-
-	double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
-
-	current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-	current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);
-      }
+    // check the new wetting front just entered is not passing any existing wetting fronts in the layer
+    if (depth_new < next_to_next->depth_cm) {
+      next->theta = current->theta;
+      current = listDeleteFront(current->front_num);
+      int num_fronts = listLength();
+      struct wetting_front *current_temp = current;
+      current = listInsertFrontAtDepth(num_fronts, cum_layer_thickness_cm,cum_layer_thickness_cm[layer_num]+mbal_Z_correction, theta_new);
+    }
+    else {
+      // if the new wetting front that just entered passes the top wetting front in the layer then merge the wetting fronts
+      next->theta = current->theta; // assign current theta to next layer theta before deleting the wetting front
       
-      // case wetting front is the deepest one in the last layer (most deepested wetting front in the domain)
-      /**********************************************************/
-      if (next_to_next == NULL && current->depth_cm > cum_layer_thickness_cm[layer_num]) {
+      current = listDeleteFront(current->front_num);
+      
+      current = current->next; // this points to the next_to_next node (w.r.t the original list)
+      //  mass                       =  mass in the new wetting front  + mass in the wetting front that is being passed
+      double current_mass_this_layer =  mbal_Z_correction * (theta_new - current->theta)
+	                                + (current->depth_cm - cum_layer_thickness_cm[layer_num]) * (current->theta - current->next->theta);
+      
+      // spread the mass by the space (Mass = Depth * space)
+      // Q : can this depth be ever get greater than the next layer depth??
+      current->depth_cm = cum_layer_thickness_cm[layer_num] + current_mass_this_layer / (current->theta - current->next->theta);
+      
+      current->theta = theta_new;
+      
+      int soil_num = soil_type[current->layer_num];
+      
+      double theta_e_k   = soil_properties[soil_num].theta_e;
+      double theta_r_k   = soil_properties[soil_num].theta_r;
+      double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
+      double vg_m_k      = soil_properties[soil_num].vg_m;
+      double vg_n_k      = soil_properties[soil_num].vg_n;
+      double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
+      
+      double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
+      current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
+      current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);
+    }
+    
+  }
+  
+  // case : wetting front moving (no merging) within a layer; just update values (check if this is actually needed)
+  /**********************************************************/
+  else if (current->depth_cm < next->depth_cm && current->to_bottom == false) {
+    double theta_e_k   = soil_properties[soil_num].theta_e;
+    double theta_r_k   = soil_properties[soil_num].theta_r;
+    double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
+    double vg_m_k      = soil_properties[soil_num].vg_m;
+    double vg_n_k      = soil_properties[soil_num].vg_n;
+    double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
+    
+    double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
+    current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
+    current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);	
+  }
+  
+  // case : wetting front is stationary (not moving) and the deepest wetting front in the layer, again just update values
+  /**********************************************************/
+  else if (current->to_bottom == true) {
+    double theta_e_k   = soil_properties[soil_num].theta_e;
+    double theta_r_k   = soil_properties[soil_num].theta_r;
+    double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
+    double vg_m_k      = soil_properties[soil_num].vg_m;
+    double vg_n_k      = soil_properties[soil_num].vg_n;
+    double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
+    
+    double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
+    
+    current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
+    current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);
+  }
+      
+  // case : wetting front is the deepest one in the last layer (most deepested wetting front in the domain)
+  /**********************************************************/
+  if (next_to_next == NULL && current->depth_cm > cum_layer_thickness_cm[layer_num]) {
 
-	//  this is the water leaving the system through the bottom of the soil
-	//*ponded_depth_cm = (current->theta - next->theta) *  (current->depth_cm - next->depth_cm);
-	bottom_flux_cm = (current->theta - next->theta) *  (current->depth_cm - next->depth_cm);
-	double theta_e_k   = soil_properties[soil_num].theta_e;
-	double theta_r_k   = soil_properties[soil_num].theta_r;
-	double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
-	double vg_m_k      = soil_properties[soil_num].vg_m;
-	double vg_n_k      = soil_properties[soil_num].vg_n;
-	double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
-	
-	next->theta = current->theta;
-	double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
-	next->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-	next->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);
-	listDeleteFront(current->front_num);
-	
-      }
-
-      return bottom_flux_cm;
+    //  this is the water leaving the system through the bottom of the soil
+    bottom_flux_cm = (current->theta - next->theta) *  (current->depth_cm - next->depth_cm);
+    double theta_e_k   = soil_properties[soil_num].theta_e;
+    double theta_r_k   = soil_properties[soil_num].theta_r;
+    double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
+    double vg_m_k      = soil_properties[soil_num].vg_m;
+    double vg_n_k      = soil_properties[soil_num].vg_n;
+    double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
+    
+    next->theta = current->theta;
+    double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
+    next->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
+    next->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);
+    listDeleteFront(current->front_num);
+    
+  }
+  
+  return bottom_flux_cm;
 }
 
-
-extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties)
+// ############################################################################################
+/* The function handles situation of dry over wet wetting fronts
+  mainly happen when AET extracts more water from the upper wetting front
+  and the front gets drier than the lower wetting front */
+// ############################################################################################
+extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
+					 struct soil_properties_ *soil_properties)
 {
 
   struct wetting_front *current;
@@ -1526,31 +1656,35 @@ extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_
       }*/
       
       
-      // this part fixes thetas when AET caused upper wetting front drier than the lower wetting front
+      // this part fixes case of upper theta less than lower theta due to AET extraction
       /***************************************************/
       
       if ( (current->theta < next->theta) && (current->layer_num == next->layer_num) ) {
 	int layer_num_k = current->layer_num;
 	double mass_before = lgar_calc_mass_bal(0,cum_layer_thickness_cm);
-	
+
 	current = listDeleteFront(current->front_num);
+
+	// if the dry wetting front is the most surficial then simply track the mass change
+	// due to the deletion of the wetting front; 
 	// this needs to be revised
 	if (layer_num_k > 1) {
-	  int soil_num_k     = soil_type[current->layer_num];
-	  double theta_e_k   = soil_properties[soil_num_k].theta_e;
-	  double theta_r_k   = soil_properties[soil_num_k].theta_r;
-	  double vg_a_k      = soil_properties[soil_num_k].vg_alpha_per_cm;
-	  double vg_m_k      = soil_properties[soil_num_k].vg_m;
-	  double vg_n_k      = soil_properties[soil_num_k].vg_n;
-	  //double Ksat_cm_per_s_k  = soil_properties[soil_num_k].Ksat_cm_per_s * frozen_factor[current->layer_num];
-	  double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
-	  
+	  int soil_num_k    = soil_type[current->layer_num];
+	  double theta_e_k  = soil_properties[soil_num_k].theta_e;
+	  double theta_r_k  = soil_properties[soil_num_k].theta_r;
+	  double vg_a_k     = soil_properties[soil_num_k].vg_alpha_per_cm;
+	  double vg_m_k     = soil_properties[soil_num_k].vg_m;
+	  double vg_n_k     = soil_properties[soil_num_k].vg_n;
+	  double Se_k       = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
+
+	  // now this is the wetting front that was below the dry wetting front
 	  current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
 	  
 	  struct wetting_front *current_local = head;
-	  
+
+	  // update psi and theta for all wetting fronts above the current wetting front
 	  while (current_local->layer_num < layer_num_k) {
-	    int soil_num_k1    = soil_type[current_local->layer_num];
+	    int soil_num_k1 = soil_type[current_local->layer_num];
 	    theta_e_k   = soil_properties[soil_num_k1].theta_e;
 	    theta_r_k   = soil_properties[soil_num_k1].theta_r;
 	    vg_a_k      = soil_properties[soil_num_k1].vg_alpha_per_cm;
@@ -1564,11 +1698,10 @@ extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_
 	    }
 	}
 	
-	double mass_after=lgar_calc_mass_bal(0,cum_layer_thickness_cm);
+	double mass_after = lgar_calc_mass_bal(0,cum_layer_thickness_cm);
 	*mass_change += fabs(mass_after - mass_before);
 	
 	// note: mass_before is less when we have wetter front over drier front condition, however, lgar_calc_mass_bal returns mass_before > mass_after due to fabs(theta_current - theta_next); for mass_before the functions compuates more than the actual mass; removing fabs in that function might be one option, but for now we are adding fabs to mass_change to make sure we added extra water back to AET after deleting the drier front
-	//printf("Mass change = %6.15f %6.15f %6.15f \n", mass_change, mass_after, mass_before);
 	
       }
       current = current->next;
@@ -1578,13 +1711,19 @@ extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_
 
 }
 
+// ############################################################################################
+/* The module computes the potential infiltration capacity, fp (in the lgar manuscript),
+   potential infiltration capacity = the maximum amount of water that can be inserted into
+   the soil depending on the availability of water.
+   this module is called when a new superficial wetting front is not created
+   in the current timestep, that is precipitation in the current and previous
+   timesteps was greater than zero */
+// ############################################################################################
 extern double lgar_insert_water(int nint, double time_step_s, double *ponded_depth_cm, double *volin_this_timestep,
 				double precip_timestep_cm, double dry_depth, int wf_free_drainage_demand,
 				int *soil_type, double *cum_layer_thickness_cm, double *frozen_factor,
 				struct soil_properties_ *soil_properties)
 {
-
-  // This subroutine inserts precipitation into the soil
   // note ponded_depth_cm is a pointer.   Access it's value as (*ponded_depth_cm).
   
   int wf_that_supplies_free_drainage_demand = wf_free_drainage_demand;
@@ -1602,8 +1741,7 @@ extern double lgar_insert_water(int nint, double time_step_s, double *ponded_dep
   int layer_num,soil_num;
   double f_p = 0.0;
   double runoff = 0.0;
-
-  double hp_cm_max=0.0;
+  double hp_cm_max = 0.0;
 
   double h_p = fmax(*ponded_depth_cm - precip_timestep_cm * time_step_s,0.0); // water ponded on the surface
   
@@ -1621,9 +1759,9 @@ extern double lgar_insert_water(int nint, double time_step_s, double *ponded_dep
 
   
   double Geff;
-  
+
   if (number_of_wetting_fronts == num_layers) {
-    Geff = 0.0;
+    Geff = 0.0; // i.e., case of no capillary suction, dz/dt is also zero for all wetting fronts
   }
   else {
    
@@ -1646,18 +1784,18 @@ extern double lgar_insert_water(int nint, double time_step_s, double *ponded_dep
     Geff = calc_Geff(theta_below, theta_e, theta_e, theta_r, vg_a, vg_n, vg_m, h_min_cm, Ksat_cm_per_s, nint);
 
   }
-   
+
+  // if the free_drainage wetting front is the top most, then the potential infiltration capacity has the following simple form
   if (layer_num_fp == 1) {
-      f_p = Ksat_cm_per_s * (1 + (Geff+ h_p)/current_free_drainage->depth_cm);
+      f_p = Ksat_cm_per_s * (1 + (Geff + h_p)/current_free_drainage->depth_cm);
   }
   else {
-    
-    double bottom_sum = (current_free_drainage->depth_cm-cum_layer_thickness_cm[layer_num_fp-1])/Ksat_cm_per_s;
-    double xx = bottom_sum;
+    // point here to the equation in lgar paper once published
+    double bottom_sum = (current_free_drainage->depth_cm - cum_layer_thickness_cm[layer_num_fp-1])/Ksat_cm_per_s;
     
     for (int k = 1; k < layer_num_fp; k++) {
       int soil_num_k = soil_type[layer_num_fp-k];
-      double Ksat_cm_per_s_k = soil_properties[soil_num_k].Ksat_cm_per_s * frozen_factor[layer_num_fp-k];
+      double Ksat_cm_per_s_k = soil_properties[soil_num_k].Ksat_cm_per_s * frozen_factor[layer_num_fp - k];
       
       bottom_sum += (cum_layer_thickness_cm[layer_num_fp - k] - cum_layer_thickness_cm[layer_num_fp - (k+1)])/ Ksat_cm_per_s_k;
     }
@@ -1669,7 +1807,9 @@ extern double lgar_insert_water(int nint, double time_step_s, double *ponded_dep
   // checkpoint # AJ
   int soil_num_k = soil_type[head->layer_num];
   double theta_e1 = soil_properties[soil_num_k].theta_e; // saturated theta of top layer
-  
+
+  // if free drainge has to be included, which currently we don't, then the following will be set to hydraulic conductivity
+  // of the deeepest layer
   if ((layer_num_fp==num_layers) && (current_free_drainage->theta == theta_e1) && (num_layers == number_of_wetting_fronts)) 
     f_p = 0.0;
 
@@ -1677,7 +1817,7 @@ extern double lgar_insert_water(int nint, double time_step_s, double *ponded_dep
     
   double free_drainage_demand = 0;
   
-  // checkpoint # AJ
+  // if condition is not needed ... AJ
   if ((layer_num_fp==num_layers) && (num_layers == number_of_wetting_fronts))
     ponded_depth_temp = *ponded_depth_cm - f_p*time_step - free_drainage_demand*0;
   else
@@ -1709,7 +1849,7 @@ extern double lgar_insert_water(int nint, double time_step_s, double *ponded_dep
 
   else {
     // if it got to this point, no ponding is allowed, either infiltrate or runoff
-    // order is important here; assign zero to ponded depth once done using it computing volume in and runoff
+    // order is important here; assign zero to ponded depth once we compute volume in and runoff
     *volin_this_timestep = fmin(*ponded_depth_cm, fp_cm); //
     runoff = *ponded_depth_cm < fp_cm ? 0.0 : (*ponded_depth_cm - *volin_this_timestep);
     *ponded_depth_cm = 0.0;
@@ -1719,12 +1859,15 @@ extern double lgar_insert_water(int nint, double time_step_s, double *ponded_dep
   return runoff;
 }
 
+// ######################################################################################
+/* This subroutine is called iff there is no surfacial front, it creates a new front and
+   inserts ponded depth, and will return some amount if can't fit all water */
+// ######################################################################################
 extern void lgar_create_surfacial_front(int nint,double time_step_s, double *ponded_depth_cm, double *volin,
 					double dry_depth, double theta1, int *soil_type,   
                                         double *cum_layer_thickness_cm, double *frozen_factor,
 					struct soil_properties_ *soil_properties)
 {
-  // This subroutine is called iff there is no surfacial front, it creates a new front and inserts ponded depth
   // into the soil.  Note ponded_depth_cm is a pointer.   Access it's value as (*ponded_depth_cm).
 
   // local vars
@@ -1785,22 +1928,23 @@ extern void lgar_create_surfacial_front(int nint,double time_step_s, double *pon
   Geff = calc_Geff(theta_new, theta1, theta_e, theta_r, vg_alpha_per_cm, vg_n, vg_m, h_min_cm, Ksat_cm_per_s, nint);
   h_min_cm = 0.0;
 
-  current->dzdt_cm_per_s = 0.0; //for now assign 0 to dzdt as it will be computed in compute_dzdt function
+  current->dzdt_cm_per_s = 0.0; //for now assign 0 to dzdt as it will be computed/updated in lgar_dzdt_calc function
   
   return;
   
 }
 
-
+// ############################################################################################
+/* This routine calculates the "dry depth" of a newly created wetting front in the top soil layer after
+   a non-rainy period or a big increase in rainrate  on an unsaturated first layer.
+   Note: Calculation of the initial depth of a new wetting front in the first layer uses the concept of "dry depth",
+   described in the 2015 GARTO paper (Lai et al., An efficient and guaranteed stable numerical method ffor
+   continuous modeling of infiltration and redistribution with a shallow dynamic water table). */
+// ############################################################################################
 extern double lgar_calc_dry_depth(int nint, double time_step_s, double *delta_theta, int *soil_type, 
-                                   double *cum_layer_thickness_cm,
-                                   double *frozen_factor, struct soil_properties_ *soil_properties)
+                                   double *cum_layer_thickness_cm, double *frozen_factor,
+				  struct soil_properties_ *soil_properties)
 {
-  // This routine calculates the "dry depth" of a newly created wetting front in the top soil layer after
-  // a non-rainy period or a big increase in rainrate  on an unsaturated first layer.
-  // Note: Calculation of the initial depth of a new wetting front in the first layer uses the concept of "dry depth",
-  // described in the 2015 GARTO paper (Lai et al., An efficient and guaranteed stable numerical method ffor
-  // continuous modeling of infiltration and redistribution with a shallow dynamic water table).
     
   // local variables
   
@@ -1850,60 +1994,61 @@ extern double lgar_calc_dry_depth(int nint, double time_step_s, double *delta_th
 
 }
 
+// ###########################################################################
+/* function to calculate the amount of soil moisture (total mass of water)
+   in the profile (cm) */
+// ###########################################################################
 double lgar_calc_mass_bal(int num_soil_layers, double *cum_layer_thickness)
 {
-/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
-/* function to calculate the amount of soil moisture  in the profile (cm) */
-/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
-
-struct wetting_front* current;
-struct wetting_front* previous;
-struct wetting_front* next;     // Bware, might get a little confusing, because there exists a next->next
-
-double sum=0.0;
-double base_depth;
-int layer,prev_layer,front;
-
-if(head == NULL) return 0.0;
-
-current=head;
-prev_layer=ONE;
-do
-  {
-  layer=current->layer_num;
-  base_depth=cum_layer_thickness[layer-1];   // note cum_layer_thickness[0]=0.0;
   
-  if(current->next != NULL) {            // this is not the last entry in the list
-    next=current->next;
-    if(next->layer_num == current->layer_num) {
-      sum += (current->depth_cm - base_depth) * (current->theta - next->theta); // note no need for fabs() here otherwise we get more mass for the case dry-over-wet front within a layer
-    }
-    else {
-      sum += (current->depth_cm - base_depth) * current->theta;
-    }
-  }
-  else { // this is the last entry in the list.  This must be the deepest front in the final layer
-    layer=current->layer_num;
-    sum+=current->theta * (current->depth_cm - base_depth);
-  }
+  struct wetting_front* current;
+  struct wetting_front* previous;
+  struct wetting_front* next;     // Bware, might get a little confusing, because there exists a next->next
   
-  current=current->next;
+  double sum=0.0;
+  double base_depth;
+  int layer,prev_layer,front;
   
-  } while(current != NULL );   // putting conditional at end of do looop makes sure it executes once.
-
- return sum;
+  if(head == NULL) return 0.0;
+  
+  current=head;
+  prev_layer=ONE;
+  do
+    {
+      layer=current->layer_num;
+      base_depth=cum_layer_thickness[layer-1];   // note cum_layer_thickness[0]=0.0;
+      
+      if(current->next != NULL) {            // this is not the last entry in the list
+	next=current->next;
+	if(next->layer_num == current->layer_num) {
+	  sum += (current->depth_cm - base_depth) * (current->theta - next->theta); // note no need for fabs() here otherwise we get more mass for the case dry-over-wet front within a layer
+	}
+	else {
+	  sum += (current->depth_cm - base_depth) * current->theta;
+	}
+      }
+      else { // this is the last entry in the list.  This must be the deepest front in the final layer
+	layer=current->layer_num;
+	sum+=current->theta * (current->depth_cm - base_depth);
+      }
+      
+      current=current->next;
+      
+    } while(current != NULL );   // putting conditional at end of do looop makes sure it executes once.
+  
+  return sum;
 }
 
+// ############################################################################################
+/* The module reads the soil parameters.
+   Open file to read in the van Genuchton parameters for standard soil types*/
+// ############################################################################################
 extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_types, double wilting_point_psi_cm,
 				    struct soil_properties_ *soil_properties)
 {
-  //###################################################################
-  // READ THE SOIL PARAMS ******************************************
-  // OPEN FILE TO READ IN THE vG parameters ffor standard soil types
-  //###################################################################
 
   if (verbosity.compare("high") == 0) {
-    std::cerr<<"Reading Van Genuchton parameters files...\n";
+    std::cerr<<"Reading van Genuchton parameters files...\n";
   }
   
   // local vars
@@ -1947,7 +2092,7 @@ extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil
       soil_properties[soil].theta_wp = calc_theta_from_h(wilting_point_psi_cm, vg_alpha_per_cm,
 							 vg_m, vg_n, theta_e, theta_r);
       
-      // Given van Genutchen parameters calculate estimates of Brooks & Corey bc_lambda and bc_psib
+      // Given van Genuchten parameters calculate estimates of Brooks & Corey bc_lambda and bc_psib
       if (1.0 < vg_n)
 	{
 	  m = 1.0 - 1.0 / vg_n;
@@ -1959,7 +2104,7 @@ extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil
 	}
       else
 	{
-	  fprintf(stderr, "ERROR: Van Genutchen parameter n must be greater than 1\n");
+	  fprintf(stderr, "ERROR: van Genuchten parameter n must be greater than 1\n");
 	  error = TRUE;  // TODO FIXME - what todo in this ccase?
 	}
       
@@ -1975,14 +2120,13 @@ extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil
   return;
 }
 
-
+// ############################################################################################
+/* code to calculate velocity of fronts
+   equations with full description are provided in the lgar paper (currently under review) */
+// ############################################################################################
 extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_layer_thickness_cm, double *frozen_factor,
-			  struct soil_properties_ *soil_properties)   // called derivs() in python
+			  struct soil_properties_ *soil_properties)
 {
-
-/****************************************/
-/* code to calculate velocity of fronts */
-/****************************************/
   int    nfronts_analyzed = 0;    // this is the return value
 
   struct wetting_front* current;
@@ -2123,8 +2267,15 @@ extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_laye
   return nfronts_analyzed;
 }
 
-
-extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm, double new_mass, double prior_mass, double depth_cm_old, double *delta_theta, double *delta_thickness, int *soil_type, struct soil_properties_ *soil_properties)
+// ############################################################################################
+/* The function does mass balance for a wetting front to get an updated theta.
+   The head (psi) value is iteratively altered until the error between prior mass and new mass
+   is within a tolerance. */
+// ############################################################################################
+extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm, double new_mass,
+				      double prior_mass, double depth_cm_old, double *delta_theta,
+				      double *delta_thickness, int *soil_type,
+				      struct soil_properties_ *soil_properties)
 {
 
   double x = psi_cm;

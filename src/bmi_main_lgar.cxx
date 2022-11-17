@@ -1,3 +1,14 @@
+/*
+  @author Ahmad Jan
+  @date  2022
+  @email ahmad.jan@noaa.gove
+  Description: the code runs Lumped Aric/semi-arid model (LASAM) through a BMI
+  Input: Precipitation, Potential ET, soil types, initial conditions
+  Output: see the list below (also the code writes the variables and state of the wetting fronts
+          to two separate files for analysis and visualization
+*/
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
@@ -9,19 +20,21 @@
 #include "../include/all.hxx"
 #include "../include/bmi_lgar.hxx"
 
-
+// module finds forcing file name in the config file
 std::string GetForcingFile(std::string config_file);
 
+// module read forcings (precipitation and PET)
 void ReadForcingData(std::string config_file, std::vector<std::string>& time, std::vector<double>& precip, std::vector<double>& pet);
 
 
 #define SUCCESS 0
+
 int main(int argc, char *argv[])
 {
   
   BmiLGAR lgar_model;
 
-  bool is_IO_supress = false;
+  bool is_IO_supress = false; // if true no output files will be written
 
   if (argc != 2) {
     printf("Usage: ./build/xlgar CONFIGURATION_FILE \n");
@@ -57,8 +70,10 @@ int main(int argc, char *argv[])
   output_var_names[7] = "infiltration";
   output_var_names[8] = "percolation";
 
-  
+
+  // total number of timesteps
   int nsteps = 7500; //2700; //7500.0;//57;
+  
   std::vector<std::string> time;
   std::vector<double> precipitation;
   std::vector<double> PET;
@@ -74,8 +89,8 @@ int main(int argc, char *argv[])
   FILE *outlayer_fptr = NULL;
   
   if (!is_IO_supress) {
-    outdata_fptr = fopen("data_variables.csv", "w");      // write output variables (e.g. infiltration, storage etc.) to this file pointer
-    outlayer_fptr = fopen("data_layers.csv", "w");   // write output layers to this file pointer
+    outdata_fptr = fopen("data_variables.csv", "w");  // write output variables (e.g. infiltration, storage etc.) to this file pointer
+    outlayer_fptr = fopen("data_layers.csv", "w");    // write output layers to this file pointer
 
     // write heading (variable names)
     fprintf(outdata_fptr,"Time,");
@@ -89,7 +104,8 @@ int main(int argc, char *argv[])
 
   }
 
-  double dt = 3600;
+  // model timestep and forcing timestep are read from a config file in lgar.cxx
+  //  double dt = 3600;
   
   for (int i = 0; i < nsteps; i++) {
     
@@ -102,7 +118,9 @@ int main(int argc, char *argv[])
     lgar_model.SetValue(var_name_precip, &precipitation[i]);
     lgar_model.SetValue(var_name_pet, &PET[i]);
 
-    lgar_model.UpdateUntil(dt); // Update model
+    //lgar_model.UpdateUntil(dt); // Update model
+
+    lgar_model.Update(); // Update model
 
     if (!is_IO_supress) {
       int num_wetting_fronts =  lgar_model.get_model()->lgar_bmi_params.num_wetting_fronts;
@@ -135,7 +153,7 @@ int main(int argc, char *argv[])
     
   }
 
-
+  // do final mass balance
   lgar_model.global_mass_balance();
 
   if (outdata_fptr) {

@@ -144,29 +144,29 @@ private:
 #ifdef NGEN
 extern "C"
 {
-
-    /**
-    * Construct this BMI instance as a normal C++ object, to be returned to the framework.
-    *
-    * @return A pointer to the newly allocated instance.
-    */
+  
+  /**
+   * Construct this BMI instance as a normal C++ object, to be returned to the framework.
+   *
+   * @return A pointer to the newly allocated instance.
+   */
   
   BmiLGAR *bmi_model_create()
   {
     return new BmiLGAR();
   }
   
-    /**
-     * @brief Destroy/free an instance created with @see bmi_model_create
-     * 
-     * @param ptr 
-     */
+  /**
+   * @brief Destroy/free an instance created with @see bmi_model_create
+   * 
+   * @param ptr 
+   */
   
   void bmi_model_destroy(BmiLGAR *ptr)
   {
     delete ptr;
-    }
-
+  }
+  
 }
 
 #endif
