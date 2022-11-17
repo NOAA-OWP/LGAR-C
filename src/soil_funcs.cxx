@@ -20,9 +20,6 @@
 
 
 
-extern double calc_Geff(double theta1, double theta2, double theta_e, double theta_r,
-                        double vg_alpha, double vg_n, double vg_m, double h_min, double Ksat, int nint)
-{
 /***********************************************************************************************/
 /* This function calculates the unsaturated capillary drive Geff(0i,0o)  (note "0" are thetas) */
 /* for the Green and Ampt redistribution function.                                             */
@@ -31,9 +28,11 @@ extern double calc_Geff(double theta1, double theta2, double theta_e, double the
 /*                                                                                             */
 /* author: Fred Ogden, June, 2021,                                                             */
 /***********************************************************************************************/
-
-// local variables
-// note: units of h in cm.  units of K in cm/s
+extern double calc_Geff(double theta1, double theta2, double theta_e, double theta_r,
+                        double vg_alpha, double vg_n, double vg_m, double h_min, double Ksat, int nint)
+{
+  // local variables
+  // note: units of h in cm.  units of K in cm/s
   
   int i,local_debug_flag=FALSE;
   double h_i,h_f,Se_i,Se_f,K_i,K_f;  // variables to store initial and final values
@@ -104,46 +103,45 @@ extern double calc_Geff(double theta1, double theta2, double theta_e, double the
 }
 
 
-double calc_theta_from_h(double h,double alpha, double m, double n, double theta_e, double theta_r)
-{
 /**************************************/
 /* function to calculate theta from h */
 /**************************************/
-
-return(1.0/(pow(1.0+pow(alpha*h,n),m))*(theta_e-theta_r)+theta_r);
+double calc_theta_from_h(double h,double alpha, double m, double n, double theta_e, double theta_r)
+{
+  return(1.0/(pow(1.0+pow(alpha*h,n),m))*(theta_e-theta_r)+theta_r);
 }
 
-double calc_Se_from_h(double h,double alpha, double m, double n)
-{
 /***********************************/
 /* function to calculate Se from h */
 /***********************************/
-if(is_epsilon_less_than(h,1.0e-01)) return 1.0;  // this function doesn't work well ffor tiny h
-else return(1.0/(pow(1.0+pow(alpha*h,n),m)));
+double calc_Se_from_h(double h,double alpha, double m, double n)
+{
+  if(is_epsilon_less_than(h,1.0e-01)) return 1.0;  // this function doesn't work well ffor tiny h
+  else return(1.0/(pow(1.0+pow(alpha*h,n),m)));
 }
 
-double calc_K_from_Se(double Se, double Ksat, double m)
-{
 /***********************************/
 /* function to calculate K from Se */
 /***********************************/
-return (Ksat * sqrt(Se) * pow(1.0 - pow(1.0 - pow(Se,1.0/m), m), 2.0));  // same units as Ksat 
+double calc_K_from_Se(double Se, double Ksat, double m)
+{
+  return (Ksat * sqrt(Se) * pow(1.0 - pow(1.0 - pow(Se,1.0/m), m), 2.0));  // same units as Ksat 
 }
 
-double calc_h_from_Se(double Se, double alpha, double m, double n)
-{
 /***********************************/
 /* function to calculate h from Se */
 /***********************************/
-return(1.0/alpha*pow(pow(Se,-1.0/m)-1.0,1.0/n));
+double calc_h_from_Se(double Se, double alpha, double m, double n)
+{
+  return(1.0/alpha*pow(pow(Se,-1.0/m)-1.0,1.0/n));
 }
 
-double calc_Se_from_theta(double theta,double e,double r)
-{
 /***************************************/
 /* function to calculate Se from theta */
 /***************************************/
-return((theta-r)/(e-r));
+double calc_Se_from_theta(double theta,double e,double r)
+{
+  return((theta-r)/(e-r));
 }
 
 

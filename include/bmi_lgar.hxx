@@ -1,6 +1,13 @@
 #ifndef BMI_LGAR_HXX_INCLUDED
 #define BMI_LGAR_HXX_INCLUDED
 
+/*
+  authors : Ahmad Jan and Fred Ogden
+  year    : 2022
+  email   : ahmad.jan@noaa.gov
+  Description: BMI for the Lumped Aric/semi-arid model (LASAM)
+*/
+
 using namespace std;
 
 #include <string.h>

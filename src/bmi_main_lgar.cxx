@@ -1,7 +1,7 @@
 /*
-  @author Ahmad Jan
-  @date  2022
-  @email ahmad.jan@noaa.gove
+  author : Ahmad Jan
+  year   : 2022
+  email  : ahmad.jan@noaa.gov
   Description: the code runs Lumped Aric/semi-arid model (LASAM) through a BMI
   Input: Precipitation, Potential ET, soil types, initial conditions
   Output: see the list below (also the code writes the variables and state of the wetting fronts

@@ -3,11 +3,14 @@
 #define _ALL_HXX
 
 /*
-  @authors : Fred Ogden and Ahmad Jan
-  @year    : 2022
+  authors : Ahmad Jan and Fred Ogden
+  year    : 2022
+  email   : ahmad.jan@noaa.gov
   - This header file constains functions' definitions used in the lgar.cxx, bmi_lasam.cxx and in other files.
-  - Originally written by Fred Odgen and modified/extended by Ahmad Jan for LGAR-C implementation and to make it bmi compliant.
+  - Parts of the code were originally written by Fred Ogden and modified/extended by Ahmad Jan for LGAR/LASAM
+    implementation and to make it bmi compliant.
   - The struct lgar_model_ is needed by bmi_lasam, which encloses many structs needed for advancing a timestep via bmi.
+  - LASAM : Lumped Arid/semi-arid Model
 */
 
 #include <stdio.h>
@@ -296,8 +299,8 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
 /********************************************************************/
 
 extern double calc_aet(double PET_timestep_cm, double time_step_s, double wilting_point_psi_cm,
-                       struct soil_properties_ *soil_props, int *soil_type, double AET_thresh_Theta,
-		       double AET_expon);
+                       int *soil_type, double AET_thresh_Theta, double AET_expon,
+		       struct soil_properties_ *soil_props);
 
 /********************************************************************/
 /* Input/Output functions, etc.  */

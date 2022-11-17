@@ -176,7 +176,9 @@ Update()
 
     // Calculate AET from PET if PET is non-zero
     if (PET_subtimestep_cm_per_h > 0.0) {
-      AET_subtimestep_cm = calc_aet(PET_subtimestep_cm_per_h, subtimestep_h, wilting_point_psi_cm, model->soil_properties, model->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon);
+      AET_subtimestep_cm = calc_aet(PET_subtimestep_cm_per_h, subtimestep_h, wilting_point_psi_cm,
+				    model->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon,
+				    model->soil_properties);
     }
     
     
@@ -330,7 +332,7 @@ Update()
     assert (head->depth_cm > 0.0); // check on negative layer depth
 
 
-  } // end of cycling
+  } // end of subcycling
 
   /*----------------------------------------------------------------------*/
   // Everything related to lgar state is done this point, now time to update some dynamic variables
