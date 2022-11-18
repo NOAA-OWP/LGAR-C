@@ -1,105 +1,65 @@
-#### OWP Open Source Project Template Instructions
+## Lumped Arid/Semi-arid Model (LASAM) for infiltration and surface runoff
+The LASAM simulates infiltration and runoff based on Layered Green & Ampt with redistribution (LGAR) model. LGAR is a model which partitions precipitation into infiltration and runoff, and is designed for use in arid or semi arid climates. LGAR closely mimics precipitation partitioning results simulated by the famous Richards/Richardson equation (RRE), without the inherent reliability and stability challenges the RRE poses. Therefore, this model is useful when accurate, stable precipitation partitioning simulations are desired in arid or semi arid areas. LGAR has its python version too that is available [here](https://github.com/NOAA-OWP/LGAR-Py).
 
-1. Create a new project.
-2. [Copy these files into the new project](#installation)
-3. Update the README, replacing the contents below as prescribed.
-4. Add any libraries, assets, or hard dependencies whose source code will be included
-   in the project's repository to the _Exceptions_ section in the [TERMS](TERMS.md).
-  - If no exceptions are needed, remove that section from TERMS.
-5. If working with an existing code base, answer the questions on the [open source checklist](opensource-checklist.md)
-6. Delete these instructions and everything up to the _Project Title_ from the README.
-7. Write some great software and tell people about it.
+**Published papers:** (provide a link here once LGAR paper is published)
 
-> Keep the README fresh! It's the first thing people see and will make the initial impression.
-
-## Installation
-
-To install all of the template files, run the following script from the root of your project's directory:
-
+### Build and Run LASAM
+Here are two examples to build LASAM: 1) standalone mode and 2) ngen framework. Building LASAM requires [GCC](https://gcc.gnu.org) and [CMAKE](https://cmake.org/) on your machine.
+**Example description:** Phillips burg case
+### LASAM standalone example
+#### Build
+ - git clone https://github.com/NOAA-OWP/LGAR-C
+ - mkdir build && cd build
+ - cmake ../ -DSTANDALONE:BOOL=ON
+ - make && cd ..
+#### Run
 ```
-bash -c "$(curl -s https://raw.githubusercontent.com/NOAA-OWP/owp-open-source-project-template/open_source_template.sh)"
+./build/lasam_standalone configs/config_lasam.txt
+```
+### LASAM ngen framework example
+- See general [instructions](https://github.com/NOAA-OWP/ngen/wiki/NGen-Tutorial#running-cfe) for building models in the ngen framework. Assuming you have a running ngen framework, follow the below instructions to build LASAM and SLoTH, and then run the example. 
+#### Build
+- #### LASAM
+   - git clone https://github.com/NOAA-OWP/LGAR-C (this should be removed when LGAR-C becomes a subrepo of the framework)
+   - cmake -B extern/LGAR-C/cmake_build -S extern/LGAR-C/ -DNGEN:BOOL=ON 
+   - make -C extern/LGAR-C/cmake_build/
+- #### SLoTH
+   SLoTH is also needed to run LASAM in the ngen framework. SLoTH is a BMI that is used to set a bmi variable(s) that is not provided by other BMIs but required by the model. So build [SLoTH](https://github.com/NOAA-OWP/SLoTH) using the following instructions
+   - cd extern/sloth/ && git checkout latest 
+   - git submodule update --init --recursive
+   - cd ../..
+   - cmake -B extern/sloth/cmake_build -S extern/sloth/
+   - make -C extern/sloth/cmake_build
+#### Run
+```
+mkdir lasam && cd lasam
+ln -s ../extern
+ln -s ../data 
+../cmake_build/ngen data/catchment_data.geojson cat-27 data/nexus_data.geojson nex-26 extern/LGAR-C/configs/realization_config_lasam.json
 ```
 
-----
+### LASAM Coupling to Soil Freeze Thaw (SFT) Model
+- Follow the instructions on [SoilFreezeThaw](https://github.com/NOAA-OWP/SoilFreezeThaw) repo to build SFT model and soil moisture profiles. Note [SoilMoistureProfiles](https://github.com/NOAA-OWP/SoilMoistureProfiles) is needed for the coupling of LASAM to SFT.
+- Realization file for LASAM-SFT coupling is provided in the [config/](./configs/) (realization_config_lasam_sft.json)
 
-# Project Title
+## Configuration File
+Example configuration files for the two examples above are provided in the [configs/](./configs/) directory contains. The parameters in those configuration files are explained in the Table below.
 
-**Description**:  Put a meaningful, short, plain-language description of what
-this project is trying to accomplish and why it matters.
-Describe the problem(s) this project solves.
-Describe how this software can improve the lives of its audience.
-
-Other things to include:
-
-  - **Technology stack**: Indicate the technological nature of the software, including primary programming language(s) and whether the software is intended as standalone or as a module in a framework or other ecosystem.
-  - **Status**:  Alpha, Beta, 1.1, etc. It's OK to write a sentence, too. The goal is to let interested people know where this project is at. This is also a good place to link to the [CHANGELOG](CHANGELOG.md).
-  - **Links to production or demo instances**
-  - Describe what sets this apart from related-projects. Linking to another doc or page is OK if this can't be expressed in a sentence or two.
-
-
-**Screenshot**: If the software has visual components, place a screenshot after the description; e.g.,
-
-![](https://raw.githubusercontent.com/NOAA-OWP/owp-open-source-project-template/master/doc/Screenshot.png)
-
-
-## Dependencies
-
-Describe any dependencies that must be installed for this software to work.
-This includes programming languages, databases or other storage mechanisms, build tools, frameworks, and so forth.
-If specific versions of other software are required, or known not to work, call that out.
-
-## Installation
-
-Detailed instructions on how to install, configure, and get the project running.
-This should be frequently tested to ensure reliability. Alternatively, link to
-a separate [INSTALL](INSTALL.md) document.
-
-## Configuration
-
-If the software is configurable, describe it in detail, either here or in other documentation to which you link.
-
-## Usage
-
-Show users how to use the software.
-Be specific.
-Use appropriate formatting when showing code snippets.
-
-## How to test the software
-
-If the software includes automated tests, detail how to run those tests.
-
-## Known issues
-
-Document any known significant shortcomings with the software.
-
-## Getting help
-
-Instruct users how to get help with this software; this might include links to an issue tracker, wiki, mailing list, etc.
-
-**Example**
-
-If you have questions, concerns, bug reports, etc, please file an issue in this repository's Issue Tracker.
-
-## Getting involved
-
-This section should detail why people should get involved and describe key areas you are
-currently focusing on; e.g., trying to get feedback on features, fixing certain bugs, building
-important pieces, etc.
-
-General instructions on _how_ to contribute should be stated with a link to [CONTRIBUTING](CONTRIBUTING.md).
+| Variable | Datatype |  Limits  | Units | Role | Process | Description |
+| -------- | -------- | ------ | ----- | ---- | ------- | ----------- |
+| forcing_file | string | - | - | filename | - | provides precip. and PET inputs |
+| soil_params_file | string | - | - | filename | - | provides soil types with van Genuchton parameters |
+| layer_thickness | double (1D array)| - | cm | state variable | - | individual layer thickness (not absolute)|
+| initial_psi | double (scalar)| >=0 | cm | capillary head | - | used to initialize layers with a constant head |
+| timestep | double (scalar)| >0 | sec/min/hr | temporal resolution | - | timestep of the model |
+| forcing_resolution | double (scalar)| - | sec/min/hr | temporal resolution | - | timestep of the forcing data |
+| layer_soil_type | int (1D array) | - | - | state variable | - | layer soil type (read from the database file soil_params_file) |
+| max_soil_types | int | >1 | - | - | - | maximum number of soil types read from the file soil_params_file (default is set to 15) |
+| wilting_point_psi | double (scalar) | - | cm | state variable | - | wilting point (the amount of water not available for plants) used in computing AET |
+| giuh_ordinates | double (1D array)| - | - | state parameter | - | GIUH ordinates (for giuh based surface runoff) |
+| verbosity | string | high, low, none | - | debugging | - | controls IO (screen outputs and writing to disk) |
+| sft_coupled | Boolean | true, false | - | model coupling | impacts hydraulic conductivity | couples LASAM to SFT. Coupling to SFT reduces hydraulic conducitivity, and hence infiltration, when soil is frozen|
+| soil_z | double (1D array) | - | cm | spatial resolution | - | vertical resolution of the soil column (computational domain of the SFT model) |
 
 
-----
 
-## Open source licensing info
-1. [TERMS](TERMS.md)
-2. [LICENSE](LICENSE)
-
-
-----
-
-## Credits and references
-
-1. Projects that inspired you
-2. Related projects
-3. Books, papers, talks, or other sources that have meaningful impact or influence on this project
