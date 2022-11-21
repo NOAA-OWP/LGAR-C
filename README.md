@@ -8,6 +8,8 @@ Here are two examples to build LASAM: 1) standalone mode and 2) ngen framework. 
 
 **Example description:** The example provided here simulates infiltration and surface runoff for the period `2016-10-01 to 2017-08-09` using the data from a field site located in Phillipsburg, Oklahoma.
 
+**Note:** LASAM has its unit test as well. It is recommend to build and run the unittest before running other examples. More instructions are provided [here](https://github.com/NOAA-OWP/LGAR-C/tree/master/test).
+
 ### LASAM standalone example
 #### Build
  - git clone https://github.com/NOAA-OWP/LGAR-C
