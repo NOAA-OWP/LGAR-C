@@ -5,7 +5,9 @@ The LASAM simulates infiltration and runoff based on Layered Green & Ampt with r
 
 ### Build and Run LASAM
 Here are two examples to build LASAM: 1) standalone mode and 2) ngen framework. Building LASAM requires [GCC](https://gcc.gnu.org) and [CMAKE](https://cmake.org/) on your machine.
-**Example description:** Phillips burg case
+
+**Example description:** The example provided here simulates infiltration and surface runoff for the period `2016-10-01 to 2017-08-09` using the data from a field site located in Phillipsburg, Oklahoma.
+
 ### LASAM standalone example
 #### Build
  - git clone https://github.com/NOAA-OWP/LGAR-C
@@ -40,10 +42,10 @@ ln -s ../data
 
 ### LASAM Coupling to Soil Freeze Thaw (SFT) Model
 - Follow the instructions on [SoilFreezeThaw](https://github.com/NOAA-OWP/SoilFreezeThaw) repo to build SFT model and soil moisture profiles. Note [SoilMoistureProfiles](https://github.com/NOAA-OWP/SoilMoistureProfiles) is needed for the coupling of LASAM to SFT.
-- Realization file for LASAM-SFT coupling is provided in the [config/](./configs/) (realization_config_lasam_sft.json)
+- Realization file for LASAM-SFT coupling is provided in the [configs](./configs/) directory (realization_config_lasam_sft.json)
 
 ## Configuration File
-Example configuration files for the two examples above are provided in the [configs/](./configs/) directory contains. The parameters in those configuration files are explained in the Table below.
+Example configuration files for the two examples above are provided in the [configs](./configs/) directory contains. The parameters in those configuration files are explained in the Table below.
 
 | Variable | Datatype |  Limits  | Units | Role | Process | Description |
 | -------- | -------- | ------ | ----- | ---- | ------- | ----------- |
