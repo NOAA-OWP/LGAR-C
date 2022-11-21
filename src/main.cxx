@@ -297,7 +297,7 @@ for(layer=1;layer<=num_soil_layers;layer++)
   current = listInsertFront(cum_layer_thickness_cm[layer],theta_init,front,layer,bottom_flag);
   current->psi_cm = initial_psi_cm;
   Se = calc_Se_from_theta(current->theta,soil_properties[soil].theta_e,soil_properties[soil].theta_r);
-  current->K_cm_per_s = calc_K_from_Se(Se, soil_properties[soil].Ksat_cm_per_s, soil_properties[soil].vg_m);  // cm/s
+  current->K_cm_per_s = calc_K_from_Se(Se, soil_properties[soil].Ksat_cm_per_h, soil_properties[soil].vg_m);  // cm/s
   
   }
 

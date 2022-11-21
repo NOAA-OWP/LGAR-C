@@ -39,9 +39,9 @@ extern void listPrint()
   while(current != NULL)
     {
       if (current->next == NULL)
-	printf("(%lf,%6.14f,%d,%d,%d, %e, %lf %6.14f) ] \n",current->depth_cm, current->theta, current->layer_num,current->front_num, current->to_bottom, current->dzdt_cm_per_s, current->K_cm_per_s, current->psi_cm);
+	printf("(%lf,%6.14f,%d,%d,%d, %e, %lf %6.14f) ] \n",current->depth_cm, current->theta, current->layer_num,current->front_num, current->to_bottom, current->dzdt_cm_per_h, current->K_cm_per_s, current->psi_cm);
       else
-	printf("(%lf,%6.14f,%d,%d,%d, %e, %lf %6.14f)\n",current->depth_cm, current->theta, current->layer_num,current->front_num, current->to_bottom, current->dzdt_cm_per_s, current->K_cm_per_s, current->psi_cm);
+	printf("(%lf,%6.14f,%d,%d,%d, %e, %lf %6.14f)\n",current->depth_cm, current->theta, current->layer_num,current->front_num, current->to_bottom, current->dzdt_cm_per_h, current->K_cm_per_s, current->psi_cm);
       current = current->next;
   }
   
@@ -67,7 +67,7 @@ extern struct wetting_front* listCopy(struct wetting_front* current)
     wf->layer_num = current->layer_num;
     wf->front_num = current->front_num;
     wf->to_bottom = current->to_bottom;
-    wf->dzdt_cm_per_s = current->dzdt_cm_per_s;
+    wf->dzdt_cm_per_h = current->dzdt_cm_per_h;
     wf->next = listCopy(current->next);
 
     if (state_previous == NULL) 
@@ -88,7 +88,7 @@ printf("\n[ ");
 while(current != NULL)
   {
     printf("(%lf,%lf,%d,%d,%d, %e, %lf %lf)\n",current->depth_cm, current->theta, current->layer_num,current->front_num, 
-	 current->to_bottom, current->dzdt_cm_per_s, current->K_cm_per_s, current->psi_cm);
+	 current->to_bottom, current->dzdt_cm_per_h, current->K_cm_per_s, current->psi_cm);
 
   current = current->next;
   }
@@ -110,7 +110,7 @@ extern void listInsertFirst(double depth, double theta, int front_num, int layer
   link->front_num = front_num;
   link->layer_num = layer_num;
   link->to_bottom = bottom_flag;
-  link->dzdt_cm_per_s = (double)0.0;
+  link->dzdt_cm_per_h = (double)0.0;
   
   //point it to old first wetting_front
   link->next = head;
@@ -306,7 +306,7 @@ extern struct wetting_front* listInsertFront(double depth, double theta, int new
       link->front_num = new_front_num;
       link->layer_num = layer_num;
       link->to_bottom = bottom_flag;
-      link->dzdt_cm_per_s = (double)(0.0);
+      link->dzdt_cm_per_h = (double)(0.0);
       link->next = NULL;
       head=link;
       return link;
@@ -330,7 +330,7 @@ extern struct wetting_front* listInsertFront(double depth, double theta, int new
       link->front_num = new_front_num;
       link->layer_num = layer_num;
       link->to_bottom = bottom_flag;
-      link->dzdt_cm_per_s = (double)(0.0);
+      link->dzdt_cm_per_h = (double)(0.0);
       link->next = previous->next ;
       previous->next = link;
       //    printf("insertingB \n");
@@ -394,7 +394,7 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
     
     link->layer_num = el_layer;
     link->to_bottom = extends_to_bottom_flag;
-    link->dzdt_cm_per_s = (double)(-1.0);
+    link->dzdt_cm_per_h = (double)(-1.0);
     link->next = NULL;   // because this is the first link.
     head=link;  // don't forget this.  Must keep head current with the beginning of the list.
     return link;
@@ -420,7 +420,7 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
       
       link->layer_num = el_layer;
       link->to_bottom = extends_to_bottom_flag;
-      link->dzdt_cm_per_s = (double)(-1.0);
+      link->dzdt_cm_per_h = (double)(-1.0);
       link->next = head;   // point to the old first list entry
       head=link;  // don't forget this.  Must keep head point to the beginning of the list
       return link;    
@@ -451,7 +451,7 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
 	  
 	  link->layer_num = el_layer;
 	  link->to_bottom = extends_to_bottom_flag;
-	  link->dzdt_cm_per_s = (double)(-1.0);
+	  link->dzdt_cm_per_h = (double)(-1.0);
 	  link->front_num = current->front_num;
 	  link->next = current;   // point to one replaced
 	  previous->next = link;  // make the previous one point to this new one

@@ -53,7 +53,7 @@ struct wetting_front
   int    layer_num;        // the layer containing this wetting front.
   int    front_num;        // the wetting front number (might be irrelevant), but useful to debug
   bool   to_bottom;        // TRUE iff this wetting front is in contact with the layer bottom
-  double dzdt_cm_per_s;    // use to store the calculated wetting front speed
+  double dzdt_cm_per_h;    // use to store the calculated wetting front speed
   struct wetting_front *next;  // pointer to the next wetting front.
 };
 
@@ -77,7 +77,7 @@ struct soil_properties_  /* note the trailing underscore on the name.  It is jus
   double bc_lambda;        // Brooks & Corey pore distribution index
   double bc_psib_cm;       // Brooks & Corey bubbling pressure head (cm)
   double h_min_cm;         // the minimum Geff calculated as per Morel-Seytoux and Khanji
-  double Ksat_cm_per_s;    // saturated hydraulic conductivity cm/s
+  double Ksat_cm_per_h;    // saturated hydraulic conductivity cm/s
   double theta_wp;         // water content at wilting point [-]
 };
 
@@ -243,7 +243,7 @@ extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_laye
 			  struct soil_properties_ *soil_properties);
 
 // computes dry depth
-extern double lgar_calc_dry_depth(int nint, double time_step_s, double *deltheta, int *soil_type, 
+extern double lgar_calc_dry_depth(int nint, double timestep_h, double *deltheta, int *soil_type, 
                                   double *cum_layer_thickness_cm, double *frozen_factor,
 				  struct soil_properties_ *soil_properties);
 
@@ -252,19 +252,19 @@ extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil
                                     struct soil_properties_ *soil_properties);
 
 // creates a surficial front (new top most wetting front)
-extern void lgar_create_surfacial_front(int nint, double time_step_s, double *ponded_depth_cm,
+extern void lgar_create_surfacial_front(int nint, double timestep_h, double *ponded_depth_cm,
 					double *volin, double dry_depth, double theta1,
 					int *soil_type, double *cum_layer_thickness_cm,
 					double *frozen_factor, struct soil_properties_ *soil_properties);
 
 // computes the infiltration capacity, fp, of the soil
-extern double lgar_insert_water(int nint, double time_step_s, double *ponded_depth, double *volin_this_timestep,
+extern double lgar_insert_water(int nint, double timestep_h, double *ponded_depth, double *volin_this_timestep,
 				double precip_timestep_cm, double dry_depth, int wf_free_drainge_demand,
 				int *soil_type, double *cum_layer_thickness_cm, double *frozen_factor,
 				struct soil_properties_ *soil_properties);
 
 // the subroutine moves wetting fronts, merges wetting fronts, and does the mass balance correction if needed
-extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm, int wf_free_drainage_demand,
+extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm, int wf_free_drainage_demand,
 				     double old_mass, int number_of_layers, double *actual_ET_demand,
 				     double *cum_layer_thickness_cm, int *soil_type_by_layer, double *frozen_factor,
 				     struct soil_properties_ *soil_properties);
@@ -298,7 +298,7 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
 /*Other function prototypes for doing hydrology calculations, etc.  */
 /********************************************************************/
 
-extern double calc_aet(double PET_timestep_cm, double time_step_s, double wilting_point_psi_cm,
+extern double calc_aet(double PET_timestep_cm, double timestep_h, double wilting_point_psi_cm,
                        int *soil_type, double AET_thresh_Theta, double AET_expon,
 		       struct soil_properties_ *soil_props);
 

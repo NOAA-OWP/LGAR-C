@@ -534,7 +534,7 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
   int front=0;
   double Se, theta_init;
   bool bottom_flag;
-  double Ksat_cm_per_s;
+  double Ksat_cm_per_h;
   struct wetting_front *current;
 
   for(int layer=1;layer<=num_layers;layer++) {
@@ -552,8 +552,8 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
     current->psi_cm = initial_psi_cm;
     Se = calc_Se_from_theta(current->theta,soil_properties[soil].theta_e,soil_properties[soil].theta_r);
 
-    Ksat_cm_per_s = frozen_factor[layer] * soil_properties[soil].Ksat_cm_per_s;
-    current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s , soil_properties[soil].vg_m);  // cm/s
+    Ksat_cm_per_h = frozen_factor[layer] * soil_properties[soil].Ksat_cm_per_h;
+    current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_h , soil_properties[soil].vg_m);  // cm/s
   
   }
 
@@ -924,7 +924,7 @@ extern int wetting_front_free_drainage() {
   Note: '_old' denotes the wetting_front or variables at the previous timestep (or state)  
 */
 // #######################################################################################################
-extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm, int wf_free_drainage_demand,
+extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm, int wf_free_drainage_demand,
 				     double old_mass, int num_layers, double *AET_demand_cm, double *cum_layer_thickness_cm,
 				     int *soil_type, double *frozen_factor, struct soil_properties_ *soil_properties)
 {
@@ -959,7 +959,6 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
   int layer_num_old;
   
   int number_of_wetting_fronts = listLength();
-  double time_step = time_step_s;
   
   current = head;
 
@@ -1081,7 +1080,7 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
       double vg_a_k, vg_m_k, vg_n_k, Ks_cm_per_s_k;
       double theta_e_k, theta_r_k;
       
-      current->depth_cm += current->dzdt_cm_per_s * time_step_s; // this is probably not needed, as dz/dt = 0 for the deepest wetting front
+      current->depth_cm += current->dzdt_cm_per_h * timestep_h; // this is probably not needed, as dz/dt = 0 for the deepest wetting front
       
       double *delta_thetas = (double *) malloc(sizeof(double)*(layer_num+1));
       double *delta_thickness = (double *) malloc(sizeof(double)*(layer_num+1));
@@ -1166,9 +1165,9 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
 	if (wf_free_drainage_demand == l)
 	  prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
 	
-	current->depth_cm +=  current->dzdt_cm_per_s * time_step_s;
+	current->depth_cm +=  current->dzdt_cm_per_h * timestep_h;
 	
-	if (current->dzdt_cm_per_s == 0.0 && current->to_bottom == FALSE) // a new front was just created, so don't update it.
+	if (current->dzdt_cm_per_h == 0.0 && current->to_bottom == FALSE) // a new front was just created, so don't update it.
 	  current->theta = current->theta;
 	else
 	  current->theta = fmin(theta_e, prior_mass/current->depth_cm + next->theta);
@@ -1194,7 +1193,7 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
 	double vg_a_k, vg_m_k, vg_n_k, Ks_cm_per_s_k;
 	double theta_e_k, theta_r_k;
 	
-	current->depth_cm +=  current->dzdt_cm_per_s * time_step_s;
+	current->depth_cm +=  current->dzdt_cm_per_h * timestep_h;
 	
 	double *delta_thetas = (double *)malloc(sizeof(double)*(layer_num+1));
 	double *delta_thickness = (double *)malloc(sizeof(double)*(layer_num+1));
@@ -1392,12 +1391,12 @@ extern void lgar_move_wetting_fronts(double time_step_s, double *ponded_depth_cm
     double vg_m_k      = soil_properties[soil_num_k].vg_m;
     double vg_n_k      = soil_properties[soil_num_k].vg_n;
     
-    double Ksat_cm_per_s_k  = frozen_factor[current->layer_num] * soil_properties[soil_num_k].Ksat_cm_per_s;
+    double Ksat_cm_per_h_k  = frozen_factor[current->layer_num] * soil_properties[soil_num_k].Ksat_cm_per_h;
     
     double Se = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
     current->psi_cm = calc_h_from_Se(Se, vg_a_k, vg_m_k, vg_n_k);
     
-    current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s_k, vg_m_k);
+    current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_h_k, vg_m_k);
 
     current = current->next;
   }
@@ -1459,10 +1458,10 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
     double vg_a_k           = soil_properties[soil_num].vg_alpha_per_cm;
     double vg_m_k           = soil_properties[soil_num].vg_m;
     double vg_n_k           = soil_properties[soil_num].vg_n;
-    double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
+    double Ksat_cm_per_h_k  = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[current->layer_num];
     double Se_k             = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
     current->psi_cm         = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-    current->K_cm_per_s     = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k); // AJ - K_temp in python version for 1st layer
+    current->K_cm_per_s     = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k); // AJ - K_temp in python version for 1st layer
 
 #if VERBOSE > 1
     printf ("Deleting wetting front (before)... \n");
@@ -1494,12 +1493,12 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
     double next_vg_a      = soil_properties[soil_num+1].vg_alpha_per_cm;
     double next_vg_m      = soil_properties[soil_num+1].vg_m;
     double next_vg_n      = soil_properties[soil_num+1].vg_n;
-    double Ksat_cm_per_s  = soil_properties[soil_num+1].Ksat_cm_per_s * frozen_factor[current->layer_num];
+    double Ksat_cm_per_h  = soil_properties[soil_num+1].Ksat_cm_per_h * frozen_factor[current->layer_num];
     
     double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
     current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
     
-    current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m); // AJ check Ksat_cm_per_s here current or next?
+    current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m); // AJ check Ksat_cm_per_h here current or next?
 
     // current psi with van Gunechton properties of the next layer to get new theta
     double theta_new = calc_theta_from_h(current->psi_cm, next_vg_a, next_vg_m, next_vg_n, next_theta_e, next_theta_r);
@@ -1541,11 +1540,11 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
       double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
       double vg_m_k      = soil_properties[soil_num].vg_m;
       double vg_n_k      = soil_properties[soil_num].vg_n;
-      double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
+      double Ksat_cm_per_h_k  = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[current->layer_num];
       
       double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
       current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-      current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);
+      current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k);
     }
     
   }
@@ -1558,11 +1557,11 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
     double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
     double vg_m_k      = soil_properties[soil_num].vg_m;
     double vg_n_k      = soil_properties[soil_num].vg_n;
-    double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
+    double Ksat_cm_per_h_k  = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[current->layer_num];
     
     double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
     current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-    current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);	
+    current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k);	
   }
   
   // case : wetting front is stationary (not moving) and the deepest wetting front in the layer, again just update values
@@ -1573,12 +1572,12 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
     double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
     double vg_m_k      = soil_properties[soil_num].vg_m;
     double vg_n_k      = soil_properties[soil_num].vg_n;
-    double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
+    double Ksat_cm_per_h_k  = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[current->layer_num];
     
     double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
     
     current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-    current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);
+    current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k);
   }
       
   // case : wetting front is the deepest one in the last layer (most deepested wetting front in the domain)
@@ -1592,12 +1591,12 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
     double vg_a_k      = soil_properties[soil_num].vg_alpha_per_cm;
     double vg_m_k      = soil_properties[soil_num].vg_m;
     double vg_n_k      = soil_properties[soil_num].vg_n;
-    double Ksat_cm_per_s_k  = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
+    double Ksat_cm_per_h_k  = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[current->layer_num];
     
     next->theta = current->theta;
     double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
     next->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-    next->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_s_k, vg_m_k);
+    next->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k);
     listDeleteFront(current->front_num);
     
   }
@@ -1650,12 +1649,12 @@ extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_
       double vg_a      = soil_properties[soil_numA].vg_alpha_per_cm;
       double vg_m      = soil_properties[soil_numA].vg_m;
       double vg_n      = soil_properties[soil_numA].vg_n;
-      double Ksat_cm_per_s  = soil_properties[soil_numA].Ksat_cm_per_s;
+      double Ksat_cm_per_h  = soil_properties[soil_numA].Ksat_cm_per_h;
       double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
       current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
       
-      //current->K_cm_per_s = soil_properties[soil_num].Ksat_cm_per_s;
-      current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m); // AJ - K_temp in python version for 1st layer
+      //current->K_cm_per_s = soil_properties[soil_num].Ksat_cm_per_h;
+      current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m); // AJ - K_temp in python version for 1st layer
       printf("A40 \n");
       listDeleteFront(next->front_num);
       //listPrint();
@@ -1727,7 +1726,7 @@ extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_
    in the current timestep, that is precipitation in the current and previous
    timesteps was greater than zero */
 // ############################################################################################
-extern double lgar_insert_water(int nint, double time_step_s, double *ponded_depth_cm, double *volin_this_timestep,
+extern double lgar_insert_water(int nint, double timestep_h, double *ponded_depth_cm, double *volin_this_timestep,
 				double precip_timestep_cm, double dry_depth, int wf_free_drainage_demand,
 				int *soil_type, double *cum_layer_thickness_cm, double *frozen_factor,
 				struct soil_properties_ *soil_properties)
@@ -1740,7 +1739,7 @@ extern double lgar_insert_water(int nint, double time_step_s, double *ponded_dep
   double theta, theta_e,Se,theta_r;
   double delta_theta;
   double psi_cm, K_cm_per_s;
-  double vg_a, vg_m, vg_n,Ksat_cm_per_s;
+  double vg_a, vg_m, vg_n,Ksat_cm_per_h;
   double h_min_cm;
   bool debug_flag=TRUE;
   struct wetting_front *current;
@@ -1751,14 +1750,13 @@ extern double lgar_insert_water(int nint, double time_step_s, double *ponded_dep
   double runoff = 0.0;
   double hp_cm_max = 0.0;
 
-  double h_p = fmax(*ponded_depth_cm - precip_timestep_cm * time_step_s,0.0); // water ponded on the surface
+  double h_p = fmax(*ponded_depth_cm - precip_timestep_cm * timestep_h,0.0); // water ponded on the surface
   
   current = head;
   current_free_drainage = listFindFront(wf_that_supplies_free_drainage_demand,NULL);
   current_free_drainage_next = listFindFront(wf_that_supplies_free_drainage_demand+1,NULL);
 
   int number_of_wetting_fronts = listLength();
-  double time_step = time_step_s;
   
   int l = number_of_wetting_fronts;
   int last_wetting_front_index = number_of_wetting_fronts;
@@ -1784,28 +1782,28 @@ extern double lgar_insert_water(int nint, double time_step_s, double *ponded_dep
     vg_a     = soil_properties[soil_num].vg_alpha_per_cm;
     vg_m     = soil_properties[soil_num].vg_m;
     vg_n     = soil_properties[soil_num].vg_n;
-    Ksat_cm_per_s = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
+    Ksat_cm_per_h = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[current->layer_num];
 
     Se = calc_Se_from_theta(theta,theta_e,theta_r);
     psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
   
-    Geff = calc_Geff(theta_below, theta_e, theta_e, theta_r, vg_a, vg_n, vg_m, h_min_cm, Ksat_cm_per_s, nint);
+    Geff = calc_Geff(theta_below, theta_e, theta_e, theta_r, vg_a, vg_n, vg_m, h_min_cm, Ksat_cm_per_h, nint);
 
   }
 
   // if the free_drainage wetting front is the top most, then the potential infiltration capacity has the following simple form
   if (layer_num_fp == 1) {
-      f_p = Ksat_cm_per_s * (1 + (Geff + h_p)/current_free_drainage->depth_cm);
+      f_p = Ksat_cm_per_h * (1 + (Geff + h_p)/current_free_drainage->depth_cm);
   }
   else {
     // point here to the equation in lgar paper once published
-    double bottom_sum = (current_free_drainage->depth_cm - cum_layer_thickness_cm[layer_num_fp-1])/Ksat_cm_per_s;
+    double bottom_sum = (current_free_drainage->depth_cm - cum_layer_thickness_cm[layer_num_fp-1])/Ksat_cm_per_h;
     
     for (int k = 1; k < layer_num_fp; k++) {
       int soil_num_k = soil_type[layer_num_fp-k];
-      double Ksat_cm_per_s_k = soil_properties[soil_num_k].Ksat_cm_per_s * frozen_factor[layer_num_fp - k];
+      double Ksat_cm_per_h_k = soil_properties[soil_num_k].Ksat_cm_per_h * frozen_factor[layer_num_fp - k];
       
-      bottom_sum += (cum_layer_thickness_cm[layer_num_fp - k] - cum_layer_thickness_cm[layer_num_fp - (k+1)])/ Ksat_cm_per_s_k;
+      bottom_sum += (cum_layer_thickness_cm[layer_num_fp - k] - cum_layer_thickness_cm[layer_num_fp - (k+1)])/ Ksat_cm_per_h_k;
     }
     
     f_p = (current_free_drainage->depth_cm + Geff + h_p) / bottom_sum;
@@ -1827,13 +1825,13 @@ extern double lgar_insert_water(int nint, double time_step_s, double *ponded_dep
   
   // if condition is not needed ... AJ
   if ((layer_num_fp==num_layers) && (num_layers == number_of_wetting_fronts))
-    ponded_depth_temp = *ponded_depth_cm - f_p*time_step - free_drainage_demand*0;
+    ponded_depth_temp = *ponded_depth_cm - f_p * timestep_h - free_drainage_demand*0;
   else
-    ponded_depth_temp = *ponded_depth_cm - f_p*time_step - free_drainage_demand*0;
+    ponded_depth_temp = *ponded_depth_cm - f_p * timestep_h - free_drainage_demand*0;
     
   ponded_depth_temp = fmax(ponded_depth_temp, 0.0);
   
-  double fp_cm = f_p * time_step + free_drainage_demand/time_step; // infiltration in cm
+  double fp_cm = f_p * timestep_h + free_drainage_demand/timestep_h; // infiltration in cm
   
   double precip_mass_to_add;
 
@@ -1871,7 +1869,7 @@ extern double lgar_insert_water(int nint, double time_step_s, double *ponded_dep
 /* This subroutine is called iff there is no surfacial front, it creates a new front and
    inserts ponded depth, and will return some amount if can't fit all water */
 // ######################################################################################
-extern void lgar_create_surfacial_front(int nint,double time_step_s, double *ponded_depth_cm, double *volin,
+extern void lgar_create_surfacial_front(int nint,double timestep_h, double *ponded_depth_cm, double *volin,
 					double dry_depth, double theta1, int *soil_type,   
                                         double *cum_layer_thickness_cm, double *frozen_factor,
 					struct soil_properties_ *soil_properties)
@@ -1881,7 +1879,7 @@ extern void lgar_create_surfacial_front(int nint,double time_step_s, double *pon
   // local vars
   double theta_e,Se,theta_r;
   double delta_theta,hp_cm;
-  double vg_alpha_per_cm, vg_m, vg_n, Ksat_cm_per_s;
+  double vg_alpha_per_cm, vg_m, vg_n, Ksat_cm_per_h;
   double h_min_cm;
   double Geff;
   
@@ -1926,17 +1924,17 @@ extern void lgar_create_surfacial_front(int nint,double time_step_s, double *pon
   vg_alpha_per_cm    = soil_properties[soil_num].vg_alpha_per_cm;
   vg_m               = soil_properties[soil_num].vg_m;
   vg_n               = soil_properties[soil_num].vg_n;
-  Ksat_cm_per_s      = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[layer_num];
+  Ksat_cm_per_h      = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[layer_num];
 
   Se = calc_Se_from_theta(theta_new,theta_e,theta_r);
   current->psi_cm = calc_h_from_Se(Se, vg_alpha_per_cm , vg_m, vg_n);
 
-  current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_s, vg_m) * frozen_factor[layer_num]; // AJ - K_temp in python version for 1st layer
+  current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m) * frozen_factor[layer_num]; // AJ - K_temp in python version for 1st layer
 
-  Geff = calc_Geff(theta_new, theta1, theta_e, theta_r, vg_alpha_per_cm, vg_n, vg_m, h_min_cm, Ksat_cm_per_s, nint);
+  Geff = calc_Geff(theta_new, theta1, theta_e, theta_r, vg_alpha_per_cm, vg_n, vg_m, h_min_cm, Ksat_cm_per_h, nint);
   h_min_cm = 0.0;
 
-  current->dzdt_cm_per_s = 0.0; //for now assign 0 to dzdt as it will be computed/updated in lgar_dzdt_calc function
+  current->dzdt_cm_per_h = 0.0; //for now assign 0 to dzdt as it will be computed/updated in lgar_dzdt_calc function
   
   return;
   
@@ -1949,7 +1947,7 @@ extern void lgar_create_surfacial_front(int nint,double time_step_s, double *pon
    described in the 2015 GARTO paper (Lai et al., An efficient and guaranteed stable numerical method ffor
    continuous modeling of infiltration and redistribution with a shallow dynamic water table). */
 // ############################################################################################
-extern double lgar_calc_dry_depth(int nint, double time_step_s, double *delta_theta, int *soil_type, 
+extern double lgar_calc_dry_depth(int nint, double timestep_h, double *delta_theta, int *soil_type, 
                                    double *cum_layer_thickness_cm, double *frozen_factor,
 				  struct soil_properties_ *soil_properties)
 {
@@ -1958,8 +1956,7 @@ extern double lgar_calc_dry_depth(int nint, double time_step_s, double *delta_th
   
   struct wetting_front *current;        
   double theta1,theta2,theta_e,theta_r; 
-  double vg_alpha_per_cm,vg_n,vg_m,Ksat_cm_per_s,h_min_cm; 
-  double time_step_h;                   
+  double vg_alpha_per_cm,vg_n,vg_m,Ksat_cm_per_h,h_min_cm;
   double tau;                           
   double Geff;                          
   double dry_depth;                     
@@ -1976,7 +1973,7 @@ extern double lgar_calc_dry_depth(int nint, double time_step_s, double *delta_th
   vg_alpha_per_cm = soil_properties[soil_num].vg_alpha_per_cm; 
   vg_m            = soil_properties[soil_num].vg_m;
   vg_n            = soil_properties[soil_num].vg_n;
-  Ksat_cm_per_s   = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[layer_num];
+  Ksat_cm_per_h   = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[layer_num];
   h_min_cm        = soil_properties[soil_num].h_min_cm;
 
   // these are the limits of integration
@@ -1986,11 +1983,11 @@ extern double lgar_calc_dry_depth(int nint, double time_step_s, double *delta_th
   
   *delta_theta = theta_e - current->theta;  // return the delta_theta value to the calling function
   
-  tau       = time_step_s * Ksat_cm_per_s/(theta_e-current->theta); //3600
+  tau       = timestep_h * Ksat_cm_per_h/(theta_e-current->theta); //3600
   
   //if(theta1>theta_e) {fred=1;}
   
-  Geff      = calc_Geff(theta1, theta2, theta_e, theta_r, vg_alpha_per_cm, vg_n, vg_m, h_min_cm, Ksat_cm_per_s, nint);
+  Geff      = calc_Geff(theta1, theta2, theta_e, theta_r, vg_alpha_per_cm, vg_n, vg_m, h_min_cm, Ksat_cm_per_h, nint);
  
   // note that dry depth originally has a factor of 0.5 in front
   dry_depth = 0.5*(tau + sqrt( tau*tau + 4.0*tau*Geff) ); 
@@ -2095,7 +2092,7 @@ extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil
       soil_properties[soil].vg_alpha_per_cm = vg_alpha_per_cm; // cm^(-1)
       soil_properties[soil].vg_n            = vg_n;
       soil_properties[soil].vg_m            = vg_m;
-      soil_properties[soil].Ksat_cm_per_s   = Ksat_cm_per_h;
+      soil_properties[soil].Ksat_cm_per_h   = Ksat_cm_per_h;
 
       soil_properties[soil].theta_wp = calc_theta_from_h(wilting_point_psi_cm, vg_alpha_per_cm,
 							 vg_m, vg_n, theta_e, theta_r);
@@ -2141,7 +2138,7 @@ extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_laye
   struct wetting_front* next;
   struct wetting_front* previous = NULL;
   
-  double Se,theta,vg_alpha_per_cm,vg_n,vg_m,Ksat_cm_per_s,theta_e,theta_r;  // local variables to make things clearer
+  double Se,theta,vg_alpha_per_cm,vg_n,vg_m,Ksat_cm_per_h,theta_e,theta_r;  // local variables to make things clearer
   double delta_theta;
   double Geff;
   double depth_cm;    // the absolute depth down to a wetting front from the surface
@@ -2190,7 +2187,7 @@ extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_laye
     theta_e         = soil_properties[soil_num].theta_e;
     theta_r         = soil_properties[soil_num].theta_r;
     h_min_cm        = soil_properties[soil_num].h_min_cm;
-    Ksat_cm_per_s   = soil_properties[soil_num].Ksat_cm_per_s * frozen_factor[current->layer_num];
+    Ksat_cm_per_h   = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[current->layer_num];
     
     if(front_num == 1)  prev_layer_num = layer_num;  // first front must be in first layer
     
@@ -2205,9 +2202,9 @@ extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_laye
     
     if(current->to_bottom == TRUE) { // checkpoint # AJ
       if(layer_num > 1)
-	current->dzdt_cm_per_s = 0.0;
+	current->dzdt_cm_per_h = 0.0;
       else
-	current->dzdt_cm_per_s = 0.0;
+	current->dzdt_cm_per_h = 0.0;
       
       previous = current;
       current = current->next;  // point to the next link
@@ -2227,11 +2224,11 @@ extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_laye
       abort();
     }
     
-    Geff = calc_Geff(theta1, theta2, theta_e, theta_r, vg_alpha_per_cm, vg_n, vg_m, h_min_cm, Ksat_cm_per_s, nint);
+    Geff = calc_Geff(theta1, theta2, theta_e, theta_r, vg_alpha_per_cm, vg_n, vg_m, h_min_cm, Ksat_cm_per_h, nint);
     delta_theta = current->theta - next->theta;
     
     if(current->layer_num == 1) { // this front is in the upper layer	  
-	dzdt = 1.0/delta_theta*(Ksat_cm_per_s*(Geff+h_p)/current->depth_cm+current->K_cm_per_s);
+	dzdt = 1.0/delta_theta*(Ksat_cm_per_h*(Geff+h_p)/current->depth_cm+current->K_cm_per_s);
     }
     else {  // we are in the second or greater layer
       double denominatorA = bottom_sum;
@@ -2243,7 +2240,7 @@ extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_laye
 	
 	double Se_prevA = calc_Se_from_theta(theta_prevA,soil_properties[soil_numA].theta_e,soil_properties[soil_numA].theta_r);
 	
-	double K_cm_per_s_prevA = calc_K_from_Se(Se_prevA,soil_properties[soil_numA].Ksat_cm_per_s* frozen_factor[layer_num-k], soil_properties[soil_numA].vg_m);
+	double K_cm_per_s_prevA = calc_K_from_Se(Se_prevA,soil_properties[soil_numA].Ksat_cm_per_h* frozen_factor[layer_num-k], soil_properties[soil_numA].vg_m);
 	
 	denominatorA += (cum_layer_thickness_cm[k] - cum_layer_thickness_cm[k-1])/ K_cm_per_s_prevA;
 	
@@ -2253,19 +2250,19 @@ extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_laye
       
       double Se_prev = calc_Se_from_theta(theta_prev,soil_properties[soil_num-1].theta_e,soil_properties[soil_num-1].theta_r);
       
-      double K_cm_per_s_prev = calc_K_from_Se(Se_prev,soil_properties[soil_num-1].Ksat_cm_per_s * frozen_factor[layer_num-1], soil_properties[soil_num-1].vg_m);
+      double K_cm_per_s_prev = calc_K_from_Se(Se_prev,soil_properties[soil_num-1].Ksat_cm_per_h * frozen_factor[layer_num-1], soil_properties[soil_num-1].vg_m);
       
       
       Z_cm = depth_cm - cum_layer_thickness_cm[layer_num -1];
       
-      double numerator = depth_cm + (Geff +h_p)* Ksat_cm_per_s / K_cm_per_s;
+      double numerator = depth_cm + (Geff +h_p)* Ksat_cm_per_h / K_cm_per_s;
       double denominator = cum_layer_thickness_cm[layer_num -1] / K_cm_per_s_prev + bottom_sum;
       
       dzdt = 1.0/delta_theta * numerator / denominatorA;
     }
     
     previous = current;
-    current->dzdt_cm_per_s = dzdt;
+    current->dzdt_cm_per_h = dzdt;
     
     current = current->next;  // point to the next link
     
