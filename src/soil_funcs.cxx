@@ -34,7 +34,7 @@ extern double calc_Geff(double theta1, double theta2, double theta_e, double the
   // local variables
   // note: units of h in cm.  units of K in cm/s
   
-  double h_i,h_f,Se_i,Se_f,K_i,K_f;  // variables to store initial and final values
+  double h_i,h_f,Se_i,Se_f;  // variables to store initial and final values
   double Se;
   double h2;         // the head at the right-hand side of the trapezoid being integrated [m]
   double dh;         // the delta h over which integration is performed [m]

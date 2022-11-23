@@ -260,7 +260,6 @@ extern struct wetting_front* listInsertFront(double depth, double theta, int new
                                            int layer_num, bool bottom_flag)
 {
   //start from the first link
-  struct wetting_front* link = NULL;
   struct wetting_front* current = NULL;
   struct wetting_front* previous = NULL;
   
@@ -324,7 +323,6 @@ extern struct wetting_front* listInsertFront(double depth, double theta, int new
 extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_layer_thickness,
                                                     double depth, double theta)
 {
-  int layer;
   int el_layer=0;
   bool extends_to_bottom_flag = FALSE;
   bool layer_found_flag = FALSE;

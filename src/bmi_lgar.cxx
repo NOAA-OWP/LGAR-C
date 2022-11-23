@@ -73,10 +73,8 @@ Update()
   // see 'struct lgar_mass_balance_variables' in all.hxx for full description of the variables
   double precip_timestep_cm = 0.0;
   double PET_timestep_cm = 0.0;
-  double ponded_depth_cm = 0.0;
   double AET_timestep_cm = 0.0;
-  double volstart_timestep_cm = 0.0;
-  double volend_timestep_cm = lgar_calc_mass_bal(num_layers,state->lgar_bmi_params.cum_layer_thickness_cm); //0.0; // this should not be reset to 0.0 in the for loop
+  double volend_timestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm); //0.0; // this should not be reset to 0.0 in the for loop
   double volin_timestep_cm = 0.0;
   double volon_timestep_cm = 0.0;
   double volrunoff_timestep_cm = 0.0;
@@ -101,7 +99,6 @@ Update()
   double surface_runoff_subtimestep_cm; // direct surface runoff
   double precip_previous_subtimestep_cm;
   double volrunoff_giuh_subtimestep_cm;
-  double volQ_subtimestep_cm;
   
   double subtimestep_h = state->lgar_bmi_params.timestep_h;
   int nint = state->lgar_bmi_params.nint;
@@ -185,15 +182,13 @@ Update()
     precip_timestep_cm += precip_subtimestep_cm;
     PET_timestep_cm += fmax(PET_subtimestep_cm,0.0); // ensures non-negative PET
     
-    volstart_subtimestep_cm = lgar_calc_mass_bal(num_layers,state->lgar_bmi_params.cum_layer_thickness_cm);
+    volstart_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm);
 
     
     int soil_num = state->lgar_bmi_params.layer_soil_type[head->layer_num];
     double theta_e = state->soil_properties[soil_num].theta_e;
     bool is_top_wf_saturated = head->theta >= theta_e ? true : false;
     bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0);
-    
-    double mass_source_to_soil_timestep = 0.0;
     
     int wf_free_drainage_demand = wetting_front_free_drainage();
 
@@ -220,8 +215,8 @@ Update()
 				      state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
 				      state->soil_properties);
       
-      lgar_create_surfacial_front(nint, subtimestep_h, &ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth,
-				  head->theta, state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
+      lgar_create_surfacial_front(&ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth, head->theta,
+				  state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
 				  state->lgar_bmi_params.frozen_factor, state->soil_properties);
       
       state_previous = NULL;
@@ -242,7 +237,7 @@ Update()
     if (ponded_depth_subtimestep_cm > 0 && !create_surficial_front) {
       
       volrunoff_subtimestep_cm = lgar_insert_water(nint, subtimestep_h, &ponded_depth_subtimestep_cm, &volin_subtimestep_cm,
-						   precip_subtimestep_cm_per_h, dry_depth, wf_free_drainage_demand, num_layers,
+						   precip_subtimestep_cm_per_h, wf_free_drainage_demand, num_layers,
 						   state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
 						   state->lgar_bmi_params.frozen_factor, state->soil_properties);
 
@@ -290,14 +285,14 @@ Update()
     
     /*----------------------------------------------------------------------*/
     // calculate derivative (dz/dt) for all wetting fronts
-    int num_dzdt_calculated = lgar_dzdt_calc(nint, ponded_depth_subtimestep_cm, state->lgar_bmi_params.layer_soil_type,
-					     state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
-					     state->soil_properties);
+    lgar_dzdt_calc(nint, ponded_depth_subtimestep_cm, state->lgar_bmi_params.layer_soil_type,
+		   state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
+		   state->soil_properties);
 
     AET_timestep_cm += AET_subtimestep_cm;
     volrech_timestep_cm += volrech_subtimestep_cm;
     
-    volend_subtimestep_cm = lgar_calc_mass_bal(num_layers,state->lgar_bmi_params.cum_layer_thickness_cm);
+    volend_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm);
     volend_timestep_cm = volend_subtimestep_cm;
     state->lgar_bmi_params.precip_previous_timestep_cm = precip_subtimestep_cm;
 
@@ -416,6 +411,7 @@ Update()
 void BmiLGAR::
 UpdateUntil(double t)
 {
+  assert (t > 0.0);
   this->Update();
 }
 
@@ -810,6 +806,8 @@ GetGridType(const int grid)
 void BmiLGAR::
 GetGridX(const int grid, double *x)
 {
+  // this is not needed but printing here to avoid compiler warnings
+  std::cerr<<"GetGridX: "<<grid<<" "<<x[0]<<"\n"; 
   throw bmi_lgar::NotImplemented();
 }
 
@@ -817,6 +815,8 @@ GetGridX(const int grid, double *x)
 void BmiLGAR::
 GetGridY(const int grid, double *y)
 {
+  // this is not needed but printing here to avoid compiler warnings
+  std::cerr<<"GetGridY: "<<grid<<" "<<y[0]<<"\n"; 
   throw bmi_lgar::NotImplemented();
 }
 
@@ -824,6 +824,8 @@ GetGridY(const int grid, double *y)
 void BmiLGAR::
 GetGridZ(const int grid, double *z)
 {
+  // this is not needed but printing here to avoid compiler warnings
+  std::cerr<<"GetGridZ: "<<grid<<" "<<z[0]<<"\n"; 
   throw bmi_lgar::NotImplemented();
 }
 
@@ -831,6 +833,8 @@ GetGridZ(const int grid, double *z)
 int BmiLGAR::
 GetGridNodeCount(const int grid)
 {
+  // this is not needed but printing here to avoid compiler warnings
+  std::cerr<<"GetGridNodeCount: "<<grid<<"\n"; 
   throw bmi_lgar::NotImplemented();
   /*
   if (grid == 0)
@@ -844,6 +848,8 @@ GetGridNodeCount(const int grid)
 int BmiLGAR::
 GetGridEdgeCount(const int grid)
 {
+  // this is not needed but printing here to avoid compiler warnings
+  std::cerr<<"GetGridEdgeCount: "<<grid<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 
@@ -851,6 +857,8 @@ GetGridEdgeCount(const int grid)
 int BmiLGAR::
 GetGridFaceCount(const int grid)
 {
+  // this is not needed but printing here to avoid compiler warnings
+  std::cerr<<"GetGridFaceCount: "<<grid<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 
@@ -858,6 +866,8 @@ GetGridFaceCount(const int grid)
 void BmiLGAR::
 GetGridEdgeNodes(const int grid, int *edge_nodes)
 {
+  // this is not needed but printing here to avoid compiler warnings
+  std::cerr<<"GetGridEdgeNodes: "<<grid<<" "<<edge_nodes[0]<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 
@@ -865,6 +875,8 @@ GetGridEdgeNodes(const int grid, int *edge_nodes)
 void BmiLGAR::
 GetGridFaceEdges(const int grid, int *face_edges)
 {
+  // this is not needed but printing here to avoid compiler warnings
+  std::cerr<<"GetGridFaceNodes: "<<grid<<" "<<face_edges[0]<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 
@@ -872,6 +884,8 @@ GetGridFaceEdges(const int grid, int *face_edges)
 void BmiLGAR::
 GetGridFaceNodes(const int grid, int *face_nodes)
 {
+  // this is not needed but printing here to avoid compiler warnings
+  std::cerr<<"GetGridFaceNodes: "<<grid<<" "<<face_nodes[0]<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 
@@ -879,6 +893,8 @@ GetGridFaceNodes(const int grid, int *face_nodes)
 void BmiLGAR::
 GetGridNodesPerFace(const int grid, int *nodes_per_face)
 {
+  // this is not needed but printing here to avoid compiler warnings
+  std::cerr<<"GetGridNodesPerFace: "<<grid<<" "<<nodes_per_face[0]<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 

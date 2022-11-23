@@ -311,10 +311,11 @@ int main(int argc, char *argv[])
     // get_var_nbytes()
     nbytes = model.GetVarNbytes(var_name);
     if (nbytes == 0) return FAILURE;
+    
     if (VERBOSITY)
       std::cout<<" nbytes: "<< nbytes<<"\n";
 
-      if (var_name == var_name_output[i]){
+    if (var_name == var_name_output[i]){
       if (nbytes == nbytes_output[i])
 	test_status &= true;
       else {

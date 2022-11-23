@@ -43,7 +43,6 @@ int main(int argc, char *argv[])
     return SUCCESS;
   }
 
-  time_t result = time(NULL);
   clock_t start_time, end_time;
   double elapsed;
   start_time = clock();

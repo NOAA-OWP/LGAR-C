@@ -237,10 +237,10 @@ extern double calc_Geff(double theta1, double theta2, double theta_e, double the
 /* LGAR calculation function prototypes   */
 /*########################################*/
 // computed mass balance
-extern double lgar_calc_mass_bal(int num_soil_layers, double *cum_layer_thickness);
+extern double lgar_calc_mass_bal(double *cum_layer_thickness);
 
 // computes derivatives; called derivs() in Python code
-extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_layer_thickness, double *frozen_factor,
+extern void lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_layer_thickness, double *frozen_factor,
 			  struct soil_properties_ *soil_properties);
 
 // computes dry depth
@@ -253,16 +253,15 @@ extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil
                                     struct soil_properties_ *soil_properties);
 
 // creates a surficial front (new top most wetting front)
-extern void lgar_create_surfacial_front(int nint, double timestep_h, double *ponded_depth_cm,
-					double *volin, double dry_depth, double theta1,
-					int *soil_type, double *cum_layer_thickness_cm,
+extern void lgar_create_surfacial_front(double *ponded_depth_cm, double *volin, double dry_depth,
+					double theta1, int *soil_type, double *cum_layer_thickness_cm,
 					double *frozen_factor, struct soil_properties_ *soil_properties);
 
 // computes the infiltration capacity, fp, of the soil
 extern double lgar_insert_water(int nint, double timestep_h, double *ponded_depth, double *volin_this_timestep,
-				double precip_timestep_cm, double dry_depth, int wf_free_drainge_demand,
-				int num_layers, int *soil_type, double *cum_layer_thickness_cm,
-				double *frozen_factor, struct soil_properties_ *soil_properties);
+				double precip_timestep_cm, int wf_free_drainge_demand, int num_layers,
+				int *soil_type, double *cum_layer_thickness_cm, double *frozen_factor,
+				struct soil_properties_ *soil_properties);
 
 // the subroutine moves wetting fronts, merges wetting fronts, and does the mass balance correction if needed
 extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm, int wf_free_drainage_demand,
@@ -283,8 +282,8 @@ extern int wetting_front_free_drainage();
 
 // computes updated theta (soil moisture content) after moving down a wetting front; called for each wetting front to ensure mass is conserved
 extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm, double new_mass,
-				      double prior_mass, double depth_cm_old, double *delta_theta,
-				      double *layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
+				      double prior_mass, double *delta_theta, double *layer_thickness_cm,
+				      int *soil_type, struct soil_properties_ *soil_properties);
 
 /********************************************************************/
 // Bmi functions

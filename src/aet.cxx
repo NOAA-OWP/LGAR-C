@@ -21,20 +21,18 @@ extern double calc_aet(double PET_timestep_cm, double time_step_h, double wiltin
 
   if (verbosity.compare("high") == 0) {
     printf("Computing AET... \n");
+    printf("Note: AET_thresh_theta = %lf and AET_expon = %lf are not used in the computation of the current AET model. \n", AET_thresh_Theta, AET_expon);
   }
   
-  double actual_ET_demand=0.0;
+  double actual_ET_demand = 0.0;
   struct wetting_front *current;
-  double wettest_theta_in_root_zone = 0.0;  // initial value of max() trap function
   
-  double wilting_point = wilting_point_psi_cm;
-  double Se_wp, theta_wp;
+  double theta_wp;
 
   double relative_moisture_at_which_PET_equals_AET = 0.75;
   
-  double theta,Se,theta_e,theta_r;
+  double Se,theta_e,theta_r;
   double vg_a, vg_m, vg_n;
-  double psi_cm;
   int layer_num, soil_num;
   
   current = head;

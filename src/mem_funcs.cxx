@@ -25,13 +25,13 @@
 /*####################################################################*/
 void itwo_alloc(int ***array,int rows, int cols)
 {
-int  i,frows,fcols, numgood=0;
-int error=0;
+int  i,frows,fcols;
+//int error=0;
 
 if ((rows==0)||(cols==0))
   {
   printf("Error: Attempting to allocate array of size 0\n");
-  exit;
+  exit(0);
   }
 
 frows=rows+1;  /* added one for FORTRAN numbering */
@@ -46,8 +46,7 @@ if (*array)
     (*array)[i] =(int *)malloc(fcols*sizeof(int ));
     if ((*array)[i] == NULL)
       {
-      error = 1;
-      numgood = i;
+	//error = 1;
       i = frows;
       }
      else memset((*array)[i], 0, fcols*sizeof(int )); 
@@ -62,13 +61,13 @@ return;
 /*#############################################################################*/
 void dtwo_alloc(double ***array,int rows, int cols)
 {
-int  i,frows,fcols, numgood=0;
-int error=0;
+int  i,frows,fcols;
+//int error=0;
 
 if ((rows==0)||(cols==0))
   {
   printf("Error: Attempting to allocate array of size 0\n");
-  exit;
+  exit(0);
   }
 
 frows=rows+1;  /* added one for FORTRAN numbering */
@@ -83,8 +82,7 @@ if (*array)
     (*array)[i] =(double *)malloc(fcols*sizeof(double ));
     if ((*array)[i] == NULL)
       {
-      error = 1;
-      numgood = i;
+	//error = 1;
       i = frows;
       }
      else memset((*array)[i], 0, fcols*sizeof(double )); 
