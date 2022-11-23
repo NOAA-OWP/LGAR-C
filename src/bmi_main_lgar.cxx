@@ -32,7 +32,7 @@ void ReadForcingData(std::string config_file, std::vector<std::string>& time, st
 int main(int argc, char *argv[])
 {
   
-  BmiLGAR lgar_model;
+  BmiLGAR model_state;
 
   bool is_IO_supress = false; // if true no output files will be written
 
@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
   double elapsed;
   start_time = clock();
  
-  lgar_model.Initialize(argv[1]);
+  model_state.Initialize(argv[1]);
   
   
   std::string var_name_precip = "precipitation_rate";
@@ -110,26 +110,26 @@ int main(int argc, char *argv[])
   for (int i = 0; i < nsteps; i++) {
     
     if (verbosity.compare("none") != 0) {
-      std::cout<<"---------------------------------------------------------\n";
+      std::cout<<"===============================================================\n";
       std::cout<<"Timestep | "<<i<<" , "<<time[i]<<"\n";
       std::cout<<"Rainfall [mm/h], PET [mm/h] = "<<precipitation[i]<<" , "<<PET[i]<<"\n";
     }
     
-    lgar_model.SetValue(var_name_precip, &precipitation[i]);
-    lgar_model.SetValue(var_name_pet, &PET[i]);
+    model_state.SetValue(var_name_precip, &precipitation[i]);
+    model_state.SetValue(var_name_pet, &PET[i]);
 
-    //lgar_model.UpdateUntil(dt); // Update model
+    //model_state.UpdateUntil(dt); // Update model
 
-    lgar_model.Update(); // Update model
+    model_state.Update(); // Update model
 
     if (!is_IO_supress) {
-      int num_wetting_fronts =  lgar_model.get_model()->lgar_bmi_params.num_wetting_fronts;
+      int num_wetting_fronts =  model_state.get_model()->lgar_bmi_params.num_wetting_fronts;
       
       double *soil_moisture_wetting_front = new double[num_wetting_fronts];
       double *soil_thickness_wetting_front = new double[num_wetting_fronts];
       
-      lgar_model.GetValue(var_name_wf,&soil_moisture_wetting_front[0]);
-      lgar_model.GetValue(var_name_thickness_wf,&soil_thickness_wetting_front[0]);
+      model_state.GetValue(var_name_wf,&soil_moisture_wetting_front[0]);
+      model_state.GetValue(var_name_thickness_wf,&soil_thickness_wetting_front[0]);
       
       // write bmi output variables to file
       fprintf(outdata_fptr,"%s,",time[i].c_str());
@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
       for (int j = 0; j < num_output_var; j++) {
 	std::string name = output_var_names[j];
 	double value = 0.0;
-	lgar_model.GetValue(name,&value);
+	model_state.GetValue(name,&value);
 	fprintf(outdata_fptr,"%6.10f",value);
 	if (j == num_output_var-1)
 	  fprintf(outdata_fptr,"\n");
@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
   }
 
   // do final mass balance
-  lgar_model.global_mass_balance();
+  model_state.global_mass_balance();
 
   if (outdata_fptr) {
     fclose(outdata_fptr);

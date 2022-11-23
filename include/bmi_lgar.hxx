@@ -117,10 +117,10 @@ public:
   void GetGridFaceNodes(const int grid, int *face_nodes);
   void GetGridNodesPerFace(const int grid, int *nodes_per_face);
   void global_mass_balance();
-  struct lgar_model_* get_model();
+  struct model_state* get_model();
   
 private:
-  struct lgar_model_* model;
+  struct model_state* state;
   static const int input_var_name_count = 3;
   static const int output_var_name_count = 14;
   

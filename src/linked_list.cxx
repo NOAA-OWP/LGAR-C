@@ -36,13 +36,14 @@ extern void listPrint()
   printf("\n[ ");
 
   //start from the beginning
-  while(current != NULL)
-    {
-      if (current->next == NULL)
-	printf("(%lf,%6.14f,%d,%d,%d, %e, %lf %6.14f) ] \n",current->depth_cm, current->theta, current->layer_num,current->front_num, current->to_bottom, current->dzdt_cm_per_h, current->K_cm_per_s, current->psi_cm);
-      else
-	printf("(%lf,%6.14f,%d,%d,%d, %e, %lf %6.14f)\n",current->depth_cm, current->theta, current->layer_num,current->front_num, current->to_bottom, current->dzdt_cm_per_h, current->K_cm_per_s, current->psi_cm);
-      current = current->next;
+  while(current != NULL) {
+    if (current->next == NULL)
+      printf("(%lf,%6.14f,%d,%d,%d, %e, %lf %6.14f) ] \n",current->depth_cm, current->theta, current->layer_num,
+	     current->front_num, current->to_bottom, current->dzdt_cm_per_h, current->K_cm_per_h, current->psi_cm);
+    else
+      printf("(%lf,%6.14f,%d,%d,%d, %e, %lf %6.14f)\n",current->depth_cm, current->theta, current->layer_num,
+	     current->front_num, current->to_bottom, current->dzdt_cm_per_h, current->K_cm_per_h, current->psi_cm);
+    current = current->next;
   }
   
 }
@@ -52,7 +53,6 @@ extern void listPrint()
 /*###########################################################*/
 extern struct wetting_front* listCopy(struct wetting_front* current)
 {
-  //  struct wetting_front *current = head;
   if (current == NULL) {
     return NULL;
   }
@@ -63,7 +63,7 @@ extern struct wetting_front* listCopy(struct wetting_front* current)
     wf->depth_cm = current->depth_cm;
     wf->theta = current->theta;
     wf->psi_cm = current->psi_cm;
-    wf->K_cm_per_s = current->K_cm_per_s;
+    wf->K_cm_per_h = current->K_cm_per_h;
     wf->layer_num = current->layer_num;
     wf->front_num = current->front_num;
     wf->to_bottom = current->to_bottom;
@@ -74,25 +74,6 @@ extern struct wetting_front* listCopy(struct wetting_front* current)
       state_previous = wf;
     return wf;
   }
-}
-
-extern void listPrintC(struct wetting_front pcurrent)
-{
-/*#########################################################*/
-/* listPrint() -prints a linked list to screen             */
-/*#########################################################*/
-struct wetting_front *current = &pcurrent;
-printf("\n[ ");
-
-//start from the beginning
-while(current != NULL)
-  {
-    printf("(%lf,%lf,%d,%d,%d, %e, %lf %lf)\n",current->depth_cm, current->theta, current->layer_num,current->front_num, 
-	 current->to_bottom, current->dzdt_cm_per_h, current->K_cm_per_s, current->psi_cm);
-
-  current = current->next;
-  }
-printf(" ]\n");
 }
 
 
@@ -119,11 +100,10 @@ extern void listInsertFirst(double depth, double theta, int front_num, int layer
   head = link;
   link = head->next;
   
-  while (link != NULL)
-    {
-      link->front_num++;
-      link=link->next;
-    }
+  while (link != NULL) {
+    link->front_num++;
+    link=link->next;
+  }
   
 }
 
@@ -179,7 +159,6 @@ extern struct wetting_front* listFindFront(int key, struct wetting_front* head_o
 {
   
   //start from the first link
-  //struct wetting_front* current = head;
   struct wetting_front* current=NULL;
   if (head_old == NULL)
     current = head;
@@ -217,13 +196,11 @@ extern struct wetting_front* listDeleteFront(int front_num)
   struct wetting_front* current = head;
   struct wetting_front* previous = NULL;
   
-  //iff list is empty
-  //listPrint();
+  //if list is empty
   // debugging
   bool front_found = false;
   while(current != NULL) {
     if (current->front_num == front_num) {
-      //printf("Deleting front found....! %d \n", front_num);
       front_found = true;
     }
     current = current->next;
@@ -233,12 +210,12 @@ extern struct wetting_front* listDeleteFront(int front_num)
   
   current = head;
   if(head == NULL) {
-    return NULL; // can't ddo anything, there is no list.
+    return NULL; // can't do anything, there is no list.
   }
   
   //navigate through list
   while(current->front_num != front_num) {
-    //iff it is last wetting_front
+    //if it is last wetting_front
     if(current->next == NULL) {
       return NULL;
     } 
@@ -255,29 +232,20 @@ extern struct wetting_front* listDeleteFront(int front_num)
     //change first to point to next link
     head = head->next;
     previous = head;
-    // printf("deleting (current == head) .... \n");
   }
   else {
     //bypass the current link
     previous->next = current->next;
     previous = current->next;
-    // printf("deleting (current != head) .... %lf %lf \n",current->depth_cm, previous->depth_cm);
     
   }
   
   current = previous;
-  //listPrint();
-  //  previous = head;
+
   while(previous != NULL) { // decrement all front numbers
-    //current = link->next;
-    //printf("shifting front num = %lf %d \n", previous->depth_cm, previous->front_num);
     previous->front_num--;
     previous = previous->next;  
   }
-  //listPrint();
-  
-  //if (current != NULL)
-  //printf("deleted .................... %lf \n", current->depth_cm);
   
   return current;
 }
@@ -316,15 +284,13 @@ extern struct wetting_front* listInsertFront(double depth, double theta, int new
     }
   }
   
-  //printf("inserting %d \n", new_front_num);
   // list is not empty, so search through list
   previous = head;
   do {
-    //    printf("insertingC: %lf %d %d \n", previous->theta, previous->front_num, new_front_num);
     if (previous->front_num == new_front_num-1) { // this is where we want to insert it
       //create a new link
       struct wetting_front *link = (struct wetting_front*) malloc(sizeof(struct wetting_front));
-      //    printf("insertingA \n");
+      
       link->depth_cm = depth;
       link->theta = theta;
       link->front_num = new_front_num;
@@ -333,25 +299,18 @@ extern struct wetting_front* listInsertFront(double depth, double theta, int new
       link->dzdt_cm_per_h = (double)(0.0);
       link->next = previous->next ;
       previous->next = link;
-      //    printf("insertingB \n");
+      
       while(link->next != NULL) { // increment all front numbers
-	//	printf("insertingD %d \n", link->front_num);
-	
 	current = link->next;
 	current->front_num++;
 	previous = current;
 	current = current->next;
-	/*
-	  current = link->next;
-	  current->front_num++;
-	  link=current;
-	  printf("insertingE %d \n", link->front_num);
-	*/
       }
-      //abort();
+      
       return link;
     }
-    previous = previous-> next;
+    
+    previous = previous->next;
   } while(TRUE);
   
 }
@@ -388,15 +347,14 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
     layer_found_flag = listFindLayer(link,num_layers,cum_layer_thickness, &el_layer, &extends_to_bottom_flag);
     
     if(layer_found_flag ==FALSE) {
-      // this should never happen, unless it asks to create a front not in the soil
-      return NULL;
+      return NULL; // this should never happen, unless it asks to create a front not in the soil
     }
     
     link->layer_num = el_layer;
     link->to_bottom = extends_to_bottom_flag;
     link->dzdt_cm_per_h = (double)(-1.0);
     link->next = NULL;   // because this is the first link.
-    head=link;  // don't forget this.  Must keep head current with the beginning of the list.
+    head = link;  // don't forget this.  Must keep head current with the beginning of the list.
     return link;
   }
   else {
@@ -414,8 +372,7 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
       layer_found_flag = listFindLayer(link,num_layers,cum_layer_thickness, &el_layer, &extends_to_bottom_flag);
       
       if(layer_found_flag ==FALSE) {
-	// this should never happen, unless it asks to create a front not in the soil
-	return NULL;
+	return NULL; // this should never happen, unless it asks to create a front not in the soil
       }
       
       link->layer_num = el_layer;
@@ -445,8 +402,7 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
 					   &el_layer, &extends_to_bottom_flag);
 	  
 	  if(layer_found_flag ==FALSE) {
-	    // this should never happen, unless it asks to create a front not in the soil
-	    return NULL;
+	    return NULL; // this should never happen, unless it asks to create a front not in the soil
 	  }
 	  
 	  link->layer_num = el_layer;

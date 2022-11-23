@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
 			 sizeof(int), sizeof(double), sizeof(double), sizeof(double), sizeof(double),
 			 sizeof(double), sizeof(double), sizeof(double), sizeof(double), sizeof(double)};
 
-  std::vector<std::string> bmi_units = {"mm h-1", "mm h-1", "K"};
+  std::vector<std::string> bmi_units = {"mm h^-1", "mm h^-1", "K"};
   // *************************************************************************************
   
   // screen outout

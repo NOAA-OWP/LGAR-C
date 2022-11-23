@@ -9,7 +9,7 @@
   - This header file constains functions' definitions used in the lgar.cxx, bmi_lasam.cxx and in other files.
   - Parts of the code were originally written by Fred Ogden and modified/extended by Ahmad Jan for LGAR/LASAM
     implementation and to make it bmi compliant.
-  - The struct lgar_model_ is needed by bmi_lasam, which encloses many structs needed for advancing a timestep via bmi.
+  - The struct model_state is needed by bmi_lasam, which encloses many structs needed for advancing a timestep via bmi.
   - LASAM : Lumped Arid/semi-arid Model
 */
 
@@ -32,7 +32,6 @@ using namespace std;
 #define FALSE 0
 #define ONE 1
 
-#define VERBOSE 0
 extern string verbosity;
 
 #define use_bmi_flag FALSE       // TODO set to TRUE to run in BMI environment
@@ -49,7 +48,7 @@ struct wetting_front
   double depth_cm;         // depth down from the land surface (absolute depth)
   double theta;            // water content of the soil moisture block
   double psi_cm;           // psi calculated at rhs of the current wetting front
-  double K_cm_per_s;       // the value of K(theta) associated with the wetting front
+  double K_cm_per_h;       // the value of K(theta) associated with the wetting front
   int    layer_num;        // the layer containing this wetting front.
   int    front_num;        // the wetting front number (might be irrelevant), but useful to debug
   bool   to_bottom;        // TRUE iff this wetting front is in contact with the layer bottom
@@ -88,38 +87,40 @@ struct unit_conversion
   double cm_to_mm = 10;
   double mm_to_cm = 0.1;
   double cm_to_m = 0.01;
+
+  double hr_to_sec = 3600; // hour to seconds
 };
 
 // Define a data structure for parameters set by the bmi and not through the config file
+// the structure holds non-pointer bmi input variables only; other bmi input variable can be put in lgar_bmi_parameters struct
 struct lgar_bmi_input_parameters
 {
   double precipitation_mm_per_h; // rainfall precip in mm per hour (input)
   double PET_mm_per_h;           // potential evapotranspiration in mm (input)
-  //double *soil_temperature;   // soil temperature (1D array) [K]; input from other models (e.g. soil freeze-thaw)
 };
 
 
-// Define a data structure for parameters access by the bmi and use or pass to lgar modules
+// Define a data structure for parameters accessed by the bmi and use or pass to lgar modules
 struct lgar_bmi_parameters
 {
-  int shape[3];
+  int    shape[3];
   double spacing[8];
   double origin[3];
-  double *layer_thickness_cm;   // 1D array of layer thicknesses in cm, read from config file and static
-  int *layer_soil_type;         // 1D (int) array of layers soil type, read from config file, each integer represent a soil type
-  int num_layers;               // number of actual soil layers
-  int num_wetting_fronts;       // number of wetting fronts
-  int num_cells_temp;           // number of cells of the discretized soil temperature profile
-  double *cum_layer_thickness_cm;   // cumulative thickness of layers, allocate memory at run time
-  double soil_depth;            // depth of the computational domain (i.e., depth of the last/deepest soil layer from the surface)
-  double initial_psi_cm;        // model initial (psi) condition
-  double timestep_h;            // model timestep in hours
-  double forcing_resolution_h;  // forcing resolution in hours
-  int forcing_interval;         // = forcing_resolution_h/timestep_h
-  int num_soil_types;           // number of soil types; must be less than or equal to MAX_NUM_SOIL_TYPES
-  double AET_cm;                // actual evapotranspiration in cm
+  double *layer_thickness_cm;      // 1D array of layer thicknesses in cm, read from config file and static
+  int    *layer_soil_type;         // 1D (int) array of layers soil type, read from config file, each integer represent a soil type
+  int    num_layers;               // number of actual soil layers
+  int    num_wetting_fronts;       // number of wetting fronts
+  int    num_cells_temp;           // number of cells of the discretized soil temperature profile
+  double *cum_layer_thickness_cm;  // cumulative thickness of layers, allocate memory at run time
+  double soil_depth_cm;            // depth of the computational domain (i.e., depth of the last/deepest soil layer from the surface)
+  double initial_psi_cm;           // model initial (psi) condition
+  double timestep_h;               // model timestep in hours
+  double forcing_resolution_h;     // forcing resolution in hours
+  int    forcing_interval;         // = forcing_resolution_h/timestep_h
+  int    num_soil_types;           // number of soil types; must be less than or equal to MAX_NUM_SOIL_TYPES
+  double AET_cm;                   // actual evapotranspiration in cm
   
-  double *soil_moisture_layers; // 1D array of thetas (mean soil moisture content) per layer; output option to other models if needed
+  double *soil_moisture_layers;    // 1D array of thetas (mean soil moisture content) per layer; output option to other models if needed
   double *soil_moisture_wetting_fronts; /* 1D array of thetas (soil moisture content) per wetting front;
 					   output to other models (e.g. soil freeze-thaw) */
   double *soil_thickness_wetting_fronts; /* 1D array of absolute depths of the wetting fronts [meters];
@@ -132,13 +133,13 @@ struct lgar_bmi_parameters
   double ponded_depth_cm;                // amount of water on the surface not available for surface drainage
   double precip_previous_timestep_cm;    // amount of rainfall (previous time step)
   
-  int nint = 120;               // number of trapezoids used in integrating the Geff function
-  double time;                  // current time [s]
+  int    nint = 120;            // number of trapezoids used in integrating the Geff function
+  double time_s;                // current time [s] (this is the bmi output 'time') 
 
-  int sft_coupled = 0;          // model coupling flag. if true, lasam is coupled to soil freeze thaw model; default is uncoupled version
+  int    sft_coupled = 0;       // model coupling flag. if true, lasam is coupled to soil freeze thaw model; default is uncoupled version
 
   double *giuh_ordinates;       // geomorphological instantaneous unit hydrograph
-  int num_giuh_ordinates;       // number of giuh ordinates       
+  int    num_giuh_ordinates;    // number of giuh ordinates       
 
 };
 
@@ -175,7 +176,7 @@ struct lgar_mass_balance_variables
 
 
 // nested structure of structures; main structure for the use in bmi
-struct lgar_model_
+struct model_state
 {
   struct wetting_front wetting_front;
   struct soil_properties_* soil_properties; // dynamic allocation
@@ -260,8 +261,8 @@ extern void lgar_create_surfacial_front(int nint, double timestep_h, double *pon
 // computes the infiltration capacity, fp, of the soil
 extern double lgar_insert_water(int nint, double timestep_h, double *ponded_depth, double *volin_this_timestep,
 				double precip_timestep_cm, double dry_depth, int wf_free_drainge_demand,
-				int *soil_type, double *cum_layer_thickness_cm, double *frozen_factor,
-				struct soil_properties_ *soil_properties);
+				int num_layers, int *soil_type, double *cum_layer_thickness_cm,
+				double *frozen_factor, struct soil_properties_ *soil_properties);
 
 // the subroutine moves wetting fronts, merges wetting fronts, and does the mass balance correction if needed
 extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm, int wf_free_drainage_demand,
@@ -289,8 +290,8 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 // Bmi functions
 /********************************************************************/
 // functions to initialize model's state at time zero from a config file
-extern void lgar_initialize(string config_file, struct lgar_model_ *lgar_model);
-extern void InitFromConfigFile(string config_file, struct lgar_model_ *model);
+extern void lgar_initialize(string config_file, struct model_state *state);
+extern void InitFromConfigFile(string config_file, struct model_state *state);
 extern vector<double> ReadVectorData(string key);
 extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm, double *frozen_factor, struct soil_properties_ *soil_properties);
 
@@ -307,7 +308,7 @@ extern double calc_aet(double PET_timestep_cm, double timestep_h, double wilting
 /********************************************************************/
 
 // computes global mass balance at the end of the simulation
-extern void lgar_global_mass_balance(struct lgar_model_ *lgar_model, double *giuh_runoff_queue);
+extern void lgar_global_mass_balance(struct model_state *state, double *giuh_runoff_queue);
 
 // writes full state of wetting fronts (depth, theta, no. of wetting front, no. of layer, dz/dt, psi) to a file at each time step
 extern void write_state(FILE *out);

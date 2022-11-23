@@ -9,7 +9,6 @@
 
 using namespace std;
 
-#define VERBOSE 0
 
 //#####################################################################################
 /* authors : Ahmad Jan and Fred Ogden
@@ -71,43 +70,43 @@ using namespace std;
 					 output to other models (e.g. soil freeze-thaw) 
 */
 // ############################################################################################
-extern void lgar_initialize(string config_file, struct lgar_model_ *model)
+extern void lgar_initialize(string config_file, struct model_state *state)
 {
   
-  InitFromConfigFile(config_file, model);
-  model->lgar_bmi_params.shape[0] = model->lgar_bmi_params.num_layers;
-  model->lgar_bmi_params.shape[1] = model->lgar_bmi_params.num_wetting_fronts;
+  InitFromConfigFile(config_file, state);
+  state->lgar_bmi_params.shape[0] = state->lgar_bmi_params.num_layers;
+  state->lgar_bmi_params.shape[1] = state->lgar_bmi_params.num_wetting_fronts;
   
   // initial number of wetting fronts are same are number of layers
-  model->lgar_bmi_params.num_wetting_fronts = model->lgar_bmi_params.num_layers;
-  model->lgar_bmi_params.soil_thickness_wetting_fronts = new double[model->lgar_bmi_params.num_wetting_fronts];
-  model->lgar_bmi_params.soil_moisture_wetting_fronts = new double[model->lgar_bmi_params.num_wetting_fronts];
+  state->lgar_bmi_params.num_wetting_fronts = state->lgar_bmi_params.num_layers;
+  state->lgar_bmi_params.soil_thickness_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
+  state->lgar_bmi_params.soil_moisture_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
 
   // initialize thickness/depth and soil moisture of wetting fronts (used for model coupling)
   struct wetting_front *current = head;
-  for (int i=0; i<model->lgar_bmi_params.num_wetting_fronts; i++) {
+  for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
     assert (current != NULL);
-    model->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
-    model->lgar_bmi_params.soil_thickness_wetting_fronts[i] = current->depth_cm * model->units.cm_to_m;
+    state->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
+    state->lgar_bmi_params.soil_thickness_wetting_fronts[i] = current->depth_cm * state->units.cm_to_m;
     current = current->next;
   }
 
 
   // initialize bmi input variables to -1.0 (on purpose), this should be assigned (non-negative) and if not, the code will throw an error in the Update method
-  model->lgar_bmi_input_params->precipitation_mm_per_h = -1.0;
-  model->lgar_bmi_input_params->PET_mm_per_h = -1.0;
+  state->lgar_bmi_input_params->precipitation_mm_per_h = -1.0;
+  state->lgar_bmi_input_params->PET_mm_per_h = -1.0;
 
   // initialize all global mass balance variables to zero
-  model->lgar_mass_balance.volprecip_cm = 0.0;
-  model->lgar_mass_balance.volin_cm = 0.0;
-  model->lgar_mass_balance.volend_cm = 0.0;
-  model->lgar_mass_balance.volAET_cm = 0.0;
-  model->lgar_mass_balance.volrech_cm = 0.0;
-  model->lgar_mass_balance.volrunoff_cm = 0.0;
-  model->lgar_mass_balance.volrunoff_giuh_cm = 0.0;
-  model->lgar_mass_balance.volQ_cm = 0.0;
-  model->lgar_mass_balance.volPET_cm = 0.0;
-  model->lgar_mass_balance.volon_cm = 0.0;
+  state->lgar_mass_balance.volprecip_cm = 0.0;
+  state->lgar_mass_balance.volin_cm = 0.0;
+  state->lgar_mass_balance.volend_cm = 0.0;
+  state->lgar_mass_balance.volAET_cm = 0.0;
+  state->lgar_mass_balance.volrech_cm = 0.0;
+  state->lgar_mass_balance.volrunoff_cm = 0.0;
+  state->lgar_mass_balance.volrunoff_giuh_cm = 0.0;
+  state->lgar_mass_balance.volQ_cm = 0.0;
+  state->lgar_mass_balance.volPET_cm = 0.0;
+  state->lgar_mass_balance.volon_cm = 0.0;
 
 }
 
@@ -122,7 +121,7 @@ extern void lgar_initialize(string config_file, struct lgar_model_ *model)
   @param num_wetting_fronts     : number of wetting fronts
   @param num_cells_temp         : number of cells of the discretized soil temperature profile
   @param cum_layer_thickness_cm : 1D (double) array of cumulative thickness of layers, allocate memory at run time
-  @param soil_depth             : depth of the computational domain (i.e., depth of the last/deepest soil layer from the surface)
+  @param soil_depth_cm          : depth of the computational domain (i.e., depth of the last/deepest soil layer from the surface)
   @param initial_psi_cm         : model initial (psi) condition
   @param timestep_h             : model timestep in hours
   @param forcing_resolution_h   : forcing resolution in hours
@@ -137,14 +136,14 @@ extern void lgar_initialize(string config_file, struct lgar_model_ *model)
   @param wilting_point_psi_cm   : wilting point (the amount of water not available for plants or not accessible by plants)
   @param ponded_depth_cm        : amount of water on the surface not available for surface drainage (initialized to zero)
   @param nint                   : number of trapezoids used in integrating the Geff function (set to 120)
-  @param time                   : current time [s] (initially set to zero)
+  @param time_s                 : current time [s] (initially set to zero)
   @param sft_coupled            : model coupling flag. if true, lasam is coupled to soil freeze thaw model; default is uncoupled version
   @param giuh_ordinates         : geomorphological instantaneous unit hydrograph
   @param num_giuh_ordinates     : number of giuh ordinates
 */
 
 // #############################################################################################################################
-extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
+extern void InitFromConfigFile(string config_file, struct model_state *state)
 {
   
   ifstream fp; //FILE *fp = fopen(config_file.c_str(),"r");
@@ -218,28 +217,27 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
     if (param_key == "layer_thickness") {
       vector<double> vec = ReadVectorData(param_value);
       
-      model->lgar_bmi_params.layer_thickness_cm = new double[vec.size()+1];
-      model->lgar_bmi_params.cum_layer_thickness_cm = new double[vec.size()+1];
+      state->lgar_bmi_params.layer_thickness_cm = new double[vec.size()+1];
+      state->lgar_bmi_params.cum_layer_thickness_cm = new double[vec.size()+1];
 
-      model->lgar_bmi_params.layer_thickness_cm[0] = 0.0; // the value at index 0 is never used
+      state->lgar_bmi_params.layer_thickness_cm[0] = 0.0; // the value at index 0 is never used
       // calculate the cumulative (absolute) depth from land surface to bottom of each soil layer
-      model->lgar_bmi_params.cum_layer_thickness_cm[0] = 0.0;
+      state->lgar_bmi_params.cum_layer_thickness_cm[0] = 0.0;
       
       for (unsigned int layer=1; layer <= vec.size(); layer++) {
-      	model->lgar_bmi_params.layer_thickness_cm[layer] = vec[layer-1];
-	model->lgar_bmi_params.cum_layer_thickness_cm[layer] = model->lgar_bmi_params.cum_layer_thickness_cm[layer-1] + vec[layer-1];
+      	state->lgar_bmi_params.layer_thickness_cm[layer] = vec[layer-1];
+	state->lgar_bmi_params.cum_layer_thickness_cm[layer] = state->lgar_bmi_params.cum_layer_thickness_cm[layer-1] + vec[layer-1];
       }
       
-      model->lgar_bmi_params.num_layers = vec.size();
+      state->lgar_bmi_params.num_layers = vec.size();
  
-      model->lgar_bmi_params.soil_depth = vec[model->lgar_bmi_params.num_layers-1];
-      
+      state->lgar_bmi_params.soil_depth_cm = state->lgar_bmi_params.cum_layer_thickness_cm[state->lgar_bmi_params.num_layers];
       is_layer_thickness_set = true;
 
       if (verbosity.compare("high") == 0) {
-	std::cerr<<"Number of layers : "<<model->lgar_bmi_params.num_layers<<"\n";
-	for (int i=1; i<=model->lgar_bmi_params.num_layers; i++)
-	  std::cerr<<"Thickness, cum. depth : "<<model->lgar_bmi_params.layer_thickness_cm[i]<<" , "<<model->lgar_bmi_params.cum_layer_thickness_cm[i]<<"\n";
+	std::cerr<<"Number of layers : "<<state->lgar_bmi_params.num_layers<<"\n";
+	for (int i=1; i<=state->lgar_bmi_params.num_layers; i++)
+	  std::cerr<<"Thickness, cum. depth : "<<state->lgar_bmi_params.layer_thickness_cm[i]<<" , "<<state->lgar_bmi_params.cum_layer_thickness_cm[i]<<"\n";
 	std::cerr<<"          *****         \n";
       }
       
@@ -248,13 +246,13 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
     else if (param_key == "layer_soil_type") {
       vector<double> vec = ReadVectorData(param_value);
       
-      model->lgar_bmi_params.layer_soil_type = new int[vec.size()+1];
+      state->lgar_bmi_params.layer_soil_type = new int[vec.size()+1];
 
       // calculate the cumulative (absolute) depth from land surface to bottom of each soil layer
-      model->lgar_bmi_params.cum_layer_thickness_cm[0] = 0;
+      state->lgar_bmi_params.cum_layer_thickness_cm[0] = 0;
       
       for (unsigned int layer=1; layer <= vec.size(); layer++) {
-      	model->lgar_bmi_params.layer_soil_type[layer] = vec[layer-1];
+      	state->lgar_bmi_params.layer_soil_type[layer] = vec[layer-1];
       }
 
       is_layer_soil_type_set = true;
@@ -264,19 +262,19 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
     else if (param_key == "giuh_ordinates") {
       vector<double> vec = ReadVectorData(param_value);
       
-      model->lgar_bmi_params.giuh_ordinates = new double[vec.size()+1];
+      state->lgar_bmi_params.giuh_ordinates = new double[vec.size()+1];
       
       for (unsigned int layer=1; layer <= vec.size(); layer++) {
-      	model->lgar_bmi_params.giuh_ordinates[layer] = vec[layer-1];
+      	state->lgar_bmi_params.giuh_ordinates[layer] = vec[layer-1];
       }
 
-      model->lgar_bmi_params.num_giuh_ordinates = vec.size();
+      state->lgar_bmi_params.num_giuh_ordinates = vec.size();
       
       is_giuh_ordinates_set = true;
       
       if (verbosity.compare("high") == 0) {
-	for (int i=1; i<=model->lgar_bmi_params.num_giuh_ordinates; i++)
-	  std::cerr<<"GIUH ordinates : "<<model->lgar_bmi_params.giuh_ordinates[i]<<"\n";
+	for (int i=1; i<=state->lgar_bmi_params.num_giuh_ordinates; i++)
+	  std::cerr<<"GIUH ordinates : "<<state->lgar_bmi_params.giuh_ordinates[i]<<"\n";
 	
 	std::cerr<<"          *****         \n";
       }
@@ -286,19 +284,19 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
     else if (param_key == "soil_z") {
       vector<double> vec = ReadVectorData(param_value);
       
-      model->lgar_bmi_params.soil_temperature_z = new double[vec.size()];
+      state->lgar_bmi_params.soil_temperature_z = new double[vec.size()];
       
       for (unsigned int i=0; i < vec.size(); i++) {
-      	model->lgar_bmi_params.soil_temperature_z[i] = vec[i];
+      	state->lgar_bmi_params.soil_temperature_z[i] = vec[i];
       }
 
-      model->lgar_bmi_params.num_cells_temp = vec.size();
+      state->lgar_bmi_params.num_cells_temp = vec.size();
       
       is_soil_z_set = true;
       
       if (verbosity.compare("high") == 0) {
-	for (int i=0; i<model->lgar_bmi_params.num_cells_temp; i++)
-	  std::cerr<<"Soil z (temperature resolution) : "<<model->lgar_bmi_params.soil_temperature_z[i]<<"\n";
+	for (int i=0; i<state->lgar_bmi_params.num_cells_temp; i++)
+	  std::cerr<<"Soil z (temperature resolution) : "<<state->lgar_bmi_params.soil_temperature_z[i]<<"\n";
 	
 	std::cerr<<"          *****         \n";
       }
@@ -306,18 +304,18 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
       continue;
     }
     else if (param_key == "initial_psi") {
-      model->lgar_bmi_params.initial_psi_cm = stod(param_value);
+      state->lgar_bmi_params.initial_psi_cm = stod(param_value);
       is_initial_psi_set = true;
       
       if (verbosity.compare("high") == 0) {
-	std::cerr<<"Initial Psi : "<<model->lgar_bmi_params.initial_psi_cm<<"\n";
+	std::cerr<<"Initial Psi : "<<state->lgar_bmi_params.initial_psi_cm<<"\n";
 	std::cerr<<"          *****         \n";
       }
       
       continue;
     }
     else if (param_key == "max_soil_types") {
-      model->lgar_bmi_params.num_soil_types = stod(param_value);
+      state->lgar_bmi_params.num_soil_types = stod(param_value);
       is_max_soil_types_set = true;
       continue;
     }
@@ -333,51 +331,51 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
       continue;
     }
     else if (param_key == "wilting_point_psi") {
-      model->lgar_bmi_params.wilting_point_psi_cm = stod(param_value);
+      state->lgar_bmi_params.wilting_point_psi_cm = stod(param_value);
       is_wilting_point_psi_cm_set = true;
 
       if (verbosity.compare("high") == 0) {
-	std::cerr<<"Wilting point Psi [cm] : "<<model->lgar_bmi_params.wilting_point_psi_cm<<"\n";
+	std::cerr<<"Wilting point Psi [cm] : "<<state->lgar_bmi_params.wilting_point_psi_cm<<"\n";
 	std::cerr<<"          *****         \n";
       }
       
       continue;
     }
     else if (param_key == "timestep") {
-      model->lgar_bmi_params.timestep_h = stod(param_value);
+      state->lgar_bmi_params.timestep_h = stod(param_value);
       
       if (param_unit == "[s]" || param_unit == "[sec]" || param_unit == "") // defalut time unit is seconds
-	model->lgar_bmi_params.timestep_h /= 3600; // convert to hours
+	state->lgar_bmi_params.timestep_h /= 3600; // convert to hours
       else if (param_unit == "[min]" || param_unit == "[minute]")
-	model->lgar_bmi_params.timestep_h /= 60; // convert to hours
+	state->lgar_bmi_params.timestep_h /= 60; // convert to hours
       else if (param_unit == "[h]" || param_unit == "[hr]") 
-	model->lgar_bmi_params.timestep_h /= 1.0; // convert to hours
+	state->lgar_bmi_params.timestep_h /= 1.0; // convert to hours
       
-      assert (model->lgar_bmi_params.timestep_h > 0);
+      assert (state->lgar_bmi_params.timestep_h > 0);
       is_timestep_set = true;
 
       if (verbosity.compare("high") == 0) {
-	std::cerr<<"Model timestep [hours,seconds]: "<<model->lgar_bmi_params.timestep_h<<" , "<<model->lgar_bmi_params.timestep_h*3600<<"\n";
+	std::cerr<<"Model timestep [hours,seconds]: "<<state->lgar_bmi_params.timestep_h<<" , "<<state->lgar_bmi_params.timestep_h*3600<<"\n";
 	std::cerr<<"          *****         \n";
       }
       
       continue;
     }
     else if (param_key == "forcing_resolution") {
-      model->lgar_bmi_params.forcing_resolution_h = stod(param_value);
+      state->lgar_bmi_params.forcing_resolution_h = stod(param_value);
 
       if (param_unit == "[s]" || param_unit == "[sec]" || param_unit == "") // defalut time unit is seconds
-	model->lgar_bmi_params.forcing_resolution_h /= 3600; // convert to hours
+	state->lgar_bmi_params.forcing_resolution_h /= 3600; // convert to hours
       else if (param_unit == "[min]" || param_unit == "[minute]")
-	model->lgar_bmi_params.forcing_resolution_h /= 60; // convert to hours
+	state->lgar_bmi_params.forcing_resolution_h /= 60; // convert to hours
       else if (param_unit == "[h]" || param_unit == "[hr]") 
-	model->lgar_bmi_params.forcing_resolution_h /= 1.0; // convert to hours
+	state->lgar_bmi_params.forcing_resolution_h /= 1.0; // convert to hours
       
-      assert (model->lgar_bmi_params.forcing_resolution_h > 0);
+      assert (state->lgar_bmi_params.forcing_resolution_h > 0);
       is_forcing_resolution_set = true;
 
       if (verbosity.compare("high") == 0) {
-	std::cerr<<"Forcing resolution [hours]: "<<model->lgar_bmi_params.forcing_resolution_h<<"\n";
+	std::cerr<<"Forcing resolution [hours]: "<<state->lgar_bmi_params.forcing_resolution_h<<"\n";
 	std::cerr<<"          *****         \n";
       }
       
@@ -385,14 +383,14 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
     }
     else if (param_key == "sft_coupled") {
       if (param_value == "true" || param_value == "True" || stod(param_value) == 1) {
-	model->lgar_bmi_params.sft_coupled = 1;
+	state->lgar_bmi_params.sft_coupled = 1;
       }
       else {
-	model->lgar_bmi_params.sft_coupled = 0; // false
+	state->lgar_bmi_params.sft_coupled = 0; // false
       }
       
       if (verbosity.compare("high") == 0) {
-	std::cerr<<"Coupled to SoilFreezeThaw ? "<<model->lgar_bmi_params.sft_coupled<<"\n";
+	std::cerr<<"Coupled to SoilFreezeThaw ? "<<state->lgar_bmi_params.sft_coupled<<"\n";
 	std::cerr<<"          *****         \n";
       }
       continue;
@@ -403,26 +401,26 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
   fp.close();
 
   if(!is_max_soil_types_set)
-     model->lgar_bmi_params.num_soil_types = 15;          // maximum number of soil types defaults to 15
+     state->lgar_bmi_params.num_soil_types = 15;          // maximum number of soil types defaults to 15
 
   if (verbosity.compare("high") == 0) {
-    std::cerr<<"Maximum number of soil types: "<<model->lgar_bmi_params.num_soil_types<<"\n";
+    std::cerr<<"Maximum number of soil types: "<<state->lgar_bmi_params.num_soil_types<<"\n";
     std::cerr<<"          *****         \n";
   }
    
   if(is_soil_params_file_set) {
     //allocate memory to create an array of structures to hold the soils properties data.
-    //model->soil_properties = (struct soil_properties_*) malloc((model->lgar_bmi_params.num_layers+1)*sizeof(struct soil_properties_));
+    //state->soil_properties = (struct soil_properties_*) malloc((state->lgar_bmi_params.num_layers+1)*sizeof(struct soil_properties_));
 
-    model->soil_properties = new soil_properties_[model->lgar_bmi_params.num_soil_types+1];
-    int num_soil_types = model->lgar_bmi_params.num_soil_types;
-    double wilting_point_psi_cm = model->lgar_bmi_params.wilting_point_psi_cm;
-    lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types, wilting_point_psi_cm, model->soil_properties);
+    state->soil_properties = new soil_properties_[state->lgar_bmi_params.num_soil_types+1];
+    int num_soil_types = state->lgar_bmi_params.num_soil_types;
+    double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
+    lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types, wilting_point_psi_cm, state->soil_properties);
 
     if (verbosity.compare("high") == 0) {
-      for (int layer=1; layer<=model->lgar_bmi_params.num_layers; layer++) {
-	int soil = model->lgar_bmi_params.layer_soil_type[layer];// layer_soil_type[layer];
-	std::cerr<<"Soil type/name : "<<model->lgar_bmi_params.layer_soil_type[layer]<<" "<<model->soil_properties[soil].soil_name<<"\n";
+      for (int layer=1; layer<=state->lgar_bmi_params.num_layers; layer++) {
+	int soil = state->lgar_bmi_params.layer_soil_type[layer];// layer_soil_type[layer];
+	std::cerr<<"Soil type/name : "<<state->lgar_bmi_params.layer_soil_type[layer]<<" "<<state->soil_properties[soil].soil_name<<"\n";
       }
 	std::cerr<<"          *****         \n";
     }
@@ -464,8 +462,8 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
     throw runtime_error(errMsg.str());
   }
 
-  if (model->lgar_bmi_params.sft_coupled) {
-    model->lgar_bmi_params.soil_temperature = new double[model->lgar_bmi_params.num_cells_temp]();
+  if (state->lgar_bmi_params.sft_coupled) {
+    state->lgar_bmi_params.soil_temperature = new double[state->lgar_bmi_params.num_cells_temp]();
     if (!is_soil_z_set) {
       stringstream errMsg;
       errMsg << "soil_z not set in the config file "<< config_file << "\n";
@@ -473,24 +471,24 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
     }
   }
   else {
-    model->lgar_bmi_params.soil_temperature = new double[1]();
-    model->lgar_bmi_params.soil_temperature_z = new double[1]();
-    model->lgar_bmi_params.num_cells_temp = 1;
+    state->lgar_bmi_params.soil_temperature = new double[1]();
+    state->lgar_bmi_params.soil_temperature_z = new double[1]();
+    state->lgar_bmi_params.num_cells_temp = 1;
   }
   // check if the size of the input data is consistent
   //assert (parameters->ncells > 0);
   
 
-  model->lgar_bmi_params.forcing_interval = int(model->lgar_bmi_params.forcing_resolution_h/model->lgar_bmi_params.timestep_h+1.0e-08); // add 1.0e-08 to prevent truncation error
+  state->lgar_bmi_params.forcing_interval = int(state->lgar_bmi_params.forcing_resolution_h/state->lgar_bmi_params.timestep_h+1.0e-08); // add 1.0e-08 to prevent truncation error
 
   // initialize frozen factor array to 1.
-  model->lgar_bmi_params.frozen_factor = new double[model->lgar_bmi_params.num_layers+1];
-  for (int i=0; i <= model->lgar_bmi_params.num_layers; i++)
-    model->lgar_bmi_params.frozen_factor[i] = 1.0;
+  state->lgar_bmi_params.frozen_factor = new double[state->lgar_bmi_params.num_layers+1];
+  for (int i=0; i <= state->lgar_bmi_params.num_layers; i++)
+    state->lgar_bmi_params.frozen_factor[i] = 1.0;
   
-  InitializeWettingFronts(model->lgar_bmi_params.num_layers, model->lgar_bmi_params.initial_psi_cm, model->lgar_bmi_params.layer_soil_type, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.frozen_factor, model->soil_properties);
-
-  
+  InitializeWettingFronts(state->lgar_bmi_params.num_layers, state->lgar_bmi_params.initial_psi_cm,
+			  state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
+			  state->lgar_bmi_params.frozen_factor, state->soil_properties);
 
   if (verbosity.compare("none") != 0) {
     std::cerr<<"--- Initial state/conditions --- \n";
@@ -499,21 +497,21 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
   }
 
   // initial mass in the system
-  model->lgar_mass_balance.volstart_cm = lgar_calc_mass_bal(model->lgar_bmi_params.num_layers,model->lgar_bmi_params.cum_layer_thickness_cm);
+  state->lgar_mass_balance.volstart_cm = lgar_calc_mass_bal(state->lgar_bmi_params.num_layers,state->lgar_bmi_params.cum_layer_thickness_cm);
 
-  model->lgar_bmi_params.ponded_depth_cm = 0.0; // initially we start with a dry surface (no surface ponding)
-  model->lgar_bmi_params.nint = 120; // hacked, not needed to be an input option
-  model->lgar_bmi_params.num_wetting_fronts = model->lgar_bmi_params.num_layers;
+  state->lgar_bmi_params.ponded_depth_cm = 0.0; // initially we start with a dry surface (no surface ponding)
+  state->lgar_bmi_params.nint = 120; // hacked, not needed to be an input option
+  state->lgar_bmi_params.num_wetting_fronts = state->lgar_bmi_params.num_layers;
 
-  assert (model->lgar_bmi_params.num_layers == listLength());
+  assert (state->lgar_bmi_params.num_layers == listLength());
 
   if (verbosity.compare("high") == 0) {
     std::cerr<<"Initial ponded depth is set to zero. \n";
-    std::cerr<<"No. of spatial intervals used in trapezoidal integration to compute G : "<<model->lgar_bmi_params.nint<<"\n";
+    std::cerr<<"No. of spatial intervals used in trapezoidal integration to compute G : "<<state->lgar_bmi_params.nint<<"\n";
   }
 
-  model->lgar_bmi_input_params = new lgar_bmi_input_parameters;
-  model->lgar_bmi_params.time = 0.0;
+  state->lgar_bmi_input_params = new lgar_bmi_input_parameters;
+  state->lgar_bmi_params.time_s = 0.0;
 
   
   if (verbosity.compare("none") != 0) {
@@ -528,7 +526,8 @@ extern void InitFromConfigFile(string config_file, struct lgar_model_ *model)
   from the prescribed psi value for each of the soil layers
 */
 // #############################################################################
-extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm, double *frozen_factor, struct soil_properties_ *soil_properties)
+extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm,
+				    double *frozen_factor, struct soil_properties_ *soil_properties)
 {
   int soil;
   int front=0;
@@ -553,7 +552,7 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
     Se = calc_Se_from_theta(current->theta,soil_properties[soil].theta_e,soil_properties[soil].theta_r);
 
     Ksat_cm_per_h = frozen_factor[layer] * soil_properties[soil].Ksat_cm_per_h;
-    current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_h , soil_properties[soil].vg_m);  // cm/s
+    current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h , soil_properties[soil].vg_m);  // cm/s
   
   }
 
@@ -634,7 +633,9 @@ extern void frozen_factor_hydraulic_conductivity(struct lgar_bmi_parameters lgar
     
     layer_temp /= count;  // layer-averaged temperature
     
-    factor = exp(-10 * (273.15 - layer_temp)); // Eq. 6 (L. Wang et al.,Frozen soil parameterization in a distributed biosphere hydrological model, www.hydrol-earth-syst-sci.net/14/557/2010/) and Eq. 22 (Bao et al., An enthalpy-based frozen model)
+    factor = exp(-10 * (273.15 - layer_temp)); /* Eq. 6 (L. Wang et al.,Frozen soil parameterization in a distributed
+                                                biosphere hydrological model, www.hydrol-earth-syst-sci.net/14/557/2010/)
+						and Eq. 22 (Bao et al., An enthalpy-based frozen model) */
 
     factor = fmax(fmin(factor,1.0), 0.05); // 0.05 <= factor <= 1.0
     lgar_bmi_params.frozen_factor[layer] = factor;
@@ -649,14 +650,14 @@ extern void frozen_factor_hydraulic_conductivity(struct lgar_bmi_parameters lgar
 }
 
 /*
-extern void lgar_update(struct lgar_model_ *model)
+extern void lgar_update(struct model_state *state)
 {
   std::cout<<"in lgar update \n";
   listPrint();
   double mm_to_cm = 0.1;
 
   // local variables for readibility
-  int subcycles = model->lgar_bmi_params.forcing_interval;
+  int subcycles = state->lgar_bmi_params.forcing_interval;
   
   double precip_timestep_cm;
   double PET_timestep_cm;
@@ -669,9 +670,9 @@ extern void lgar_update(struct lgar_model_ *model)
   double volrech_timestep_cm;
   double precip_previous_timestep_cm;
   double num_layers;
-  double timestep_h = model->lgar_bmi_params.timestep_h;
-  int nint = model->lgar_bmi_params.nint;
-  double wilting_point_psi_cm = model->lgar_bmi_params.wilting_point_psi_cm;
+  double timestep_h = state->lgar_bmi_params.timestep_h;
+  int nint = state->lgar_bmi_params.nint;
+  double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
   double AET_thresh_Theta = 0.85;    // scaled soil moisture (0-1) above which AET=PET (fix later!)
   double AET_expon = 1.0;  // exponent that allows curvature of the rising portion of the Budyko curve (fix later!)
 
@@ -681,8 +682,8 @@ extern void lgar_update(struct lgar_model_ *model)
     state_previous = NULL;
     state_previous = listCopy(head);
     
-    precip_timestep_cm = model->lgar_bmi_params.precipitation_cm * mm_to_cm / double(subcycles); // rate; cm/hour
-    PET_timestep_cm = model->lgar_bmi_params.PET_cm * mm_to_cm / double(subcycles);
+    precip_timestep_cm = state->lgar_bmi_params.precipitation_cm * mm_to_cm / double(subcycles); // rate; cm/hour
+    PET_timestep_cm = state->lgar_bmi_params.PET_cm * mm_to_cm / double(subcycles);
     ponded_depth_cm = precip_timestep_cm * timestep_h;
     AET_timestep_cm = 0.0;
     volstart_timestep_cm = 0.0;
@@ -691,9 +692,9 @@ extern void lgar_update(struct lgar_model_ *model)
     volrunoff_timestep_cm = 0.0;
     volrech_timestep_cm = 0.0;
     
-    precip_previous_timestep_cm = model->lgar_bmi_params.precip_previous_timestep_cm;
+    precip_previous_timestep_cm = state->lgar_bmi_params.precip_previous_timestep_cm;
     
-    num_layers = model->lgar_bmi_params.num_layers;
+    num_layers = state->lgar_bmi_params.num_layers;
     double delta_theta;   // the width of a front, such that its volume=depth*delta_theta
     double dry_depth;
     
@@ -701,22 +702,22 @@ extern void lgar_update(struct lgar_model_ *model)
     if (PET_timestep_cm>0) {
       // Calculate AET from PET and root zone soil moisture.  Note PET was reduced iff raining
       
-      AET_timestep_cm = calc_aet(PET_timestep_cm, timestep_h, wilting_point_psi_cm, model->soil_properties, model->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon);
+      AET_timestep_cm = calc_aet(PET_timestep_cm, timestep_h, wilting_point_psi_cm, state->soil_properties, state->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon);
     }
     
     
     // put local variables to state timstep variables
-    model->lgar_mass_balance.volprecip_timestep_cm = precip_timestep_cm * timestep_h; // volume in cm
-    model->lgar_mass_balance.volPET_timestep_cm = PET_timestep_cm;
+    state->lgar_mass_balance.volprecip_timestep_cm = precip_timestep_cm * timestep_h; // volume in cm
+    state->lgar_mass_balance.volPET_timestep_cm = PET_timestep_cm;
     
     // put local variables to state global variables
-    model->lgar_mass_balance.volprecip_cm += precip_timestep_cm * timestep_h;
-    model->lgar_mass_balance.volPET_cm += fmax(PET_timestep_cm,0.0); // ensures non-negative PET
-    volstart_timestep_cm = lgar_calc_mass_bal(num_layers,model->lgar_bmi_params.cum_layer_thickness_cm);
+    state->lgar_mass_balance.volprecip_cm += precip_timestep_cm * timestep_h;
+    state->lgar_mass_balance.volPET_cm += fmax(PET_timestep_cm,0.0); // ensures non-negative PET
+    volstart_timestep_cm = lgar_calc_mass_bal(num_layers,state->lgar_bmi_params.cum_layer_thickness_cm);
     
     
-    int soil_num = model->lgar_bmi_params.layer_soil_type[head->layer_num];
-    double theta_e = model->soil_properties[soil_num].theta_e;
+    int soil_num = state->lgar_bmi_params.layer_soil_type[head->layer_num];
+    double theta_e = state->soil_properties[soil_num].theta_e;
     bool is_top_wf_saturated = head->theta >= theta_e ? true : false;
     bool create_surficial_front = (precip_previous_timestep_cm == 0.0 && precip_timestep_cm >0.0);
     
@@ -729,17 +730,17 @@ extern void lgar_update(struct lgar_model_ *model)
       
       double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
       
-      lgar_move_wetting_fronts(&temp_pd,timestep_h, wf_free_drainage_demand, volend_timestep_cm, num_layers, &AET_timestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->soil_properties);
+      lgar_move_wetting_fronts(&temp_pd,timestep_h, wf_free_drainage_demand, volend_timestep_cm, num_layers, &AET_timestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.layer_soil_type, state->soil_properties);
       
-      dry_depth = lgar_calc_dry_depth(nint, timestep_h, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm,&delta_theta);
+      dry_depth = lgar_calc_dry_depth(nint, timestep_h, state->lgar_bmi_params.layer_soil_type, state->soil_properties, state->lgar_bmi_params.cum_layer_thickness_cm,&delta_theta);
       
       double theta1 = head->theta;
-      lgar_create_surfacial_front(&ponded_depth_cm, &volin_timestep_cm, dry_depth, theta1, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm, nint, timestep_h);
+      lgar_create_surfacial_front(&ponded_depth_cm, &volin_timestep_cm, dry_depth, theta1, state->lgar_bmi_params.layer_soil_type, state->soil_properties, state->lgar_bmi_params.cum_layer_thickness_cm, nint, timestep_h);
       
       state_previous = NULL;
       state_previous = listCopy(head);
       
-      model->lgar_mass_balance.volin_cm += volin_timestep_cm;
+      state->lgar_mass_balance.volin_cm += volin_timestep_cm;
       
     }
 
@@ -747,13 +748,13 @@ extern void lgar_update(struct lgar_model_ *model)
 
     if (ponded_depth_cm > 0 && !create_surficial_front) {
       
-      volrunoff_timestep_cm = lgar_insert_water(&ponded_depth_cm, &volin_timestep_cm, precip_timestep_cm, dry_depth, nint, timestep_h, wf_free_drainage_demand, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm);
+      volrunoff_timestep_cm = lgar_insert_water(&ponded_depth_cm, &volin_timestep_cm, precip_timestep_cm, dry_depth, nint, timestep_h, wf_free_drainage_demand, state->lgar_bmi_params.layer_soil_type, state->soil_properties, state->lgar_bmi_params.cum_layer_thickness_cm);
       
-      model->lgar_mass_balance.volin_cm += volin_timestep_cm;
-      model->lgar_mass_balance.volrunoff_timestep_cm = volrunoff_timestep_cm;
-      model->lgar_mass_balance.volrunoff_cm += volrunoff_timestep_cm;
+      state->lgar_mass_balance.volin_cm += volin_timestep_cm;
+      state->lgar_mass_balance.volrunoff_timestep_cm = volrunoff_timestep_cm;
+      state->lgar_mass_balance.volrunoff_cm += volrunoff_timestep_cm;
       volrech_timestep_cm = volin_timestep_cm; // this gets updated later, probably not needed here
-      model->lgar_mass_balance.volon_cm = ponded_depth_cm;
+      state->lgar_mass_balance.volon_cm = ponded_depth_cm;
       //printf("Mass in = %lf %lf %lf \n", volin_timestep_cm, volrech_timestep_cm, volrunoff_timestep_cm);
       if (volrunoff_timestep_cm < 0) abort();  
     }
@@ -762,15 +763,15 @@ extern void lgar_update(struct lgar_model_ *model)
       double hp_cm_max = 0.0; //h_p_max = 0.0;
       
       if (ponded_depth_cm < hp_cm_max) {
-	model->lgar_mass_balance.volrunoff_cm += 0.0;
-	model->lgar_mass_balance.volon_cm = ponded_depth_cm;
+	state->lgar_mass_balance.volrunoff_cm += 0.0;
+	state->lgar_mass_balance.volon_cm = ponded_depth_cm;
 	ponded_depth_cm = 0.0;
-	model->lgar_mass_balance.volrunoff_timestep_cm = 0.0;
+	state->lgar_mass_balance.volrunoff_timestep_cm = 0.0;
       }
       else {
-	model->lgar_mass_balance.volrunoff_timestep_cm = ponded_depth_cm - hp_cm_max;
-	model->lgar_mass_balance.volrunoff_cm += (ponded_depth_cm - hp_cm_max);
-	model->lgar_mass_balance.volon_cm = hp_cm_max;
+	state->lgar_mass_balance.volrunoff_timestep_cm = ponded_depth_cm - hp_cm_max;
+	state->lgar_mass_balance.volrunoff_cm += (ponded_depth_cm - hp_cm_max);
+	state->lgar_mass_balance.volon_cm = hp_cm_max;
 	ponded_depth_cm = hp_cm_max;
 	
       }
@@ -778,35 +779,35 @@ extern void lgar_update(struct lgar_model_ *model)
     
     
     if (!create_surficial_front) {
-      lgar_move_wetting_fronts(&volin_timestep_cm,timestep_h, wf_free_drainage_demand, volend_timestep_cm, num_layers, &AET_timestep_cm, model->lgar_bmi_params.cum_layer_thickness_cm, model->lgar_bmi_params.layer_soil_type, model->soil_properties);
+      lgar_move_wetting_fronts(&volin_timestep_cm,timestep_h, wf_free_drainage_demand, volend_timestep_cm, num_layers, &AET_timestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.layer_soil_type, state->soil_properties);
       
       // this is the volume of water leaving through the bottom
       volrech_timestep_cm = volin_timestep_cm;
-      model->lgar_mass_balance.volrech_timestep_cm = volrech_timestep_cm;
+      state->lgar_mass_balance.volrech_timestep_cm = volrech_timestep_cm;
       //printf("Mass in x = %lf %lf \n", volin_timestep_cm, volrech_timestep_cm);
     }
     
     
-    int num_dzdt_calculated = lgar_dzdt_calc(nint, model->lgar_bmi_params.layer_soil_type, model->soil_properties, model->lgar_bmi_params.cum_layer_thickness_cm, ponded_depth_cm);
+    int num_dzdt_calculated = lgar_dzdt_calc(nint, state->lgar_bmi_params.layer_soil_type, state->soil_properties, state->lgar_bmi_params.cum_layer_thickness_cm, ponded_depth_cm);
     
     
-    model->lgar_mass_balance.volAET_timestep_cm = AET_timestep_cm;
-    model->lgar_mass_balance.volAET_cm += AET_timestep_cm;
-    model->lgar_mass_balance.volrech_timestep_cm = volrech_timestep_cm;
-    model->lgar_mass_balance.volrech_cm += volrech_timestep_cm;
+    state->lgar_mass_balance.volAET_timestep_cm = AET_timestep_cm;
+    state->lgar_mass_balance.volAET_cm += AET_timestep_cm;
+    state->lgar_mass_balance.volrech_timestep_cm = volrech_timestep_cm;
+    state->lgar_mass_balance.volrech_cm += volrech_timestep_cm;
     
-    volend_timestep_cm = lgar_calc_mass_bal(num_layers,model->lgar_bmi_params.cum_layer_thickness_cm);
+    volend_timestep_cm = lgar_calc_mass_bal(num_layers,state->lgar_bmi_params.cum_layer_thickness_cm);
     
-    model->lgar_mass_balance.volend_timestep_cm = volend_timestep_cm;
-    model->lgar_mass_balance.volend_cm = volend_timestep_cm;
-    model->lgar_bmi_params.precip_previous_timestep_cm = precip_timestep_cm;
+    state->lgar_mass_balance.volend_timestep_cm = volend_timestep_cm;
+    state->lgar_mass_balance.volend_cm = volend_timestep_cm;
+    state->lgar_bmi_params.precip_previous_timestep_cm = precip_timestep_cm;
     
     
-    double local_mb = volstart_timestep_cm + model->lgar_mass_balance.volprecip_timestep_cm -  model->lgar_mass_balance.volrunoff_timestep_cm - model->lgar_mass_balance.volAET_timestep_cm - model->lgar_mass_balance.volon_cm - model->lgar_mass_balance.volrech_timestep_cm - volend_timestep_cm;
+    double local_mb = volstart_timestep_cm + state->lgar_mass_balance.volprecip_timestep_cm -  state->lgar_mass_balance.volrunoff_timestep_cm - state->lgar_mass_balance.volAET_timestep_cm - state->lgar_mass_balance.volon_cm - state->lgar_mass_balance.volrech_timestep_cm - volend_timestep_cm;
     
     bool debug_flag = true;
     if(VERBOSE > -1) {
-      printf("local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_timestep_cm, model->lgar_mass_balance.volprecip_timestep_cm, volrunoff_timestep_cm,AET_timestep_cm, model->lgar_mass_balance.volend_timestep_cm);
+      printf("local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_timestep_cm, state->lgar_mass_balance.volprecip_timestep_cm, volrunoff_timestep_cm,AET_timestep_cm, state->lgar_mass_balance.volend_timestep_cm);
     }
     
     if (fabs(local_mb) >1e-7) {
@@ -830,33 +831,34 @@ extern void lgar_update(struct lgar_model_ *model)
   calculates global mass balance at the end of simulation
 */
 // #########################################################################################
-extern void lgar_global_mass_balance(struct lgar_model_ *model, double *giuh_runoff_queue_cm)
+extern void lgar_global_mass_balance(struct model_state *state, double *giuh_runoff_queue_cm)
 {
-  double volstart = model->lgar_mass_balance.volstart_cm;
-  double volprecip = model->lgar_mass_balance.volprecip_cm;
-  double volrunoff = model->lgar_mass_balance.volrunoff_cm;
-  double volAET = model->lgar_mass_balance.volAET_cm;
-  double volPET = model->lgar_mass_balance.volPET_cm;
-  double volon = model->lgar_mass_balance.volon_cm;
-  double volin = model->lgar_mass_balance.volin_cm;
-  double volrech = model->lgar_mass_balance.volrech_cm;
-  double volend = model->lgar_mass_balance.volend_cm;
-  double volrunoff_giuh = model->lgar_mass_balance.volrunoff_giuh_cm;
+  double volstart  = state->lgar_mass_balance.volstart_cm;
+  double volprecip = state->lgar_mass_balance.volprecip_cm;
+  double volrunoff = state->lgar_mass_balance.volrunoff_cm;
+  double volAET    = state->lgar_mass_balance.volAET_cm;
+  double volPET    = state->lgar_mass_balance.volPET_cm;
+  double volon     = state->lgar_mass_balance.volon_cm;
+  double volin     = state->lgar_mass_balance.volin_cm;
+  double volrech   = state->lgar_mass_balance.volrech_cm;
+  double volend    = state->lgar_mass_balance.volend_cm;
+  double volrunoff_giuh = state->lgar_mass_balance.volrunoff_giuh_cm;
   double volend_giuh_cm = 0.0;
-  double total_Q_cm = model->lgar_mass_balance.volQ_cm;
+  double total_Q_cm     = state->lgar_mass_balance.volQ_cm;
   
   //check if the giuh queue have some water left at the end of simulaiton; needs to be included in the global mass balance
   // hold on; this is probably not needed as we have volrunoff in the balance; revist AJK
-  for(int i=1; i <= model->lgar_bmi_params.num_giuh_ordinates; i++)
+  for(int i=1; i <= state->lgar_bmi_params.num_giuh_ordinates; i++)
     volend_giuh_cm += giuh_runoff_queue_cm[i];
     
     
   double global_error_cm = volstart + volprecip - volrunoff - volAET - volon - volrech - volend;
   
-  
- printf("\n---------------------- Simulation Summary  ------------------------ \n");
+
+ printf("\n********************************************************* \n");
+ printf("-------------------- Simulation Summary ----------------- \n");
  //printf("Time (sec)                 = %6.10f \n", elapsed);
- printf("-------------------------- Mass balance ------------------- \n");
+ printf("------------------------ Mass balance ------------------- \n");
  printf("initial water in soil      = %14.10f cm\n", volstart);
  printf("total precipitation input  = %14.10f cm\n", volprecip);
  printf("total infiltration         = %14.10f cm\n", volin);
@@ -903,9 +905,10 @@ extern int wetting_front_free_drainage() {
   if (wf_that_supplies_free_drainage_demand > number_of_wetting_fronts)
     wf_that_supplies_free_drainage_demand--;
 
-#if VERBOSE > 1
-  printf("wettign_front_free_drainage, layer_num = %d \n", wf_that_supplies_free_drainage_demand);
-#endif
+  if (verbosity.compare("high") == 0) {
+    printf("wettign_front_free_drainage, layer_num = %d \n", wf_that_supplies_free_drainage_demand);
+  }
+  
   return  wf_that_supplies_free_drainage_demand;
 }
 
@@ -951,11 +954,11 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
   double theta,Se,theta_e,theta_r;
   double delta_theta;
   double vg_a, vg_m, vg_n, Ks_cm_per_s;
-  double psi_cm, K_cm_per_s;
+  double psi_cm, K_cm_per_h;
   int layer_num, soil_num;
 
   // for previous state
-  double theta_old, delta_theta_old, K_cm_per_s_old, psi_cm_old;
+  double theta_old, delta_theta_old, psi_cm_old;
   int layer_num_old;
   
   int number_of_wetting_fronts = listLength();
@@ -963,7 +966,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
   current = head;
 
   int last_wetting_front_index = number_of_wetting_fronts;
-  int layer_number_above, layer_number_below;
+  int layer_num_above, layer_num_below;
 
   double precip_mass_to_add = (*ponded_depth_cm); // water to be added to the soil
 
@@ -972,39 +975,40 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
   /* ************************************************************ */
   // main loop advancing all wetting fronts and doing the mass balance
   // loop goes over deepest to top most wetting front
+  // wf denotes wetting front
   
-  for (int l = number_of_wetting_fronts; l != 0; l--) {
+  for (int wf = number_of_wetting_fronts; wf != 0; wf--) {
 
     if (verbosity.compare("high") == 0) {
-      printf("Looping over wetting front = %d %d \n", l);
+      printf("Looping over wetting front = %d %d \n", wf);
     }
     
-    if (l == 1 && number_of_wetting_fronts >0) {
-      current = listFindFront(l,NULL);
-      next = listFindFront(l+1,NULL);
+    if (wf == 1 && number_of_wetting_fronts >0) {
+      current = listFindFront(wf, NULL);
+      next = listFindFront(wf+1, NULL);
       previous = NULL;
       
-      current_old = listFindFront(l,state_previous);
-      next_old = listFindFront(l+1,state_previous);
+      current_old = listFindFront(wf, state_previous);
+      next_old = listFindFront(wf+1, state_previous);
       previous_old = NULL;
     }
-    else if (l < number_of_wetting_fronts) {
-      current = listFindFront(l,NULL);
-      next = listFindFront(l+1,NULL);
-      previous = listFindFront(l-1,NULL);
+    else if (wf < number_of_wetting_fronts) {
+      current = listFindFront(wf, NULL);
+      next = listFindFront(wf+1, NULL);
+      previous = listFindFront(wf-1, NULL);
       
-      current_old = listFindFront(l,state_previous);
-      next_old = listFindFront(l+1,state_previous);
-      previous_old = listFindFront(l-1,state_previous);
+      current_old = listFindFront(wf, state_previous);
+      next_old = listFindFront(wf+1, state_previous);
+      previous_old = listFindFront(wf-1, state_previous);
     }
-    else if (l == number_of_wetting_fronts) {
-      current = listFindFront(l,NULL);
+    else if (wf == number_of_wetting_fronts) {
+      current = listFindFront(wf, NULL);
       next = NULL;
-      previous = listFindFront(l-1,NULL);
+      previous = listFindFront(wf-1, NULL);
       
-      current_old = listFindFront(l,state_previous);
+      current_old = listFindFront(wf, state_previous);
       next_old = NULL;
-      previous_old = listFindFront(l-1,state_previous);
+      previous_old = listFindFront(wf-1, state_previous);
     }
 
     //
@@ -1020,12 +1024,12 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
     psi_cm      = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
 
     // fine indices of above and below layers
-    layer_number_above = (l == 1) ? layer_num : previous->layer_num;
-    layer_number_below = (l == last_wetting_front_index) ? layer_num + 1 : next->layer_num;
+    layer_num_above = (wf == 1) ? layer_num : previous->layer_num;
+    layer_num_below = (wf == last_wetting_front_index) ? layer_num + 1 : next->layer_num;
     
     if (verbosity.compare("high") == 0) {
        printf ("****************** Cases ***************** \n");
-       printf ("Layers (wf, layer, above, below) == %d %d %d %d \n", l ,layer_num, layer_number_above, layer_number_below);
+       printf ("Layers (wf, layer, above, below) == %d %d %d %d \n", wf ,layer_num, layer_num_above, layer_num_below);
     }
     
     double free_drainage_demand = 0.0;
@@ -1047,9 +1051,9 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
                   _____|________
     */
     /*************************************************************************************/
-    if ( (l<last_wetting_front_index) && (layer_number_below!=layer_num) ) {
+    if ( (wf < last_wetting_front_index) && (layer_num_below != layer_num) ) {
       if (verbosity.compare("high") == 0) {
-	printf("case (deepest wetting front within layer) : layer_num (%d) != layer_num_below (%d) \n", layer_num, layer_number_below);
+	printf("case (deepest wetting front within layer) : layer_num (%d) != layer_num_below (%d) \n", layer_num, layer_num_below);
       }
       
       current->theta = calc_theta_from_h(next->psi_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
@@ -1070,10 +1074,10 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
                ____|________       __________|___
     */
     
-    if (l == number_of_wetting_fronts && layer_number_below != layer_num && number_of_wetting_fronts == num_layers) {
+    if (wf == number_of_wetting_fronts && layer_num_below != layer_num && number_of_wetting_fronts == num_layers) {
 
       if (verbosity.compare("high") == 0) {
-	printf("case (number_of_wetting_fronts equal to num_layers) : l (%d) == num_layers (%d) == num_wetting_fronts(%d) \n", l, num_layers,number_of_wetting_fronts);
+	printf("case (number_of_wetting_fronts equal to num_layers) : l (%d) == num_layers (%d) == num_wetting_fronts(%d) \n", wf, num_layers,number_of_wetting_fronts);
       }
       
       // local variables
@@ -1125,11 +1129,13 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
       
       double free_drainage_demand = 0;
       
-      if (wf_free_drainage_demand == l)
+      if (wf_free_drainage_demand == wf)
 	prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
       
       // theta mass balance computes new theta that conserves the mass; new theta is assigned to the current wetting front
-      double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass, current->depth_cm, delta_thetas, delta_thickness, soil_type, soil_properties);
+      double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass,
+						 current->depth_cm, delta_thetas, delta_thickness, soil_type,
+						 soil_properties);
 
       current->theta = fmin(theta_new, theta_e);
       
@@ -1144,15 +1150,15 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
 
 
     // case to check if the 'current' wetting front is within the layer and not at the layer's interface
-    // layer_number == layer_num_below means there is another wetting front below the current wetting front
+    // layer_num == layer_num_below means there is another wetting front below the current wetting front
     // and they both belong to the same layer (in simple words, wetting fronts not at the interface)
     // l < last_wetting_front_index means that the current wetting front is not the deepest wetting front in the domain
     /*************************************************************************************/
     
-    if ( (l < last_wetting_front_index) && (layer_num == layer_number_below) ) {
+    if ( (wf < last_wetting_front_index) && (layer_num == layer_num_below) ) {
       
       if (verbosity.compare("high") == 0) {
-	printf("case (wetting front within a layer) : layer_num (%d) == layer_num_below (%d) \n", layer_num,layer_number_below);
+	printf("case (wetting front within a layer) : layer_num (%d) == layer_num_below (%d) \n", layer_num,layer_num_below);
       }
 
       // if wetting front is the most surficial wetting front
@@ -1162,7 +1168,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
 	// prior mass = mass contained in the current old wetting front
 	double prior_mass = current_old->depth_cm * (current_old->theta -  next_old->theta);
 	
-	if (wf_free_drainage_demand == l)
+	if (wf_free_drainage_demand == wf)
 	  prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
 	
 	current->depth_cm +=  current->dzdt_cm_per_h * timestep_h;
@@ -1193,9 +1199,9 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
 	double vg_a_k, vg_m_k, vg_n_k, Ks_cm_per_s_k;
 	double theta_e_k, theta_r_k;
 	
-	current->depth_cm +=  current->dzdt_cm_per_h * timestep_h;
+	current->depth_cm += current->dzdt_cm_per_h * timestep_h;
 	
-	double *delta_thetas = (double *)malloc(sizeof(double)*(layer_num+1));
+	double *delta_thetas    = (double *)malloc(sizeof(double)*(layer_num+1));
 	double *delta_thickness = (double *)malloc(sizeof(double)*(layer_num+1));
 	
 	
@@ -1245,11 +1251,13 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
 	
 	double free_drainage_demand = 0;
 	
-	if (wf_free_drainage_demand == l)
+	if (wf_free_drainage_demand == wf)
 	  prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
 
 	// theta mass balance computes new theta that conserves the mass; new theta is assigned to the current wetting front
-	double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass, current->depth_cm, delta_thetas, delta_thickness, soil_type, soil_properties);
+	double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass,
+						   current->depth_cm, delta_thetas, delta_thickness, soil_type,
+						   soil_properties);
 	
 	current->theta = fmin(theta_new, theta_e);
 	
@@ -1270,7 +1278,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
     // depth of the wetting front is increased to close the mass balance when theta > theta_e.
     // l == 1 is the last iteration (top most wetting front), so do a check on the mass balance)
     // this part should be moved out of here to a subroutine; add a call to that subroutine
-    if (l == 1) {
+    if (wf == 1) {
 
       int soil_num_k1  = soil_type[wf_free_drainage_demand];
       double theta_e_k1 = soil_properties[soil_num_k1].theta_e;
@@ -1296,13 +1304,13 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
 	  // return current_mass;
 	}
 	
-	double psi_k = wf_free_drainage->depth_cm;
+	double depth_new = wf_free_drainage->depth_cm;
 
 	// loop to adjust the depth for mass balance
 	while (mass_balance_error > tolerance) {
 	  
 	  if (current_mass < mass_timestep) {
-	    psi_k = psi_k + 0.01 * factor;
+	    depth_new += 0.01 * factor;
 	    switched = false;
 	  }
 	  else {
@@ -1310,11 +1318,11 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
 	      switched = true;
 	      factor = factor * 0.001;
 	    }
-	    psi_k = psi_k - 0.01 * factor;
+	    depth_new -= 0.01 * factor;
 	    
 	  }
 	  
-	  wf_free_drainage->depth_cm = psi_k;
+	  wf_free_drainage->depth_cm = depth_new;
 	  
 	  current_mass = lgar_calc_mass_bal(0,cum_layer_thickness_cm);
 	  mass_balance_error = fabs(current_mass - mass_timestep);
@@ -1381,7 +1389,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
   // make sure all psi values are updated
   current = head;
   
-  for (int l=1; l != listLength(); l++) {
+  for (int wf=1; wf != listLength(); wf++) {
 
     int soil_num_k    = soil_type[current->layer_num];
 	
@@ -1396,7 +1404,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
     double Se = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
     current->psi_cm = calc_h_from_Se(Se, vg_a_k, vg_m_k, vg_n_k);
     
-    current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_h_k, vg_m_k);
+    current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h_k, vg_m_k);
 
     current = current->next;
   }
@@ -1422,7 +1430,7 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
   double theta,Se,theta_e,theta_r;
   double delta_theta;
   double vg_a, vg_m, vg_n, Ks_cm_per_s;
-  double psi_cm, K_cm_per_s;
+  double psi_cm, K_cm_per_h;
   int layer_num, soil_num;
   double bottom_flux_cm=0.0;
   
@@ -1445,9 +1453,9 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
       
   // case : wetting front passing another wetting front within a layer
   /**********************************************************/
-  // current->depth_cm > next->depth_cm ensures the merging is needed
-  // current->layer_num == next->layer_num ensures wetting fronts are in the same layer
-  // !next->to_bottom ensures the next wetting front is not the deepest wetting front in the layer
+  // 'current->depth_cm > next->depth_cm' ensures that merging is needed
+  // 'current->layer_num == next->layer_num' ensures wetting fronts are in the same layer
+  // '!next->to_bottom' ensures that the next wetting front is not the deepest wetting front in the layer
   if ( (current->depth_cm > next->depth_cm) && (current->layer_num == next->layer_num) && !next->to_bottom) {
 
     double current_mass_this_layer = current->depth_cm * (current->theta - next->theta) + next->depth_cm*(next->theta - next_to_next->theta);
@@ -1461,18 +1469,19 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
     double Ksat_cm_per_h_k  = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[current->layer_num];
     double Se_k             = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
     current->psi_cm         = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-    current->K_cm_per_s     = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k); // AJ - K_temp in python version for 1st layer
+    current->K_cm_per_h     = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k); // AJ - K_temp in python version for 1st layer
 
-#if VERBOSE > 1
-    printf ("Deleting wetting front (before)... \n");
-    listPrint();
-#endif
+    if (verbosity.compare("high") == 0) {
+      printf ("Deleting wetting front (before)... \n");
+      listPrint();
+    }
+    
     listDeleteFront(next->front_num);
     
-#if VERBOSE > 1
-    printf ("Deleting wetting front (after) ... \n");
-    listPrint();
-#endif
+    if (verbosity.compare("high") == 0) {
+      printf ("Deleting wetting front (after) ... \n");
+      listPrint();
+    }
     
   }
       
@@ -1498,7 +1507,7 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
     double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
     current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
     
-    current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m); // AJ check Ksat_cm_per_h here current or next?
+    current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m); // AJ check Ksat_cm_per_h here current or next?
 
     // current psi with van Gunechton properties of the next layer to get new theta
     double theta_new = calc_theta_from_h(current->psi_cm, next_vg_a, next_vg_m, next_vg_n, next_theta_e, next_theta_r);
@@ -1506,7 +1515,7 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
     double mbal_correction = overshot_depth * (current_theta - next->theta);
     double mbal_Z_correction = mbal_correction / (theta_new - next_to_next->theta); // this is the new wetting front depth
     
-    double depth_new = cum_layer_thickness_cm[layer_num] + mbal_Z_correction; // this is the new wetting front theta
+    double depth_new = cum_layer_thickness_cm[layer_num] + mbal_Z_correction; // this is the new wetting front absolute depth
 
     // check the new wetting front just entered is not passing any existing wetting fronts in the layer
     if (depth_new < next_to_next->depth_cm) {
@@ -1514,7 +1523,7 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
       current = listDeleteFront(current->front_num);
       int num_fronts = listLength();
       struct wetting_front *current_temp = current;
-      current = listInsertFrontAtDepth(num_fronts, cum_layer_thickness_cm,cum_layer_thickness_cm[layer_num]+mbal_Z_correction, theta_new);
+      current = listInsertFrontAtDepth(num_fronts, cum_layer_thickness_cm, depth_new, theta_new);
     }
     else {
       // if the new wetting front that just entered passes the top wetting front in the layer then merge the wetting fronts
@@ -1544,7 +1553,7 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
       
       double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
       current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-      current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k);
+      current->K_cm_per_h = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k);
     }
     
   }
@@ -1561,7 +1570,7 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
     
     double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
     current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-    current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k);	
+    current->K_cm_per_h = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k);	
   }
   
   // case : wetting front is stationary (not moving) and the deepest wetting front in the layer, again just update values
@@ -1577,7 +1586,7 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
     double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
     
     current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-    current->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k);
+    current->K_cm_per_h = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k);
   }
       
   // case : wetting front is the deepest one in the last layer (most deepested wetting front in the domain)
@@ -1596,7 +1605,7 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
     next->theta = current->theta;
     double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
     next->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-    next->K_cm_per_s = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k);
+    next->K_cm_per_h = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k);
     listDeleteFront(current->front_num);
     
   }
@@ -1628,7 +1637,8 @@ extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_
       listPrint();
       printf("A3_theta: merging ............ %d %d %lf %lf %lf \n", l, current->front_num, current->depth_cm, current->theta, next->theta);
       
-      // note: in a regular merge the layer passing the one below appears first in the list, however here, in terms of order in the list, the passing layer appears after the the layer that was passed.
+      // note: in a regular merge the layer passing the one below appears first in the list, however here, in terms of order in the list,
+      // the passing layer appears after the the layer that was passed.
       
       //double current_mass_this_layer = current->depth_cm * (current->theta - next->theta) + next->depth_cm*(next->theta - next_to_next->theta);
       //current->depth_cm = current_mass_this_layer / (current->theta - next_to_next->theta);
@@ -1653,8 +1663,8 @@ extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_
       double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
       current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
       
-      //current->K_cm_per_s = soil_properties[soil_num].Ksat_cm_per_h;
-      current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m); // AJ - K_temp in python version for 1st layer
+      //current->K_cm_per_h = soil_properties[soil_num].Ksat_cm_per_h;
+      current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m); // AJ - K_temp in python version for 1st layer
       printf("A40 \n");
       listDeleteFront(next->front_num);
       //listPrint();
@@ -1708,7 +1718,11 @@ extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_
 	double mass_after = lgar_calc_mass_bal(0,cum_layer_thickness_cm);
 	*mass_change += fabs(mass_after - mass_before);
 	
-	// note: mass_before is less when we have wetter front over drier front condition, however, lgar_calc_mass_bal returns mass_before > mass_after due to fabs(theta_current - theta_next); for mass_before the functions compuates more than the actual mass; removing fabs in that function might be one option, but for now we are adding fabs to mass_change to make sure we added extra water back to AET after deleting the drier front
+	/* note: mass_before is less when we have wetter front over drier front condition,
+	   however, lgar_calc_mass_bal returns mass_before > mass_after due to fabs(theta_current - theta_next);
+	   for mass_before the functions compuates more than the actual mass; removing fabs in that function
+	   might be one option, but for now we are adding fabs to mass_change to make sure we added extra water
+	   back to AET after deleting the drier front */
 	
       }
       current = current->next;
@@ -1728,7 +1742,7 @@ extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_
 // ############################################################################################
 extern double lgar_insert_water(int nint, double timestep_h, double *ponded_depth_cm, double *volin_this_timestep,
 				double precip_timestep_cm, double dry_depth, int wf_free_drainage_demand,
-				int *soil_type, double *cum_layer_thickness_cm, double *frozen_factor,
+			        int num_layers, int *soil_type, double *cum_layer_thickness_cm, double *frozen_factor,
 				struct soil_properties_ *soil_properties)
 {
   // note ponded_depth_cm is a pointer.   Access it's value as (*ponded_depth_cm).
@@ -1738,7 +1752,7 @@ extern double lgar_insert_water(int nint, double timestep_h, double *ponded_dept
   // local vars
   double theta, theta_e,Se,theta_r;
   double delta_theta;
-  double psi_cm, K_cm_per_s;
+  double psi_cm, K_cm_per_h;
   double vg_a, vg_m, vg_n,Ksat_cm_per_h;
   double h_min_cm;
   bool debug_flag=TRUE;
@@ -1750,17 +1764,16 @@ extern double lgar_insert_water(int nint, double timestep_h, double *ponded_dept
   double runoff = 0.0;
   double hp_cm_max = 0.0;
 
-  double h_p = fmax(*ponded_depth_cm - precip_timestep_cm * timestep_h,0.0); // water ponded on the surface
+  double h_p = fmax(*ponded_depth_cm - precip_timestep_cm * timestep_h, 0.0); // water ponded on the surface
   
   current = head;
-  current_free_drainage = listFindFront(wf_that_supplies_free_drainage_demand,NULL);
-  current_free_drainage_next = listFindFront(wf_that_supplies_free_drainage_demand+1,NULL);
+  current_free_drainage      = listFindFront(wf_that_supplies_free_drainage_demand, NULL);
+  current_free_drainage_next = listFindFront(wf_that_supplies_free_drainage_demand+1, NULL);
 
   int number_of_wetting_fronts = listLength();
   
   int l = number_of_wetting_fronts;
   int last_wetting_front_index = number_of_wetting_fronts;
-  int num_layers = 3; // hacked
   int layer_num_fp = current_free_drainage->layer_num;
 
   
@@ -1823,7 +1836,7 @@ extern double lgar_insert_water(int nint, double timestep_h, double *ponded_dept
     
   double free_drainage_demand = 0;
   
-  // if condition is not needed ... AJ
+  // 'if' condition is not needed ... AJ
   if ((layer_num_fp==num_layers) && (num_layers == number_of_wetting_fronts))
     ponded_depth_temp = *ponded_depth_cm - f_p * timestep_h - free_drainage_demand*0;
   else
@@ -1929,7 +1942,7 @@ extern void lgar_create_surfacial_front(int nint,double timestep_h, double *pond
   Se = calc_Se_from_theta(theta_new,theta_e,theta_r);
   current->psi_cm = calc_h_from_Se(Se, vg_alpha_per_cm , vg_m, vg_n);
 
-  current->K_cm_per_s = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m) * frozen_factor[layer_num]; // AJ - K_temp in python version for 1st layer
+  current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m) * frozen_factor[layer_num]; // AJ - K_temp in python version for 1st layer
 
   Geff = calc_Geff(theta_new, theta1, theta_e, theta_r, vg_alpha_per_cm, vg_n, vg_m, h_min_cm, Ksat_cm_per_h, nint);
   h_min_cm = 0.0;
@@ -2143,7 +2156,7 @@ extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_laye
   double Geff;
   double depth_cm;    // the absolute depth down to a wetting front from the surface
   double h_min_cm;
-  double K_cm_per_s;  // unsaturated hydraulic conductivity K(theta) at the RHS of the current wetting front (cm/s)
+  double K_cm_per_h;  // unsaturated hydraulic conductivity K(theta) at the RHS of the current wetting front (cm/h)
   double h;           // capillary head psi(theta) at the right-hand side of the current wetting front (cm)
   double theta1, theta2;  // limits of integration on Geff from theta1 to theta2
   double bottom_sum;  // store a running sum of L_n/K(theta_n) n increasing from 1 to N-1, as we go down in layers N
@@ -2170,10 +2183,10 @@ extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_laye
     front_num    = current->front_num;    // the front number
     theta        = current->theta;        // water content of this front
     layer_num    = current->layer_num;    // what layer the front is in
-    K_cm_per_s   = current->K_cm_per_s;   // K(theta)
+    K_cm_per_h   = current->K_cm_per_h;   // K(theta)
     
-    if (K_cm_per_s <=0) {
-      printf("K is zero: %d %lf \n", layer_num, K_cm_per_s);
+    if (K_cm_per_h <=0) {
+      printf("K is zero: %d %lf \n", layer_num, K_cm_per_h);
       abort();
     }
     
@@ -2213,8 +2226,8 @@ extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_laye
     else {
       
       if(layer_num > 1) {
-	double K_cm_per_s_prev = previous->K_cm_per_s; 
-	bottom_sum += (current->depth_cm-cum_layer_thickness_cm[layer_num-1])/K_cm_per_s;
+	double K_cm_per_h_prev = previous->K_cm_per_h; 
+	bottom_sum += (current->depth_cm-cum_layer_thickness_cm[layer_num-1])/K_cm_per_h;
       }
       
     }
@@ -2228,37 +2241,39 @@ extern int lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_laye
     delta_theta = current->theta - next->theta;
     
     if(current->layer_num == 1) { // this front is in the upper layer	  
-	dzdt = 1.0/delta_theta*(Ksat_cm_per_h*(Geff+h_p)/current->depth_cm+current->K_cm_per_s);
+	dzdt = 1.0/delta_theta*(Ksat_cm_per_h*(Geff+h_p)/current->depth_cm+current->K_cm_per_h);
     }
     else {  // we are in the second or greater layer
-      double denominatorA = bottom_sum;
+      double denominator_loc = bottom_sum;
       
       for (int k = 1; k < layer_num; k++) {
-	int soil_numA = soil_type[layer_num-k];
-	double theta_prevA = calc_theta_from_h(current->psi_cm, soil_properties[soil_numA].vg_alpha_per_cm, soil_properties[soil_numA].vg_m, soil_properties[soil_numA].vg_n,soil_properties[soil_numA].theta_e,soil_properties[soil_numA].theta_r);
+	int soil_num_loc = soil_type[layer_num-k]; // _loc denotes the soil_num is local to this loop
+	double theta_prev_loc = calc_theta_from_h(current->psi_cm, soil_properties[soil_num_loc].vg_alpha_per_cm, soil_properties[soil_num_loc].vg_m,
+						 soil_properties[soil_num_loc].vg_n,soil_properties[soil_num_loc].theta_e,soil_properties[soil_num_loc].theta_r);
 	
 	
-	double Se_prevA = calc_Se_from_theta(theta_prevA,soil_properties[soil_numA].theta_e,soil_properties[soil_numA].theta_r);
+	double Se_prev_loc = calc_Se_from_theta(theta_prev_loc,soil_properties[soil_num_loc].theta_e,soil_properties[soil_num_loc].theta_r);
 	
-	double K_cm_per_s_prevA = calc_K_from_Se(Se_prevA,soil_properties[soil_numA].Ksat_cm_per_h* frozen_factor[layer_num-k], soil_properties[soil_numA].vg_m);
+	double K_cm_per_h_prev_loc = calc_K_from_Se(Se_prev_loc,soil_properties[soil_num_loc].Ksat_cm_per_h * frozen_factor[layer_num-k], soil_properties[soil_num_loc].vg_m);
 	
-	denominatorA += (cum_layer_thickness_cm[k] - cum_layer_thickness_cm[k-1])/ K_cm_per_s_prevA;
+	denominator_loc += (cum_layer_thickness_cm[k] - cum_layer_thickness_cm[k-1])/ K_cm_per_h_prev_loc;
 	
       }
       
-      double theta_prev = calc_theta_from_h(current->psi_cm, soil_properties[soil_num-1].vg_alpha_per_cm, soil_properties[soil_num-1].vg_m, soil_properties[soil_num-1].vg_n,soil_properties[soil_num-1].theta_e,soil_properties[soil_num-1].theta_r);
+      double theta_prev = calc_theta_from_h(current->psi_cm, soil_properties[soil_num-1].vg_alpha_per_cm, soil_properties[soil_num-1].vg_m,
+					    soil_properties[soil_num-1].vg_n,soil_properties[soil_num-1].theta_e,soil_properties[soil_num-1].theta_r);
       
       double Se_prev = calc_Se_from_theta(theta_prev,soil_properties[soil_num-1].theta_e,soil_properties[soil_num-1].theta_r);
       
-      double K_cm_per_s_prev = calc_K_from_Se(Se_prev,soil_properties[soil_num-1].Ksat_cm_per_h * frozen_factor[layer_num-1], soil_properties[soil_num-1].vg_m);
+      double K_cm_per_h_prev = calc_K_from_Se(Se_prev,soil_properties[soil_num-1].Ksat_cm_per_h * frozen_factor[layer_num-1], soil_properties[soil_num-1].vg_m);
       
       
       Z_cm = depth_cm - cum_layer_thickness_cm[layer_num -1];
       
-      double numerator = depth_cm + (Geff +h_p)* Ksat_cm_per_h / K_cm_per_s;
-      double denominator = cum_layer_thickness_cm[layer_num -1] / K_cm_per_s_prev + bottom_sum;
+      double numerator = depth_cm + (Geff +h_p)* Ksat_cm_per_h / K_cm_per_h;
+      double denominator = cum_layer_thickness_cm[layer_num -1] / K_cm_per_h_prev + bottom_sum;
       
-      dzdt = 1.0/delta_theta * numerator / denominatorA;
+      dzdt = (1.0/delta_theta) * numerator / denominator_loc;
     }
     
     previous = current;
@@ -2283,12 +2298,12 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 				      struct soil_properties_ *soil_properties)
 {
 
-  double x = psi_cm;
-  double delta_mass = fabs(new_mass - prior_mass);
+  double psi_cm_loc = psi_cm; // location psi
+  double delta_mass = fabs(new_mass - prior_mass); // mass different between the new and prior
   double tolerance = 1e-12;
 
-  double factor = 1.0;// * delta_mass;
-  bool switched = false;
+  double factor = 1.0;
+  bool switched = false; // flag that determines capillary head to be incremented or decremented
 
   double theta_of_wf_in_layer1_above, theta_of_wf_in_layer2_above;
   double new_mass_in_layer1_above, new_mass_in_layer2_above, new_mass_in_same_layer;
@@ -2297,14 +2312,17 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 
   // check if the difference is less than the tolerance
   if (delta_mass <= tolerance) {
-    theta = calc_theta_from_h(x, soil_properties[soil_num].vg_alpha_per_cm, soil_properties[soil_num].vg_m, soil_properties[soil_num].vg_n,soil_properties[soil_num].theta_e,soil_properties[soil_num].theta_r);
+    theta = calc_theta_from_h(psi_cm_loc, soil_properties[soil_num].vg_alpha_per_cm, soil_properties[soil_num].vg_m,
+			      soil_properties[soil_num].vg_n,soil_properties[soil_num].theta_e,soil_properties[soil_num].theta_r);
     return theta;
   }
 
+  // the loop increments/decrements the capillary head until mass difference between
+  // the new and prior is within the tolerance
   while (delta_mass > tolerance) {
     
     if (new_mass>prior_mass) {
-      x = x + 0.1 * factor;
+      psi_cm_loc += 0.1 * factor;
       switched = false;
     }
     else {
@@ -2312,21 +2330,24 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 	switched = true;
 	factor = factor * 0.1;
       }
-      x = x - 0.1 * factor;
+      psi_cm_loc -= 0.1 * factor;
 
     }
 
-    //x = fmax(x,0.0);
     double theta_layer;
     double mass_layers= 0.0;
     
-    theta = calc_theta_from_h(x, soil_properties[soil_num].vg_alpha_per_cm, soil_properties[soil_num].vg_m, soil_properties[soil_num].vg_n,soil_properties[soil_num].theta_e,soil_properties[soil_num].theta_r);
+    theta = calc_theta_from_h(psi_cm_loc, soil_properties[soil_num].vg_alpha_per_cm, soil_properties[soil_num].vg_m,
+			      soil_properties[soil_num].vg_n,soil_properties[soil_num].theta_e,
+			      soil_properties[soil_num].theta_r);
     mass_layers += delta_thickness[layer_num] * (theta - delta_theta[layer_num]);
     
     for (int k=1; k<layer_num; k++) {
-      int soil_numA =  soil_type[k];
+      int soil_num_loc =  soil_type[k]; // _loc denotes the variable is local to the loop
 
-      theta_layer = calc_theta_from_h(x, soil_properties[soil_numA].vg_alpha_per_cm, soil_properties[soil_numA].vg_m, soil_properties[soil_numA].vg_n,soil_properties[soil_numA].theta_e,soil_properties[soil_numA].theta_r);
+      theta_layer = calc_theta_from_h(psi_cm_loc, soil_properties[soil_num_loc].vg_alpha_per_cm, soil_properties[soil_num_loc].vg_m,
+				      soil_properties[soil_num_loc].vg_n,soil_properties[soil_num_loc].theta_e,
+				      soil_properties[soil_num_loc].theta_r);
 
       mass_layers += delta_thickness[k] * (theta_layer - delta_theta[k]);
     }
