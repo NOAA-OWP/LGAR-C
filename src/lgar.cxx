@@ -410,18 +410,25 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   if(is_soil_params_file_set) {
     //allocate memory to create an array of structures to hold the soils properties data.
     //state->soil_properties = (struct soil_properties_*) malloc((state->lgar_bmi_params.num_layers+1)*sizeof(struct soil_properties_));
-
+    
+    
     state->soil_properties = new soil_properties_[state->lgar_bmi_params.num_soil_types+1];
     int num_soil_types = state->lgar_bmi_params.num_soil_types;
     double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
-    lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types, wilting_point_psi_cm, state->soil_properties);
+    int max_num_soil_in_file = lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types, wilting_point_psi_cm, state->soil_properties);
 
+    // check if soil layers provided are within the range
+    for (int layer=1; layer <= state->lgar_bmi_params.num_layers; layer++) {
+      assert (state->lgar_bmi_params.layer_soil_type[layer] <= state->lgar_bmi_params.num_soil_types);
+      assert (state->lgar_bmi_params.layer_soil_type[layer] <= max_num_soil_in_file);
+    }
+    
     if (verbosity.compare("high") == 0) {
       for (int layer=1; layer<=state->lgar_bmi_params.num_layers; layer++) {
 	int soil = state->lgar_bmi_params.layer_soil_type[layer];// layer_soil_type[layer];
 	std::cerr<<"Soil type/name : "<<state->lgar_bmi_params.layer_soil_type[layer]<<" "<<state->soil_properties[soil].soil_name<<"\n";
       }
-	std::cerr<<"          *****         \n";
+      std::cerr<<"          *****         \n";
     }
   }  
   
@@ -912,7 +919,7 @@ extern int wetting_front_free_drainage() {
     wf_that_supplies_free_drainage_demand--;
 
   if (verbosity.compare("high") == 0) {
-    printf("wettign_front_free_drainage, layer_num = %d \n", wf_that_supplies_free_drainage_demand);
+    printf("wetting_front_free_drainage, layer_num = %d \n", wf_that_supplies_free_drainage_demand);
   }
   
   return  wf_that_supplies_free_drainage_demand;
@@ -949,6 +956,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
   struct wetting_front *next_old;
 
   double mass_before_move = lgar_calc_mass_bal(cum_layer_thickness_cm);
+  double column_depth = cum_layer_thickness_cm[num_layers];
   
   previous = head;
   double theta_e,theta_r;
@@ -1160,8 +1168,13 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
 	
 	if (wf_free_drainage_demand == wf)
 	  prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
-	
-	current->depth_cm +=  current->dzdt_cm_per_h * timestep_h;
+
+	current->depth_cm += current->dzdt_cm_per_h * timestep_h;
+
+	/* condition to bound the wetting front depth, if depth of a wf, at this timestep,
+	   gets greater than the domain depth, it will be merge anyway as it is passing
+	   the layer depth */
+	current->depth_cm = fmin(current->depth_cm, column_depth); 
 	
 	if (current->dzdt_cm_per_h == 0.0 && current->to_bottom == FALSE) // a new front was just created, so don't update it.
 	  current->theta = current->theta;
@@ -1335,13 +1348,12 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
       *ponded_depth_cm = lgar_merge_wetting_fronts(num_layers, current, cum_layer_thickness_cm,
 						   soil_type, frozen_factor, soil_properties);
     }
-
    
   }
   /*******************************************************************/
   // end of the for loop
   /*******************************************************************/
-
+  
   // reset current to head to fix any mass balance issues and dry-over-wet wetting fronts conditions
   double mass_change = 0.0;
   
@@ -1415,6 +1427,10 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
 					double* cum_layer_thickness_cm, int *soil_type,
 					double *frozen_factor, struct soil_properties_ *soil_properties)
 {
+  if (verbosity.compare("high") == 0) {
+    printf("Inside merging wetting fronts... \n");
+  }
+  
   // local variables
   double theta_e,theta_r;
   double vg_a, vg_m, vg_n;
@@ -1444,7 +1460,6 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
   // 'current->layer_num == next->layer_num' ensures wetting fronts are in the same layer
   // '!next->to_bottom' ensures that the next wetting front is not the deepest wetting front in the layer
   if ( (current->depth_cm > next->depth_cm) && (current->layer_num == next->layer_num) && !next->to_bottom) {
-
     double current_mass_this_layer = current->depth_cm * (current->theta - next->theta) + next->depth_cm*(next->theta - next_to_next->theta);
     current->depth_cm = current_mass_this_layer / (current->theta - next_to_next->theta);
 
@@ -1479,8 +1494,7 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
   // current->depth_cm < column_depth ensures the wetting front depth is not greater than the domain depth,
   // which is the absolute depth of the deepest layer
   
-  if (current->depth_cm > cum_layer_thickness_cm[layer_num] && current->depth_cm < column_depth) {
-    
+  if (current->depth_cm > cum_layer_thickness_cm[layer_num] && current->depth_cm <= column_depth) {
     double current_theta = fmin(theta_e, current->theta);
     double overshot_depth = current->depth_cm - next->depth_cm;
     
@@ -1568,13 +1582,12 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
     double vg_m_k      = soil_properties[soil_num].vg_m;
     double vg_n_k      = soil_properties[soil_num].vg_n;
     double Ksat_cm_per_h_k  = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[current->layer_num];
-    
     double Se_k = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
     
     current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
     current->K_cm_per_h = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k);
   }
-      
+
   // case : wetting front is the deepest one in the last layer (most deepested wetting front in the domain)
   /**********************************************************/
   if (next_to_next == NULL && current->depth_cm > cum_layer_thickness_cm[layer_num]) {
@@ -1607,13 +1620,16 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
 extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
 					 struct soil_properties_ *soil_properties)
 {
-
+  if (verbosity.compare("high") == 0) {
+    printf("Inside lgar_fix_wet_over_dry_fronts... \n");
+  }
+  
   struct wetting_front *current;
   struct wetting_front *next;
   current = head;
   next = current->next;
   
-  for (int l=1; l != listLength(); l++) {
+  for (int l=1; l <= listLength(); l++) {
     
     if (next != NULL) {
       //struct wetting_front *next_to_next = listFindFront(l+2,NULL);
@@ -1660,9 +1676,11 @@ extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_
       
       
       // this part fixes case of upper theta less than lower theta due to AET extraction
+      // also handles the case when the current and next wetting fronts have the same theta
+      // and are within the same layer
       /***************************************************/
-      
-      if ( (current->theta < next->theta) && (current->layer_num == next->layer_num) ) {
+
+      if ( (current->theta <= next->theta) && (current->layer_num == next->layer_num) ) {
 	int layer_num_k = current->layer_num;
 	double mass_before = lgar_calc_mass_bal(cum_layer_thickness_cm);
 
@@ -1694,13 +1712,12 @@ extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_
 	    vg_m_k      = soil_properties[soil_num_k1].vg_m;
 	    vg_n_k      = soil_properties[soil_num_k1].vg_n;
 	    double Se_l = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
-	    
 	    current_local->psi_cm = calc_h_from_Se(Se_l, vg_a_k, vg_m_k, vg_n_k);
 	    current_local->theta = calc_theta_from_h(current->psi_cm, vg_a_k, vg_m_k, vg_n_k,theta_e_k,theta_r_k);
 	    current_local = current_local->next;
-	    }
+	  }
 	}
-	
+
 	double mass_after = lgar_calc_mass_bal(cum_layer_thickness_cm);
 	*mass_change += fabs(mass_after - mass_before);
 	
@@ -1711,11 +1728,17 @@ extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_
 	   back to AET after deleting the drier front */
 	
       }
+
       current = current->next;
-      next = current->next;
+      
+      if (current == NULL)
+	next = NULL;
+      else
+	next = current->next;
+
     }
   }
-
+  
 }
 
 // ############################################################################################
@@ -1934,7 +1957,7 @@ extern void lgar_create_surfacial_front(double *ponded_depth_cm, double *volin, 
    continuous modeling of infiltration and redistribution with a shallow dynamic water table). */
 // ############################################################################################
 extern double lgar_calc_dry_depth(int nint, double timestep_h, double *delta_theta, int *soil_type, 
-                                   double *cum_layer_thickness_cm, double *frozen_factor,
+				  double *cum_layer_thickness_cm, double *frozen_factor,
 				  struct soil_properties_ *soil_properties)
 {
     
@@ -1969,7 +1992,7 @@ extern double lgar_calc_dry_depth(int nint, double timestep_h, double *delta_the
   *delta_theta = theta_e - current->theta;  // return the delta_theta value to the calling function
   
   tau  = timestep_h * Ksat_cm_per_h/(theta_e-current->theta); //3600
-  
+
   Geff = calc_Geff(theta1, theta2, theta_e, theta_r, vg_alpha_per_cm, vg_n, vg_m, h_min_cm, Ksat_cm_per_h, nint);
  
   // note that dry depth originally has a factor of 0.5 in front
@@ -1977,8 +2000,10 @@ extern double lgar_calc_dry_depth(int nint, double timestep_h, double *delta_the
 
   //when dry depth greater than layer 1 thickness, set dry depth to layer 1 thickness
   dry_depth = fmin(cum_layer_thickness_cm[layer_num], dry_depth);
- 
- return dry_depth;
+
+  assert (dry_depth <= 200);
+
+  return dry_depth;
 
 }
 
@@ -2028,7 +2053,7 @@ double lgar_calc_mass_bal(double *cum_layer_thickness)
 /* The module reads the soil parameters.
    Open file to read in the van Genuchton parameters for standard soil types*/
 // ############################################################################################
-extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_types, double wilting_point_psi_cm,
+extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_types, double wilting_point_psi_cm,
 				    struct soil_properties_ *soil_properties)
 {
 
@@ -2042,67 +2067,71 @@ extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil
   char soil_name[30];
   // bool error;
   int length;
-  int soil;             // soil counter
+  int num_soils_in_file = 0;             // soil counter
+  int soil = 1;
   double theta_e,theta_r,vg_n,vg_m,vg_alpha_per_cm,Ksat_cm_per_h;  // shorthand variable names
   double m,p,lambda;
   
   // open the file
-  if((in_vG_params_fptr=fopen(vG_param_file_name,"r"))==NULL)
-    {printf("Can't open input file named %s. Program stopped.\n",vG_param_file_name); exit(-1);}
+  if((in_vG_params_fptr=fopen(vG_param_file_name,"r"))==NULL) {
+    printf("Can't open input file named %s. Program stopped.\n",vG_param_file_name); exit(-1);
+  }
   
   fgets(jstr,255,in_vG_params_fptr);   // read the header line and ignore
   
-  for(soil=1;soil<=num_soil_types;soil++)  // read the num_soil_types lines with data
-    {
+  //for(soil=1;soil<=num_soil_types;soil++) {// read the num_soil_types lines with data
+  while (fgets(jstr,255,in_vG_params_fptr) != NULL) {
+    
+    sscanf(jstr,"%s %lf %lf %lf %lf %lf %lf",soil_name,&theta_r,&theta_e,&vg_alpha_per_cm,&vg_n,&vg_m,&Ksat_cm_per_h);
+    length=strlen(soil_name);
 
-      fgets(jstr,255,in_vG_params_fptr);
-      sscanf(jstr,"%s %lf %lf %lf %lf %lf %lf",soil_name,&theta_r,&theta_e,&vg_alpha_per_cm,&vg_n,&vg_m,&Ksat_cm_per_h);
-      length=strlen(soil_name);
-      
-      if(length>MAX_SOIL_NAME_CHARS)
-	{
-	  printf("While reading vG soil parameter file: %s, soil name longer than allowed.  Increase MAX_SOIL_NAME_CHARS\n",
-		 vG_param_file_name); 
-	  printf("Program stopped.\n");
-	  abort();
-	}
-      strcpy(soil_properties[soil].soil_name,soil_name);
-      soil_properties[soil].theta_r         = theta_r;
-      soil_properties[soil].theta_e         = theta_e;
-      soil_properties[soil].vg_alpha_per_cm = vg_alpha_per_cm; // cm^(-1)
-      soil_properties[soil].vg_n            = vg_n;
-      soil_properties[soil].vg_m            = vg_m;
-      soil_properties[soil].Ksat_cm_per_h   = Ksat_cm_per_h;
-
-      soil_properties[soil].theta_wp = calc_theta_from_h(wilting_point_psi_cm, vg_alpha_per_cm,
-							 vg_m, vg_n, theta_e, theta_r);
-      
-      // Given van Genuchten parameters calculate estimates of Brooks & Corey bc_lambda and bc_psib
-      if (1.0 < vg_n)
-	{
-	  m = 1.0 - 1.0 / vg_n;
-	  p = 1.0 + 2.0 / m;
-	  soil_properties[soil].bc_lambda  = 2.0 / (p - 3.0);
-	  soil_properties[soil].bc_psib_cm = (p + 3.0) * (147.8 + 8.1 * p + 0.092 * p * p) / 
-	    (2.0 * vg_alpha_per_cm * p * (p - 1.0) * (55.6 + 7.4 * p + p * p));
-	  assert(0.0 < soil_properties[soil].bc_psib_cm);
-	}
-      else
-	{
-	  fprintf(stderr, "ERROR: van Genuchten parameter n must be greater than 1\n");
-	  //error = TRUE;  // TODO FIXME - what todo in this ccase?
-	}
-      
-      /* this is the effective capillary drive after */
-      /* Morel-Seytoux et al. (1996) eqn. 13 or 15 */
-      /* psi should not be less than this value.  */
-      lambda=soil_properties[soil].bc_lambda;
-      soil_properties[soil].h_min_cm = soil_properties[soil].bc_psib_cm*(2.0+3.0/lambda)/(1.0+3.0/lambda);                                                             
-      
+    if(length>MAX_SOIL_NAME_CHARS) {
+      printf("While reading vG soil parameter file: %s, soil name longer than allowed.  Increase MAX_SOIL_NAME_CHARS\n",
+	     vG_param_file_name); 
+      printf("Program stopped.\n");
+      exit(0);
     }
-  fclose(in_vG_params_fptr);      // close the file, we're done with it
+    
+    strcpy(soil_properties[soil].soil_name,soil_name);
+    soil_properties[soil].theta_r         = theta_r;
+    soil_properties[soil].theta_e         = theta_e;
+    soil_properties[soil].vg_alpha_per_cm = vg_alpha_per_cm; // cm^(-1)
+    soil_properties[soil].vg_n            = vg_n;
+    soil_properties[soil].vg_m            = vg_m;
+    soil_properties[soil].Ksat_cm_per_h   = Ksat_cm_per_h;
+    soil_properties[soil].theta_wp = calc_theta_from_h(wilting_point_psi_cm, vg_alpha_per_cm,
+						       vg_m, vg_n, theta_e, theta_r);
+      
+    // Given van Genuchten parameters calculate estimates of Brooks & Corey bc_lambda and bc_psib
+    if (1.0 < vg_n) {
+      m = 1.0 - 1.0 / vg_n;
+      p = 1.0 + 2.0 / m;
+      soil_properties[soil].bc_lambda  = 2.0 / (p - 3.0);
+      soil_properties[soil].bc_psib_cm = (p + 3.0) * (147.8 + 8.1 * p + 0.092 * p * p) / 
+	(2.0 * vg_alpha_per_cm * p * (p - 1.0) * (55.6 + 7.4 * p + p * p));
+      assert(0.0 < soil_properties[soil].bc_psib_cm);
+    }
+    else {
+      fprintf(stderr, "ERROR: van Genuchten parameter n must be greater than 1\n");
+      //error = TRUE;  // TODO FIXME - what todo in this ccase?
+    }
+    
+    /* this is the effective capillary drive after */
+    /* Morel-Seytoux et al. (1996) eqn. 13 or 15 */
+    /* psi should not be less than this value.  */
+    lambda=soil_properties[soil].bc_lambda;
+    soil_properties[soil].h_min_cm = soil_properties[soil].bc_psib_cm*(2.0+3.0/lambda)/(1.0+3.0/lambda);                                                             
+    num_soils_in_file++;
+    soil++;
 
-  return;
+    // the soil_properties array has allocation of num_soil_types, so break if condition is satisfied
+    if (num_soil_types == num_soils_in_file)
+      break;
+  }
+
+  fclose(in_vG_params_fptr);      // close the file, we're done with it
+  
+  return num_soils_in_file;
 }
 
 // ############################################################################################
@@ -2112,7 +2141,10 @@ extern void lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil
 extern void lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_layer_thickness_cm, double *frozen_factor,
 			  struct soil_properties_ *soil_properties)
 {
-
+  if (verbosity.compare("high") == 0) {
+    std::cerr<<"Calculating dz/dt .... \n";
+  }
+  
   struct wetting_front* current;
   struct wetting_front* next;
   
@@ -2193,16 +2225,21 @@ extern void lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_lay
     Geff = calc_Geff(theta1, theta2, theta_e, theta_r, vg_alpha_per_cm, vg_n, vg_m, h_min_cm, Ksat_cm_per_h, nint);
     delta_theta = current->theta - next->theta;
     
-    if(current->layer_num == 1) { // this front is in the upper layer	  
+    if(current->layer_num == 1) { // this front is in the upper layer
+      if (delta_theta > 0)
 	dzdt = 1.0/delta_theta*(Ksat_cm_per_h*(Geff+h_p)/current->depth_cm+current->K_cm_per_h);
+      else
+	dzdt = 0.0;
     }
     else {  // we are in the second or greater layer
       double denominator = bottom_sum;
       
       for (int k = 1; k < layer_num; k++) {
 	int soil_num_loc = soil_type[layer_num-k]; // _loc denotes the soil_num is local to this loop
-	double theta_prev_loc = calc_theta_from_h(current->psi_cm, soil_properties[soil_num_loc].vg_alpha_per_cm, soil_properties[soil_num_loc].vg_m,
-						 soil_properties[soil_num_loc].vg_n,soil_properties[soil_num_loc].theta_e,soil_properties[soil_num_loc].theta_r);
+	double theta_prev_loc = calc_theta_from_h(current->psi_cm, soil_properties[soil_num_loc].vg_alpha_per_cm,
+						  soil_properties[soil_num_loc].vg_m,
+						  soil_properties[soil_num_loc].vg_n,soil_properties[soil_num_loc].theta_e,
+						  soil_properties[soil_num_loc].theta_r);
 	
 	
 	double Se_prev_loc = calc_Se_from_theta(theta_prev_loc,soil_properties[soil_num_loc].theta_e,soil_properties[soil_num_loc].theta_r);
@@ -2215,8 +2252,11 @@ extern void lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_lay
       }
       
       double numerator = depth_cm + (Geff +h_p)* Ksat_cm_per_h / K_cm_per_h;
-      
-      dzdt = (1.0/delta_theta) * numerator / denominator;
+
+      if (delta_theta > 0)
+	dzdt = (1.0/delta_theta) * numerator / denominator;
+      else
+	dzdt = 0.0;
     }
     
     current->dzdt_cm_per_h = dzdt;

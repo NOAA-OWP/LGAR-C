@@ -1,5 +1,5 @@
 #include "../include/all.hxx"
-
+#include "iostream"
 /*##################################################*/
 /*##################################################*/
 /*##################################################*/
@@ -33,7 +33,6 @@ extern double calc_Geff(double theta1, double theta2, double theta_e, double the
 {
   // local variables
   // note: units of h in cm.  units of K in cm/s
-  
   double h_i,h_f,Se_i,Se_f;  // variables to store initial and final values
   double Se;
   double h2;         // the head at the right-hand side of the trapezoid being integrated [m]
@@ -41,12 +40,14 @@ extern double calc_Geff(double theta1, double theta2, double theta_e, double the
   double Se1,Se2;    // the scaled moisture content on left- and right-hand side of trapezoid
   double K1,K2;      // the K(h) values on the left and right of the region dh integrated [m]
   double Geff;       // this is the result to be returned.
-  
-  if(theta2<=theta1 && false) {
-    printf("in function calc_Geff(), theta2 <=theta 1, when theta1 must be less than theta2.\n");
-    printf("theta1=%lf, theta2=%lf\n",theta1, theta2);
-    printf("returning 0.\n");
-    //return(0.0); AJ
+
+  if(theta2 <= theta1) {
+    /*
+      printf("in function calc_Geff(), theta2 <=theta 1, when theta1 must be less than theta2.\n");
+      printf("theta1=%lf, theta2=%lf\n",theta1, theta2);
+      printf("returning 0.\n");
+      //return(0.0); AJ
+      */
   }
   
   Se_i = calc_Se_from_theta(theta1,theta_e,theta_r);    // scaled initial water content (0-1) [-]
@@ -54,10 +55,13 @@ extern double calc_Geff(double theta1, double theta2, double theta_e, double the
   
   h_i = calc_h_from_Se(Se_i,vg_alpha,vg_m,vg_n);  // capillary head associated with Se_i [cm]
   h_f = calc_h_from_Se(Se_f,vg_alpha,vg_m,vg_n);  // capillary head associated with Se_f [cm]
-  
-  if(h_i < h_min) return h_min;   /* if the lower limit of integration is less than h_min FIXME */
+
+  if(h_i < h_min) {/* if the lower limit of integration is less than h_min FIXME */
+    //return h_min; // commenting out as this is not used in the Python version
+  }
   
   if (verbosity.compare("high") == 0) {
+    //abort();
     // debug statements to see if calc_Se_from_h function is working properly
     Se = calc_Se_from_h(h_i,vg_alpha,vg_m,vg_n);
     printf("Se_i = %8.6lf,  Se_inverse = %8.6lf\n", Se_i, Se);
@@ -86,7 +90,7 @@ extern double calc_Geff(double theta1, double theta2, double theta_e, double the
     K1 = K2;
     h2 += dh;
   }
-  
+  //std::cerr<<"Integral = "<< Geff<<" "<<Ksat<<"\n";
   Geff = fabs(Geff/Ksat);       // by convention Geff is a positive quantity
 
   if (verbosity.compare("high") == 0)
@@ -94,7 +98,6 @@ extern double calc_Geff(double theta1, double theta2, double theta_e, double the
 
   //if(Geff < h_min) Geff = h_min; AJ // as per Morel-Seytoux and Khanji
  
-  
   return Geff;
   
 }
