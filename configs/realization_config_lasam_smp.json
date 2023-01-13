@@ -91,7 +91,7 @@
 		}
             ],
             "forcing": {
-		"path" : "./extern/LGAR-C/forcing/Phillipsburg_data2_PET_updated_ngen.csv"
+		"path" : "./extern/LGAR-C/forcing/forcing_data_Phillipsburg.csv"
             }
         }
     }

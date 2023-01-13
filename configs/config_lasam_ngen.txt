@@ -1,5 +1,5 @@
 verbosity=low
-forcing_file=./forcing/forcing_data_Phillipsburg.txt
+forcing_file=./forcing/forcing_data_Phillipsburg.csv
 soil_params_file=./extern/LGAR-C/data/vG_default_params_updated.dat
 layer_thickness=44.0,131.0,25.0[cm]
 initial_psi=2000.0[cm]
