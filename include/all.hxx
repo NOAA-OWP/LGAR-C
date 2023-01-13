@@ -135,7 +135,7 @@ struct lgar_bmi_parameters
   
   int    nint = 120;            // number of trapezoids used in integrating the Geff function
   double time_s;                // current time [s] (this is the bmi output 'time') 
-
+  double endtime_s;             // simulation endtime in seconds (bmi output endtime)
   int    sft_coupled = 0;       // model coupling flag. if true, lasam is coupled to soil freeze thaw model; default is uncoupled version
 
   double *giuh_ordinates;       // geomorphological instantaneous unit hydrograph

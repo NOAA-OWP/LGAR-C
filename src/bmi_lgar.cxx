@@ -140,14 +140,14 @@ Update()
        in the code below, subtimestep_h is this 300/3600 factor (see initialize from config in lgar.cxx)
     */
     
-    precip_subtimestep_cm_per_h = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm / double(subcycles); // rate; cm/hour
+    precip_subtimestep_cm_per_h = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm; // rate [cm/hour]
 
-    PET_subtimestep_cm_per_h = state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm / double(subcycles);
+    PET_subtimestep_cm_per_h = state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm;
 
     ponded_depth_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h; // the amount of water on the surface before any infiltration and runoff
 
-    precip_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h; // portion of the water on the suface for model's timestep (cm)
-    PET_subtimestep_cm = PET_subtimestep_cm_per_h * subtimestep_h;      // potential ET for this subtimestep (cm)
+    precip_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h; // rate x dt = amount (portion of the water on the suface for model's timestep [cm])
+    PET_subtimestep_cm = PET_subtimestep_cm_per_h * subtimestep_h;      // potential ET for this subtimestep [cm]
 
     //using cerr instead of cout due to some cout buffering issues when running in the ngen framework, cerr doesn't buffer so it prints immediately to the sreeen.
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
@@ -362,7 +362,8 @@ Update()
     state->lgar_bmi_params.soil_thickness_wetting_fronts[i] = current->depth_cm * state->units.cm_to_m;
     current = current->next;
     if (verbosity.compare("high") == 0)
-      std::cerr<<"Wetting fronts (bmi outputs) (depth in meters, theta)= "<<state->lgar_bmi_params.soil_thickness_wetting_fronts[i]<<" "<<state->lgar_bmi_params.soil_moisture_wetting_fronts[i]<<"\n";
+      std::cerr<<"Wetting fronts (bmi outputs) (depth in meters, theta)= "<<state->lgar_bmi_params.soil_thickness_wetting_fronts[i]
+	       <<" "<<state->lgar_bmi_params.soil_moisture_wetting_fronts[i]<<"\n";
   }
   
   // add to mass balance timestep variables
@@ -772,7 +773,7 @@ GetStartTime () {
 
 double BmiLGAR::
 GetEndTime () {
-  return 0.0;
+  return this->state->lgar_bmi_params.endtime_s;
 }
 
 

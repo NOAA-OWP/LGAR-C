@@ -71,7 +71,12 @@ int main(int argc, char *argv[])
 
 
   // total number of timesteps
-  int nsteps = 7500; //2700; //7500.0;//57;
+  //int nsteps = 7500;
+
+  // get time steps
+  double endtime = model_state.GetEndTime();
+  double timestep = model_state.GetTimeStep();
+  int nsteps = int(endtime/timestep); // total number of time steps
   
   std::vector<std::string> time;
   std::vector<double> precipitation;

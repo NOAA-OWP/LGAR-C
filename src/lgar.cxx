@@ -182,6 +182,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   bool is_layer_thickness_set = false;
   bool is_initial_psi_set = false;
   bool is_timestep_set = false;
+  bool is_endtime_set = false;
   bool is_forcing_resolution_set = false;
   bool is_layer_soil_type_set = false;
   bool is_wilting_point_psi_cm_set = false;
@@ -360,6 +361,28 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       
       continue;
     }
+    else if (param_key == "endtime") {
+      
+      if (param_unit == "[s]" || param_unit == "[sec]" || param_unit == "") // defalut time unit is seconds
+	state->lgar_bmi_params.endtime_s = stod(param_value);
+      else if (param_unit == "[min]" || param_unit == "[minute]")
+	state->lgar_bmi_params.endtime_s = stod(param_value) * 60.0;
+      else if (param_unit == "[h]" || param_unit == "[hr]")
+	state->lgar_bmi_params.endtime_s = stod(param_value) * 3600.0;
+      else if (param_unit == "[d]" || param_unit == "[day]")
+	state->lgar_bmi_params.endtime_s = stod(param_value) * 86400.0;
+      
+      assert (state->lgar_bmi_params.endtime_s > 0);
+      is_endtime_set = true;
+
+      if (verbosity.compare("high") == 0) {
+	std::cerr<<"Endtime [days, hours]: "<< state->lgar_bmi_params.endtime_s/86400.0 <<" , "
+		 << state->lgar_bmi_params.endtime_s/3600.0<<"\n";
+	std::cerr<<"          *****         \n";
+      }
+      
+      continue;
+    }
     else if (param_key == "forcing_resolution") {
       state->lgar_bmi_params.forcing_resolution_h = stod(param_value);
 
@@ -447,6 +470,12 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   if (!is_timestep_set) {
     stringstream errMsg;
     errMsg << "timestep not set in the config file "<< config_file << "\n";
+    throw runtime_error(errMsg.str());
+  }
+
+  if (!is_endtime_set) {
+    stringstream errMsg;
+    errMsg << "end time not set in the config file "<< config_file << "\n";
     throw runtime_error(errMsg.str());
   }
 
