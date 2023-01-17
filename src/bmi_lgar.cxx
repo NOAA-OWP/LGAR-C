@@ -411,7 +411,7 @@ Update()
   bmi_unit_conv.volPET_timestep_m = PET_timestep_cm * state->units.cm_to_m;
 
   // Update time
-  this->state->lgar_bmi_params.time_s += this->state->lgar_bmi_params.forcing_resolution_h * state->units.hr_to_sec; // convert hour to seconds (AJ: fix this 3600 hacked value)
+  //this->state->lgar_bmi_params.time_s += this->state->lgar_bmi_params.forcing_resolution_h * state->units.hr_to_sec; // convert hour to seconds (AJ: fix this 3600 hacked value)
   
   if (verbosity.compare("high") == 0)
     std::cerr<<"Current time = "<<this->state->lgar_bmi_params.time_s / state->units.hr_to_sec <<" hours \n";
