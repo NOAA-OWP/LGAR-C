@@ -342,6 +342,16 @@ Update()
     assert (head->depth_cm > 0.0); // check on negative layer depth
 
 
+    this->state->lgar_bmi_params.time_s += subtimestep_h * state->units.hr_to_sec; // convert hour to seconds (AJ: fix this 3600 hacked value)
+
+    bool lasam_standalone = true;
+#ifdef NGEN
+    lasam_standalone = false;
+#endif
+    // simuation time can't exceed the endtime when running standalone
+    if ( (this->state->lgar_bmi_params.time_s >= this->state->lgar_bmi_params.endtime_s) && lasam_standalone)
+      break;
+    
   } // end of subcycling
 
   /*----------------------------------------------------------------------*/

@@ -417,9 +417,9 @@ int main(int argc, char *argv[])
     double dest_new[] = {0.0};
     
     if (var_name == "precipitation_rate")
-      dest_new[0] = 20.830;
+      dest_new[0] = 1.896; // in mm/hr
     else if (var_name == "potential_evapotranspiration_rate")
-      dest_new[0] = 1.25;
+      dest_new[0] = 0.104; // in mm/hr
     
     double *dest_new_up = new double[1];
     
@@ -447,10 +447,11 @@ int main(int argc, char *argv[])
   model.Update();
 
   // Benchmark values of wetting fronts depth and moisture (b is for benchmark)
-  std::vector<double> depth_wf_b = {1.867679, 44.00,175.0, 200.0}; // in cm
-  std::vector<double> theta_wf_b = {0.22438078320970, 0.13189262181112, 0.20696418908685, 0.25000990545822};
+  std::vector<double> depth_wf_b = {1.873813, 44.00,175.0, 200.0}; // in cm
+  std::vector<double> theta_wf_b = {0.23249416531131, 0.13189262181112, 0.20696418908685, 0.25000990545822};
   
   int m_to_cm = 100;
+  int m_to_mm = 1000;
   // note model outputs depths in meters
 
   int num_wf_base = 4; // number of wetting fronts after the rainfall
@@ -510,9 +511,9 @@ int main(int argc, char *argv[])
 
 
   // check total infiltration, AET, and PET.
-  double infiltration_check_cm = 0.173583;
-  double AET_check_cm = 0.0008454462;
-  double PET_check_cm = 0.0104166667;
+  double infiltration_check_mm = 1.896;  // in mm
+  double AET_check_mm = 0.010918233; // in mm
+  double PET_check_mm = 0.104; // in mm
   double infiltration_computed = 0.0;
   double PET_computed = 0.0;
   double AET_computed = 0.0;
@@ -525,27 +526,30 @@ int main(int argc, char *argv[])
   std::cout<<GREEN<<"\n";
   std::cout<<"| *************************************** \n";
   std::cout<<"| All BMI Tests passed: "<<passed<<"\n";
-  std::cout<<"| Infiltration: (benchmark vs computed) | "<< infiltration_check_cm <<" vs "<< infiltration_computed * m_to_cm <<"\n";
-  std::cout<<"| PET: (benchmark vs computed) | "<< PET_check_cm <<" vs "<< PET_computed * m_to_cm <<"\n";
-  std::cout<<"| AET: (benchmark vs computed) | "<< AET_check_cm <<" vs "<< AET_computed * m_to_cm <<"\n";
+  std::cout<<"| Infiltration: (benchmark vs computed) | "<< infiltration_check_mm <<" vs "<< infiltration_computed * m_to_mm <<"\n";
+  std::cout<<"| PET: (benchmark vs computed) | "<< PET_check_mm <<" vs "<< PET_computed * m_to_mm <<"\n";
+  std::cout<<"| AET: (benchmark vs computed) | "<< AET_check_mm <<" vs "<< AET_computed * m_to_mm <<"\n";
   std::cout<<"| *************************************** \n";
   std::cout<<RESET<<"\n";
 
-  if (fabs(infiltration_check_cm - infiltration_computed * m_to_cm) > 1.E-5) {
+  // to print global mass balance
+  //model.Finalize();
+
+  if (fabs(infiltration_check_mm - infiltration_computed * m_to_mm) > 1.E-5) {
     std::stringstream errMsg;
-    errMsg << "Error between benchmark and simulated infiltration is "<< fabs(infiltration_check_cm - infiltration_computed * m_to_cm) << " which is unexpected. \n";
+    errMsg << "Error between benchmark and simulated infiltration is "<< fabs(infiltration_check_mm - infiltration_computed * m_to_cm) << " which is unexpected. \n";
     throw std::runtime_error(errMsg.str());
   }
   
-  if (fabs(PET_check_cm - PET_computed * m_to_cm) > 1.E-5) {
+  if (fabs(PET_check_mm - PET_computed * m_to_mm) > 1.E-5) {
     std::stringstream errMsg;
-    errMsg << "Error between benchmark and simulated PET is "<< fabs(PET_check_cm - PET_computed * m_to_cm) << " which is unexpected. \n";
+    errMsg << "Error between benchmark and simulated PET is "<< fabs(PET_check_mm - PET_computed * m_to_mm) << " which is unexpected. \n";
     throw std::runtime_error(errMsg.str());
   }
   
-  if (fabs(AET_check_cm - AET_computed * m_to_cm) > 1.E-5) {
+  if (fabs(AET_check_mm - AET_computed * m_to_mm) > 1.E-5) {
     std::stringstream errMsg;
-    errMsg << "Error between benchmark and simulated AET is "<< fabs(AET_check_cm - AET_computed * m_to_cm) << " which is unexpected. \n";
+    errMsg << "Error between benchmark and simulated AET is "<< fabs(AET_check_mm - AET_computed * m_to_mm) << " which is unexpected. \n";
     throw std::runtime_error(errMsg.str());
   }
   
