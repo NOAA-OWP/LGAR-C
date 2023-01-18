@@ -130,7 +130,8 @@ struct lgar_bmi_parameters
 					    depth from the surface in meters */
   double *frozen_factor;                 // frozen factor added to the hydraulic conductivity due to coupling to soil freeze-thaw
   double  wilting_point_psi_cm;          // wilting point (the amount of water not available for plants or not accessible by plants)
-  double ponded_depth_cm;                // amount of water on the surface not available for surface drainage
+  double ponded_depth_cm;                // amount of water on the surface unavailable for surface runoff
+  double ponded_depth_max_cm;            // maximum amount of water on the surface unavailable for surface runoff
   double precip_previous_timestep_cm;    // amount of rainfall (previous time step)
   
   int    nint = 120;            // number of trapezoids used in integrating the Geff function
@@ -260,8 +261,8 @@ extern void lgar_create_surfacial_front(double *ponded_depth_cm, double *volin, 
 // computes the infiltration capacity, fp, of the soil
 extern double lgar_insert_water(int nint, double timestep_h, double *ponded_depth, double *volin_this_timestep,
 				double precip_timestep_cm, int wf_free_drainge_demand, int num_layers,
-				int *soil_type, double *cum_layer_thickness_cm, double *frozen_factor,
-				struct soil_properties_ *soil_properties);
+				double ponded_depth_max_cm, int *soil_type, double *cum_layer_thickness_cm,
+				double *frozen_factor, struct soil_properties_ *soil_properties);
 
 // the subroutine moves wetting fronts, merges wetting fronts, and does the mass balance correction if needed
 extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm, int wf_free_drainage_demand,

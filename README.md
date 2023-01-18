@@ -55,6 +55,7 @@ Example configuration files for the two examples above are provided in the [conf
 | soil_params_file | string | - | - | filename | - | provides soil types with van Genuchton parameters |
 | layer_thickness | double (1D array)| - | cm | state variable | - | individual layer thickness (not absolute)|
 | initial_psi | double (scalar)| >=0 | cm | capillary head | - | used to initialize layers with a constant head |
+| ponded_depth_max | double (scalar)| >=0 | cm | maximum surface ponding | - | the maximum amount of water unavailable for surface drainage |
 | timestep | double (scalar)| >0 | sec/min/hr | temporal resolution | - | timestep of the model |
 | forcing_resolution | double (scalar)| - | sec/min/hr | temporal resolution | - | timestep of the forcing data |
 | layer_soil_type | int (1D array) | - | - | state variable | - | layer soil type (read from the database file soil_params_file) |

@@ -135,6 +135,7 @@ extern void lgar_initialize(string config_file, struct model_state *state)
                                   (when coupled to soil freeze thaw model)
   @param wilting_point_psi_cm   : wilting point (the amount of water not available for plants or not accessible by plants)
   @param ponded_depth_cm        : amount of water on the surface not available for surface drainage (initialized to zero)
+  @param ponded_depth_max cm    : maximum amount of water on the surface not available for surface drainage (default is zero)
   @param nint                   : number of trapezoids used in integrating the Geff function (set to 120)
   @param time_s                 : current time [s] (initially set to zero)
   @param sft_coupled            : model coupling flag. if true, lasam is coupled to soil freeze thaw model; default is uncoupled version
@@ -190,6 +191,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   bool is_max_soil_types_set = false;
   bool is_giuh_ordinates_set = false;
   bool is_soil_z_set = false;
+  bool is_ponded_depth_max_cm_set = false;
   
   string soil_params_file;
 
@@ -417,6 +419,17 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       }
       continue;
     }
+    else if (param_key == "ponded_depth_max") {
+      state->lgar_bmi_params.ponded_depth_max_cm = fmax(stod(param_value), 0.0);
+      is_ponded_depth_max_cm_set = true;
+
+      if (verbosity.compare("high") == 0) {
+	std::cerr<<"Maximum ponded depth [cm] : "<<state->lgar_bmi_params.ponded_depth_max_cm<<"\n";
+	std::cerr<<"          *****         \n";
+      }
+      
+      continue;
+    }
     
   }
   
@@ -517,8 +530,10 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     state->lgar_bmi_params.soil_temperature_z = new double[1]();
     state->lgar_bmi_params.num_cells_temp = 1;
   }
-  // check if the size of the input data is consistent
-  //assert (parameters->ncells > 0);
+
+  if (!is_ponded_depth_max_cm_set) {
+    state->lgar_bmi_params.ponded_depth_max_cm = 0.0; // default maximum ponded depth is set to zero (i.e. no surface ponding)
+  }
   
 
   state->lgar_bmi_params.forcing_interval = int(state->lgar_bmi_params.forcing_resolution_h/state->lgar_bmi_params.timestep_h+1.0e-08); // add 1.0e-08 to prevent truncation error
@@ -901,18 +916,18 @@ extern void lgar_global_mass_balance(struct model_state *state, double *giuh_run
  printf("-------------------- Simulation Summary ----------------- \n");
  //printf("Time (sec)                 = %6.10f \n", elapsed);
  printf("------------------------ Mass balance ------------------- \n");
- printf("initial water in soil      = %14.10f cm\n", volstart);
- printf("total precipitation input  = %14.10f cm\n", volprecip);
- printf("total infiltration         = %14.10f cm\n", volin);
- printf("final water in soil        = %14.10f cm\n", volend);
- printf("water remaining on surface = %14.10f cm\n", volon);
- printf("surface runoff             = %14.10f cm\n", volrunoff);
- printf("giuh runoff                = %14.10f cm\n", volrunoff_giuh);
- printf("total percolation          = %14.10f cm\n", volrech);
- printf("total AET                  = %14.10f cm\n", volAET);
- printf("total PET                  = %14.10f cm\n", volPET);
- printf("total discharge (Q)        = %14.10f cm\n", total_Q_cm);
- printf("global balance             =   %.6e cm\n", global_error_cm);
+ printf("Initial water in soil    = %14.10f cm\n", volstart);
+ printf("Total precipitation      = %14.10f cm\n", volprecip);
+ printf("Total infiltration       = %14.10f cm\n", volin);
+ printf("Final water in soil      = %14.10f cm\n", volend);
+ printf("Surface ponded water     = %14.10f cm\n", volon);
+ printf("Surface runoff           = %14.10f cm\n", volrunoff);
+ printf("GIUH runoff              = %14.10f cm\n", volrunoff_giuh);
+ printf("Total percolation        = %14.10f cm\n", volrech);
+ printf("Total AET                = %14.10f cm\n", volAET);
+ printf("Total PET                = %14.10f cm\n", volPET);
+ printf("Total discharge (Q)      = %14.10f cm\n", total_Q_cm);
+ printf("Global balance           =   %.6e cm\n", global_error_cm);
  
 }
 
@@ -1780,7 +1795,8 @@ extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_
 // ############################################################################################
 extern double lgar_insert_water(int nint, double timestep_h, double *ponded_depth_cm, double *volin_this_timestep,
 				double precip_timestep_cm, int wf_free_drainage_demand,
-			        int num_layers, int *soil_type, double *cum_layer_thickness_cm, double *frozen_factor,
+			        int num_layers, double ponded_depth_max_cm, int *soil_type,
+				double *cum_layer_thickness_cm, double *frozen_factor,
 				struct soil_properties_ *soil_properties)
 {
   // note ponded_depth_cm is a pointer.   Access it's value as (*ponded_depth_cm).
@@ -1797,7 +1813,6 @@ extern double lgar_insert_water(int nint, double timestep_h, double *ponded_dept
   int soil_num;
   double f_p = 0.0;
   double runoff = 0.0;
-  double hp_cm_max = 0.0;
 
   double h_p = fmax(*ponded_depth_cm - precip_timestep_cm * timestep_h, 0.0); // water ponded on the surface
   
@@ -1863,7 +1878,7 @@ extern double lgar_insert_water(int nint, double timestep_h, double *ponded_dept
 
   // if free drainge has to be included, which currently we don't, then the following will be set to hydraulic conductivity
   // of the deeepest layer
-  if ((layer_num_fp==num_layers) && (current_free_drainage->theta == theta_e1) && (num_layers == number_of_wetting_fronts)) 
+  if ((layer_num_fp == num_layers) && (current_free_drainage->theta == theta_e1) && (num_layers == number_of_wetting_fronts)) 
     f_p = 0.0;
 
   double ponded_depth_temp = *ponded_depth_cm;
@@ -1876,22 +1891,22 @@ extern double lgar_insert_water(int nint, double timestep_h, double *ponded_dept
   else
     ponded_depth_temp = *ponded_depth_cm - f_p * timestep_h - free_drainage_demand*0;
     
-  ponded_depth_temp = fmax(ponded_depth_temp, 0.0);
+  ponded_depth_temp   = fmax(ponded_depth_temp, 0.0);
   
   double fp_cm = f_p * timestep_h + free_drainage_demand/timestep_h; // infiltration in cm
 
-  if (hp_cm_max > 0.0 ) {
+  if (ponded_depth_max_cm > 0.0 ) {
     
-    if (ponded_depth_temp < hp_cm_max) {
+    if (ponded_depth_temp < ponded_depth_max_cm) {
       runoff = 0.0;
       *volin_this_timestep = fmin(*ponded_depth_cm, fp_cm);
-      *ponded_depth_cm = *ponded_depth_cm - *volin_this_timestep;
+      *ponded_depth_cm     = *ponded_depth_cm - *volin_this_timestep;
       return runoff;
     }
-    else if (ponded_depth_temp > hp_cm_max ) {
-      runoff = ponded_depth_temp - hp_cm_max;
-      *ponded_depth_cm = hp_cm_max;
-      *volin_this_timestep=fp_cm;
+    else if (ponded_depth_temp > ponded_depth_max_cm ) {
+      runoff = ponded_depth_temp - ponded_depth_max_cm;
+      *ponded_depth_cm     = ponded_depth_max_cm;
+      *volin_this_timestep = fp_cm;
       
       return runoff;
     }

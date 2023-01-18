@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
   elapsed = (double)(end_time - start_time) / CLOCKS_PER_SEC;
 
   std::cout<<setprecision(4);
-  std::cout<<"Time                       =   "<< elapsed <<" sec \n";
+  std::cout<<"Time                     =   "<< elapsed <<" sec \n";
    
   return SUCCESS;
 }

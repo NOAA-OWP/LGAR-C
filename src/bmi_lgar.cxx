@@ -76,7 +76,7 @@ Update()
   double AET_timestep_cm = 0.0;
   double volend_timestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm); //0.0; // this should not be reset to 0.0 in the for loop
   double volin_timestep_cm = 0.0;
-  double volon_timestep_cm = 0.0;
+  double volon_timestep_cm = state->lgar_mass_balance.volon_timestep_cm;
   double volrunoff_timestep_cm = 0.0;
   double volrech_timestep_cm = 0.0;
   double surface_runoff_timestep_cm = 0.0; // direct surface runoff
@@ -108,6 +108,8 @@ Update()
   double AET_thresh_Theta = 0.85;    // scaled soil moisture (0-1) above which AET=PET (fix later!)
   double AET_expon = 1.0;            // exponent that allows curvature of the rising portion of the Budyko curve (fix later!)
 
+  double ponded_depth_max_cm = state->lgar_bmi_params.ponded_depth_max_cm;
+  
   if (verbosity.compare("high") == 0) {
 
     std::cerr<<"Pr [cm/h] (timestep) = "<<state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<"\n";
@@ -146,6 +148,8 @@ Update()
 
     ponded_depth_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h; // the amount of water on the surface before any infiltration and runoff
 
+    ponded_depth_subtimestep_cm += volon_timestep_cm; // add volume of water on the surface (from the last timestep) to ponded depth as well
+
     precip_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h; // rate x dt = amount (portion of the water on the suface for model's timestep [cm])
     PET_subtimestep_cm = PET_subtimestep_cm_per_h * subtimestep_h;      // potential ET for this subtimestep [cm]
 
@@ -159,7 +163,7 @@ Update()
     AET_subtimestep_cm = 0.0;
     volstart_subtimestep_cm = 0.0;
     volin_subtimestep_cm = 0.0;
-    volon_subtimestep_cm= 0.0;
+    //    volon_subtimestep_cm= 0.0 + volon_timestep_cm;
     volrunoff_subtimestep_cm = 0.0;
     volrech_subtimestep_cm = 0.0;
     surface_runoff_subtimestep_cm = 0.0;
@@ -234,34 +238,36 @@ Update()
     /*----------------------------------------------------------------------*/
     /* infiltrate water based on the infiltration capacity given no new wetting front
        is created and that there is water on the surface (or raining). */
+
     if (ponded_depth_subtimestep_cm > 0 && !create_surficial_front) {
       
       volrunoff_subtimestep_cm = lgar_insert_water(nint, subtimestep_h, &ponded_depth_subtimestep_cm, &volin_subtimestep_cm,
 						   precip_subtimestep_cm_per_h, wf_free_drainage_demand, num_layers,
-						   state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
+						   ponded_depth_max_cm, state->lgar_bmi_params.layer_soil_type,
+						   state->lgar_bmi_params.cum_layer_thickness_cm,
 						   state->lgar_bmi_params.frozen_factor, state->soil_properties);
 
       volin_timestep_cm += volin_subtimestep_cm;
       volrunoff_timestep_cm += volrunoff_subtimestep_cm;
       volrech_subtimestep_cm = volin_subtimestep_cm; // this gets updated later, probably not needed here
-      volon_timestep_cm += ponded_depth_subtimestep_cm;
       
+      volon_subtimestep_cm = ponded_depth_subtimestep_cm;
+
       if (volrunoff_subtimestep_cm < 0) abort();  
     }
     else {
-      double hp_cm_max = 0.0;
       
-      if (ponded_depth_subtimestep_cm < hp_cm_max) {
+      if (ponded_depth_subtimestep_cm < ponded_depth_max_cm) {
 	volrunoff_timestep_cm += 0.0;
-	volon_timestep_cm = ponded_depth_subtimestep_cm;
+	volon_subtimestep_cm = ponded_depth_subtimestep_cm;
 	ponded_depth_subtimestep_cm = 0.0;
 	volrunoff_subtimestep_cm = 0.0;
       }
       else {
-	volrunoff_subtimestep_cm = (ponded_depth_subtimestep_cm - hp_cm_max);
-	volrunoff_timestep_cm += (ponded_depth_subtimestep_cm - hp_cm_max);
-	volon_timestep_cm = hp_cm_max;
-	ponded_depth_subtimestep_cm = hp_cm_max;
+	volrunoff_subtimestep_cm = (ponded_depth_subtimestep_cm - ponded_depth_max_cm);
+	volrunoff_timestep_cm += (ponded_depth_subtimestep_cm - ponded_depth_max_cm);
+	volon_subtimestep_cm = ponded_depth_max_cm;
+	ponded_depth_subtimestep_cm = ponded_depth_max_cm;
       }
     }
     /*----------------------------------------------------------------------*/
@@ -298,10 +304,11 @@ Update()
 
     /*----------------------------------------------------------------------*/
     // mass balance at the subtimestep (local mass balance)
-    double local_mb = volstart_subtimestep_cm + precip_subtimestep_cm - volrunoff_subtimestep_cm
+    double local_mb = volstart_subtimestep_cm + precip_subtimestep_cm + volon_timestep_cm - volrunoff_subtimestep_cm
                       - AET_subtimestep_cm - volon_subtimestep_cm - volrech_subtimestep_cm - volend_subtimestep_cm;
 
-
+    volon_timestep_cm = volon_subtimestep_cm; // surface ponded water at the end of the timestep
+    
     /*----------------------------------------------------------------------*/
     // compute giuh runoff for the subtimestep
     surface_runoff_subtimestep_cm = volrunoff_subtimestep_cm;
@@ -326,11 +333,12 @@ Update()
       Error         = %14.10f \n\
       Initial water = %14.10f \n\
       Water added   = %14.10f \n\
+      Ponded water  = %14.10f \n\
       Infiltration  = %14.10f \n\
       Runoff        = %14.10f \n\
       AET           = %14.10f \n\
       Percolation   = %14.10f \n\
-      Final water   = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volin_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm, volend_subtimestep_cm);
+      Final water   = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volon_subtimestep_cm, volin_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm, volend_subtimestep_cm);
 
       if (unexpected_local_error) {
 	printf("Local mass balance (in this timestep) is %14.10f, larger than expected, needs some debugging...\n ",local_mb);
@@ -379,6 +387,7 @@ Update()
   // add to mass balance timestep variables
   state->lgar_mass_balance.volprecip_timestep_cm = precip_timestep_cm;
   state->lgar_mass_balance.volin_timestep_cm = volin_timestep_cm;
+  state->lgar_mass_balance.volon_timestep_cm = volon_timestep_cm;
   state->lgar_mass_balance.volend_timestep_cm = volend_timestep_cm;
   state->lgar_mass_balance.volAET_timestep_cm = AET_timestep_cm;
   state->lgar_mass_balance.volrech_timestep_cm = volrech_timestep_cm;
@@ -390,6 +399,7 @@ Update()
   // add to mass balance accumulated variables
   state->lgar_mass_balance.volprecip_cm += precip_timestep_cm;
   state->lgar_mass_balance.volin_cm += volin_timestep_cm;
+  state->lgar_mass_balance.volon_cm = volon_timestep_cm;
   state->lgar_mass_balance.volend_cm = volend_timestep_cm;
   state->lgar_mass_balance.volAET_cm += AET_timestep_cm;
   state->lgar_mass_balance.volrech_cm += volrech_timestep_cm;
