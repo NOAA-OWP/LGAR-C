@@ -27,8 +27,8 @@
   
   $\textcolor{green}{\text{| ************************************************************} }$ \
   $\textcolor{green}{\text{| All BMI Tests passed: Yes} }$ \
-  $\textcolor{green}{\text{| Infiltration_mm: (benchmark vs computed) | 1.896 vs 1.896} }$ \
-  $\textcolor{green}{\text{| PET_mm: (benchmark vs computed) | 0.104 vs 0.104} }$ \
-  $\textcolor{green}{\text{| AET_mm: (benchmark vs computed) | 0.0109182 vs 0.0109182} }$ \
+  $\textcolor{green}{\text{| Infiltration (mm) : (benchmark vs computed) | 1.896 vs 1.896} }$ \
+  $\textcolor{green}{\text{| PET (mm): (benchmark vs computed) | 0.104 vs 0.104} }$ \
+  $\textcolor{green}{\text{| AET (mm): (benchmark vs computed) | 0.0109182 vs 0.0109182} }$ \
   $\textcolor{green}{\text{| ************************************************************} }$
   
