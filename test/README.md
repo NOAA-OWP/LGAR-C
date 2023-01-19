@@ -1,14 +1,19 @@
-## Unit test for Lumped Arid/Semi-arid Model (LASAM)
+## Tests
+#### - Unit test: Checks basic BMI functionality and runs model for one timestep (1 hour) to compare results against a benchmark.
+#### - Synthetic test: For testing/educational purposes. It simulates 12 hours of rainfall, infiltration, soil saturation, surface ponding, and surface runoff.
+
 #### Build:
-  - mkdir build && cd build
-  - cmake ../ -DUNITTEST:BOOL=ON
+  - mkdir build && cd build (inside LGAR-C directory)
+  - cmake ../ -DUNITTEST:BOOL=ON (for unittest)
+  - cmake ../ -DSTANDALONE:BOOL=ON (for synthetic test)
   - make
 
 #### Run:
   - cd test
-  - run `./run_unittest.sh`
+  - run `./run_unittest.sh` (for unittest)
+  - run `./run_synthetic.sh` (for synthetic test)
 
-#### Several checks are performed:
+#### The unittest performs several checks:
   1. Check names, number, and memory allocation of BMI input/output variables
   2. Check units of BMI input/output variables 
   3. Check number of layers and number of wetting fronts against the benchmark
@@ -22,8 +27,8 @@
   
   $\textcolor{green}{\text{| ************************************************************} }$ \
   $\textcolor{green}{\text{| All BMI Tests passed: Yes} }$ \
-  $\textcolor{green}{\text{| Infiltration: (benchmark vs computed) | 0.173583 vs 0.173583} }$ \
-  $\textcolor{green}{\text{| PET: (benchmark vs computed) | 0.0104167 vs 0.0104167} }$ \
-  $\textcolor{green}{\text{| AET: (benchmark vs computed) | 0.000845446 vs 0.000845446} }$ \
+  $\textcolor{green}{\text{| Infiltration_mm: (benchmark vs computed) | 1.896 vs 1.896} }$ \
+  $\textcolor{green}{\text{| PET_mm: (benchmark vs computed) | 0.104 vs 0.104} }$ \
+  $\textcolor{green}{\text{| AET_mm: (benchmark vs computed) | 0.0109182 vs 0.0109182} }$ \
   $\textcolor{green}{\text{| ************************************************************} }$
   
