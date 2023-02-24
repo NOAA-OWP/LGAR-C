@@ -3,10 +3,11 @@
 #### - Synthetic test: For testing/educational purposes. It simulates 12 hours of rainfall, infiltration, soil saturation, surface ponding, and surface runoff.
 
 #### Build:
-  - mkdir build && cd build (inside LGAR-C directory)
+  - git clone https://github.com/NOAA-OWP/LGAR-C
+  - cd LGAR-C && mkdir build && cd build
   - cmake ../ -DUNITTEST:BOOL=ON (for unittest)
   - cmake ../ -DSTANDALONE:BOOL=ON (for synthetic test)
-  - make
+  - make && cd ..
 
 #### Run:
   - cd test
