@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
   std::string var_name_wf = "soil_moisture_wetting_fronts";
   std::string var_name_thickness_wf = "soil_thickness_wetting_fronts";
 
-  int num_output_var = 9;
+  int num_output_var = 10;
   std::vector<std::string> output_var_names(num_output_var);
   std::vector<double> output_var_data(num_output_var);
   
@@ -68,6 +68,7 @@ int main(int argc, char *argv[])
   output_var_names[6] = "total_discharge";
   output_var_names[7] = "infiltration";
   output_var_names[8] = "percolation";
+  output_var_names[9] = "mass_balance";
 
 
   // total number of timesteps
@@ -110,7 +111,6 @@ int main(int argc, char *argv[])
 
   // model timestep and forcing timestep are read from a config file in lgar.cxx
   //  double dt = 3600;
-  
   for (int i = 0; i < nsteps; i++) {
     
     if (verbosity.compare("none") != 0) {
@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
 	std::string name = output_var_names[j];
 	double value = 0.0;
 	model_state.GetValue(name,&value);
-	fprintf(outdata_fptr,"%6.10f",value);
+	fprintf(outdata_fptr,"%6.15f",value);
 	if (j == num_output_var-1)
 	  fprintf(outdata_fptr,"\n");
 	else

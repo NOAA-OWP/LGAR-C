@@ -1,5 +1,5 @@
 verbosity=none
-forcing_file=../forcing/forcing_data_syn_case.csv
+forcing_file=../forcing/forcing_data_synth_0.csv
 soil_params_file=../data/vG_default_params_updated.dat
 layer_thickness=44.0,131.0,25.0[cm]
 initial_psi=2000.0[cm]

@@ -115,7 +115,7 @@ Update()
     std::cerr<<"Pr [cm/h] (timestep) = "<<state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<"\n";
     assert (state->lgar_bmi_input_params->precipitation_mm_per_h >= 0.0);
 
-    std::cerr<<"Pr [cm/h] (timestep) = "<<state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<"\n";
+    std::cerr<<"PET [cm/h] (timestep) = "<<state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<"\n";
     assert(state->lgar_bmi_input_params->PET_mm_per_h >=0.0);
   }
 
@@ -192,7 +192,7 @@ Update()
     int soil_num = state->lgar_bmi_params.layer_soil_type[head->layer_num];
     double theta_e = state->soil_properties[soil_num].theta_e;
     bool is_top_wf_saturated = head->theta >= theta_e ? true : false;
-    bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0);
+    bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0 && volon_timestep_cm <= 0);
     
     int wf_free_drainage_demand = wetting_front_free_drainage();
 
@@ -252,7 +252,6 @@ Update()
       volrech_subtimestep_cm = volin_subtimestep_cm; // this gets updated later, probably not needed here
       
       volon_subtimestep_cm = ponded_depth_subtimestep_cm;
-
       if (volrunoff_subtimestep_cm < 0) abort();  
     }
     else {
@@ -285,7 +284,7 @@ Update()
       // this is the volume of water leaving through the bottom
       volrech_subtimestep_cm = volin_subtimestep_cm;
       volrech_timestep_cm += volrech_subtimestep_cm;
-
+      
       volin_subtimestep_cm = volin_subtimestep_cm_temp;
     }
     
@@ -296,7 +295,6 @@ Update()
 		   state->soil_properties);
 
     AET_timestep_cm += AET_subtimestep_cm;
-    volrech_timestep_cm += volrech_subtimestep_cm;
     
     volend_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm);
     volend_timestep_cm = volend_subtimestep_cm;
@@ -346,9 +344,11 @@ Update()
       }
 	
     }
+
+    // store local mass balance error to the struct
+    state->lgar_mass_balance.local_mass_balance = local_mb;
     
     assert (head->depth_cm > 0.0); // check on negative layer depth
-
 
     this->state->lgar_bmi_params.time_s += subtimestep_h * state->units.hr_to_sec; // convert hour to seconds (AJ: fix this 3600 hacked value)
 
@@ -410,6 +410,7 @@ Update()
 
 
   // converted values, a struct local to the BMI and has bmi output variables
+  bmi_unit_conv.mass_balance_m = state->lgar_mass_balance.local_mass_balance * state->units.cm_to_m;
   bmi_unit_conv.volprecip_timestep_m = precip_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volin_timestep_m = volin_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volend_timestep_m = volend_timestep_cm * state->units.cm_to_m;
@@ -468,6 +469,8 @@ GetVarGrid(std::string name)
     return 1;
   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
     return 1;
+  else if (name.compare("mass_balance") == 0)
+    return 1;
   else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_thickness_layers") == 0) // array of doubles (fixed length)
     return 2;
   else if (name.compare("soil_moisture_wetting_fronts") == 0 || name.compare("soil_thickness_wetting_fronts") == 0) // array of doubles (dynamic length)
@@ -516,7 +519,9 @@ GetVarUnits(std::string name)
     return "m";
   else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("soil_storage") == 0) // double
     return "m";
-   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
+  else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
+    return "m";
+  else if (name.compare("mass_balance") == 0)
     return "m";
   else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles 
     return "none";
@@ -554,6 +559,8 @@ GetVarLocation(std::string name)
    else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
     return "node";
   else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles 
+    return "node";
+  else if (name.compare("mass_balance") == 0)
     return "node";
   else if (name.compare("soil_thickness_layers") == 0 || name.compare("soil_thickness_wetting_fronts") == 0 || name.compare("soil_num_wetting_fronts") == 0) // array of doubles 
     return "node";
@@ -656,6 +663,8 @@ GetValuePtr (std::string name)
     return (void*)(&bmi_unit_conv.volin_timestep_m);
   else if (name.compare("percolation") == 0)
     return (void*)(&bmi_unit_conv.volrech_timestep_m);
+  else if (name.compare("mass_balance") == 0)
+    return (void*)(&bmi_unit_conv.mass_balance_m);
   else if (name.compare("soil_moisture_layers") == 0)
     return (void*)this->state->lgar_bmi_params.soil_moisture_layers; // this is probably not needed
   else if (name.compare("soil_thickness_layers") == 0)

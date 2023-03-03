@@ -46,10 +46,11 @@ public:
     this->output_var_names[7]  = "actual_evapotranspiration";
     this->output_var_names[8]  = "surface_runoff"; // direct surface runoff
     this->output_var_names[9]  = "giuh_runoff";
-    this->output_var_names[10]  = "soil_storage";
+    this->output_var_names[10] = "soil_storage";
     this->output_var_names[11] = "total_discharge";
     this->output_var_names[12] = "infiltration";
     this->output_var_names[13] = "percolation";
+    this->output_var_names[14] = "mass_balance";
 
     /*
     this->output_var_names[13] = "cum_precipitation";
@@ -122,7 +123,7 @@ public:
 private:
   struct model_state* state;
   static const int input_var_name_count = 3;
-  static const int output_var_name_count = 14;
+  static const int output_var_name_count = 15;
   
   std::string input_var_names[input_var_name_count];
   std::string output_var_names[output_var_name_count];
@@ -142,6 +143,7 @@ private:
     double volrunoff_giuh_timestep_m;
     double volQ_timestep_m;
     double volPET_timestep_m;
+    double mass_balance_m;
   };
 
   struct bmi_unit_conversion bmi_unit_conv;

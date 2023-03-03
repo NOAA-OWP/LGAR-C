@@ -140,7 +140,7 @@ struct lgar_bmi_parameters
   int    sft_coupled = 0;       // model coupling flag. if true, lasam is coupled to soil freeze thaw model; default is uncoupled version
 
   double *giuh_ordinates;       // geomorphological instantaneous unit hydrograph
-  int    num_giuh_ordinates;    // number of giuh ordinates       
+  int    num_giuh_ordinates;    // number of giuh ordinates
 
 };
 
@@ -172,7 +172,8 @@ struct lgar_mass_balance_variables
   
   double volrech_cm;          // volume of water leaving soil through the bottom of the domain (ground water recharge)
   double volrunoff_giuh_cm;   // volume of giuh runoff
-  double volQ_cm;             // total outgoing water 
+  double volQ_cm;             // total outgoing water
+  double local_mass_balance;  // local (per timestep) mass balance error
 };
 
 
@@ -275,7 +276,7 @@ extern double lgar_merge_wetting_fronts(int num_layers, struct wetting_front *cu
 					int *soil_type, double *frozen_factor, struct soil_properties_ *soil_properties);
 
 // subroutine to handle wet over dry wetting fronts condtions
-extern void lgar_fix_wet_over_dry_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
+extern void lgar_fix_dry_over_wet_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
 					 struct soil_properties_ *soil_properties);
 
 // finds free drainage wetting front (the deepest wetting front with psi value closer to zero; saturated in terms of psi)

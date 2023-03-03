@@ -1,6 +1,8 @@
 ## Tests
 #### - Unit test: Checks basic BMI functionality and runs model for one timestep (1 hour) to compare results against a benchmark.
-#### - Synthetic test: For testing/educational purposes. It simulates 12 hours of rainfall, infiltration, soil saturation, surface ponding, and surface runoff.
+#### - Synthetic tests: There are four synthetic examples for testing and to demonstrate the usage of the model. The examples use different soil hydraulic properties, soil layer depths, and different precipitation patterns without PET to simulate precipitation partitioning into infiltration and runoff.
+       - Example 0 : simulates 12 hours of rainfall, infiltration, soil saturation, surface ponding, and surface runoff.
+       - Example 1, 2, and 3 : simulates a short rainfall pulse that infiltrates and saturate the soil, followed by a longer precipitation pulse that generates runoff.
 
 #### Build:
   - git clone https://github.com/NOAA-OWP/LGAR-C
@@ -12,8 +14,11 @@
 #### Run:
   - cd test
   - run `./run_unittest.sh` (for unittest)
-  - run `./run_synthetic.sh` (for synthetic test)
+  - run `./run_synthetic.sh OPTION` (for synthetic test; OPTION = 1,2, or 3 - these numbers correspond to different examples)
 
+#### Visualization
+  - Use `plot_synthetic_examples.ipynb` to plot and compare lgar examples with hydrus output
+  
 #### The unittest performs several checks:
   1. Check names, number, and memory allocation of BMI input/output variables
   2. Check units of BMI input/output variables 
