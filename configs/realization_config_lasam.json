@@ -46,12 +46,12 @@
 				"params": {
 				    "model_type_name": "bmi_lasam",
 				    "library_file": "./extern/LGAR-C/cmake_build/liblasambmi",
-				    "init_config": "./extern/LGAR-C/configs/config_lasam_ngen.txt",
+				    "init_config": "./extern/LGAR-C/configs/config_lasam_Phillipsburg_ngen.txt",
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "precipitation_rate",
 				    "variables_names_map" : {
-					"precipitation_rate" : "P(mm)",
-					"potential_evapotranspiration_rate" : "PET(mm)" 
+					"precipitation_rate" : "P(mm/h)",
+					"potential_evapotranspiration_rate" : "PET(mm/h)"
 				    },
 				    "output_variables" : [
 					"precipitation",
@@ -73,7 +73,7 @@
 		}
             ],
             "forcing": {
-		"path" : "./extern/LGAR-C/forcing/forcing_data_Phillipsburg.csv"
+		"path" : "./extern/LGAR-C/forcing/forcing_data_resampled_uniform_Phillipsburg.csv"
             }
         }
     }

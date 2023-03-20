@@ -123,9 +123,9 @@ Update()
   // subcycling loop (loop over model's timestep)
   for (int cycle=1; cycle <= subcycles; cycle++) {
 
-    if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) { //PTL_temp
+    if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
       std::cerr<<"Subcycle | --------------------------------------------- : "<< cycle <<" of "<<subcycles<<std::endl;
-    } //PTL_temp
+    }
 
     state_previous = NULL;
     state_previous = listCopy(head);
@@ -197,7 +197,7 @@ Update()
     // printf("Value of superficial theta = %lf\n",head->theta);
     // printf("Value of theta_e %.17g", theta_e);
     // printf("Value of superficial theta %.17g", head->theta); //PTL: you can see that around the 1e-17 digit, there is rounding error that messes with the comparison of theta_e and the superficial theta value
-    bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0 && volon_timestep_cm <= 0); //PTL trying different conditions
+    bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0 && volon_timestep_cm <= 0); //PTL the volon_timestep_cm <= 0 condition is necessary; a new wetting front can't be created if there is already ponded head greater than 0
 
     int wf_free_drainage_demand = wetting_front_free_drainage();
 
@@ -299,7 +299,7 @@ Update()
 		   state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
 		   state->soil_properties, use_closed_form_of_G);
 
-    // AET_timestep_cm += AET_subtimestep_cm; //PTL move
+    // AET_timestep_cm += AET_subtimestep_cm; //PTL moved to after mass balance correction code. A few dozen lines lower now
 
     volend_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm);
     volend_timestep_cm = volend_subtimestep_cm;
@@ -311,51 +311,24 @@ Update()
                       - AET_subtimestep_cm - volon_subtimestep_cm - volrech_subtimestep_cm - volend_subtimestep_cm;
 
 
-    // double max_moisture = 0;
-    // for (int k = 1; k < num_layers; k++) {
-    //   double max_moisture_this_layer = ;
-    //   max_moisture ++
-    // }
-
-    // if (fabs(local_mb)>1e-7){ //PTL this is for the case where the soil is completely saturated at the start and end of the time step, but some ET was still extracted. Possible when you have rain on completely saturated soil. should add a conditional to check for these
-    //   volrunoff_subtimestep_cm -= AET_subtimestep_cm;//PTL
-    //   volin_subtimestep_cm += AET_subtimestep_cm;//PTL
-    //   local_mb = volstart_subtimestep_cm + precip_subtimestep_cm + volon_timestep_cm - volrunoff_subtimestep_cm//PTL
-    //                     - AET_subtimestep_cm - volon_subtimestep_cm - volrech_subtimestep_cm - volend_subtimestep_cm;//PTL
-    // }//PTL
-
-    // if (fabs(local_mb)>1.0e-7){
-    //   AET_subtimestep_cm = local_mb+AET_subtimestep_cm;
-    //     local_mb = volstart_subtimestep_cm + precip_subtimestep_cm + volon_timestep_cm - volrunoff_subtimestep_cm//PTL
-    //                       - AET_subtimestep_cm - volon_subtimestep_cm - volrech_subtimestep_cm - volend_subtimestep_cm;//PTL
-    // }
-
-    // //use this one 8 march 2023
+    // //PTL 8 march 2023
     if (fabs(local_mb)>1.0e-7){ //PTL this was originally intended as a band aid, but now I believe it is a reasonable solution. After debugging a lot of different cases where mass balance error was caused
-      //due to issues with merging, seemingly (in my 24 test cases) the only issues left were tiny mass balance errors that occured when the model domain was completely satruated and either new precip events occurred or
+      //due to issues with merging, seemingly the only issues left were tiny mass balance errors that occured when the model domain was completely satruated and either new precip events occurred or
       //there was AET>0. Rather than cosnidering all possible such cases, which would probably take a lot of time, the mass balance errors are just swept into AET. This seems to be a good solution in practice; the
       //mass balance errors due to precip or AET on totally saturated soil seem to be 1) very rare and 2) very small in magnitude. For LGARTO development, might have to revisit, but for LGAR this seems to work great.
       if (local_mb<0){
         AET_subtimestep_cm = AET_subtimestep_cm + local_mb;
-        //volrunoff_subtimestep_cm = volrunoff_subtimestep_cm + local_mb;
-        //printf("######hi############################################################AET_subtimestep_cm %.17g\n", AET_subtimestep_cm);
-        //abort();
       }
       else{
         AET_subtimestep_cm = AET_subtimestep_cm + local_mb;
-        //volrunoff_subtimestep_cm = volrunoff_subtimestep_cm - local_mb;
-        //printf("#######there###########################################################local_mb %.17g\n", local_mb);
-        //printf("#######there###########################################################AET_subtimestep_cm %.17g\n", AET_subtimestep_cm);
-        //abort();
       }
-      local_mb = volstart_subtimestep_cm + precip_subtimestep_cm + volon_timestep_cm - volrunoff_subtimestep_cm//PTL
-                        - AET_subtimestep_cm - volon_subtimestep_cm - volrech_subtimestep_cm - volend_subtimestep_cm;//PTL
-      //printf("##################################################################AET_subtimestep_cm %.17g\n", AET_subtimestep_cm);
+      local_mb = volstart_subtimestep_cm + precip_subtimestep_cm + volon_timestep_cm - volrunoff_subtimestep_cm
+                        - AET_subtimestep_cm - volon_subtimestep_cm - volrech_subtimestep_cm - volend_subtimestep_cm;
     }
 
 
 
-    AET_timestep_cm += AET_subtimestep_cm; //PTL move
+    AET_timestep_cm += AET_subtimestep_cm; //PTL moved from right after dZdt calc
     volon_timestep_cm = volon_subtimestep_cm; // surface ponded water at the end of the timestep
 
     /*----------------------------------------------------------------------*/
@@ -375,7 +348,7 @@ Update()
       listPrint();
     }
 
-    bool unexpected_local_error = fabs(local_mb) > 1.0e-7 ? true : false; //PTL: I think this is good at 1e-7
+    bool unexpected_local_error = fabs(local_mb) > 1.0e-7 ? true : false;
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0 || unexpected_local_error) {
       printf("\nLocal mass balance at this timestep... \n\

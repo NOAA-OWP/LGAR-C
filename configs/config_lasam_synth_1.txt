@@ -1,10 +1,12 @@
-verbosity=low
-forcing_file=../forcing/forcing_data_synth_3.txt
-soil_params_file=../data/vG_default_params_synth_3.dat
+verbosity=none
+forcing_file=./forcing/forcing_data_synth_1.txt
+soil_params_file=./data/vG_default_params_synth_1.dat
 layer_thickness=10.0,30.0,30.0[cm]
 initial_psi=100.0[cm]
 timestep=300[sec]
 endtime=12[hr]
+ponded_depth_max=0[cm]
+use_closed_form_of_G=0
 forcing_resolution=300[sec]
 layer_soil_type=13,14,15
 max_soil_types=25

@@ -107,7 +107,6 @@ extern void lgar_initialize(string config_file, struct model_state *state)
   state->lgar_mass_balance.volQ_cm = 0.0;
   state->lgar_mass_balance.volPET_cm = 0.0;
   state->lgar_mass_balance.volon_cm = 0.0;
-  //state->lgar_bmi_params.use_closed_form_of_G = false; //PTL 7 march 2023
 
 }
 
@@ -348,12 +347,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 //PTL 7 march 2023
     else if (param_key == "use_closed_form_of_G") { //PTL 7 march 2023
       state->lgar_bmi_params.use_closed_form_of_G = stoi(param_value);
-      //is_wilting_point_psi_cm_set = true;
-
-  //     if (verbosity.compare("high") == 0) {
-	// std::cerr<<"Wilting point Psi [cm] : "<<state->lgar_bmi_params.wilting_point_psi_cm<<"\n";
-	// std::cerr<<"          *****         \n";
-  //     }
 
       continue;
     }
@@ -466,7 +459,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     state->soil_properties = new soil_properties_[state->lgar_bmi_params.num_soil_types+1];
     int num_soil_types = state->lgar_bmi_params.num_soil_types;
     double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
-    //int use_closed_form_of_G = state->lgar_bmi_params.use_closed_form_of_G; //PTL 7 march 2023
     int max_num_soil_in_file = lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types, wilting_point_psi_cm, state->soil_properties);
 
     // check if soil layers provided are within the range
@@ -1207,17 +1199,9 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 	prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
   //new_mass -= actual_ET_demand;
 
-
-  // printf("##################################################################Value precip mass to add %.17g\n", precip_mass_to_add);
-  // printf("##################################################################Value actual_ET_demand %.17g\n", actual_ET_demand);
-  // printf("##################################################################Value prior_mass %.17g\n", prior_mass);
-  // printf("##################################################################Value new_mass %.17g\n", new_mass);
-
       // theta mass balance computes new theta that conserves the mass; new theta is assigned to the current wetting front
       double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass,
 						 delta_thetas, delta_thickness, soil_type, soil_properties);
-
-  //printf("##################################################################Value theta_new %.17g\n", theta_new);
 
       current->theta = fmin(theta_new, theta_e);
 
@@ -1437,6 +1421,13 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 	printf("********** Merging not needed ********** \n");
     }
 
+// // PTL: in the python version of LGAR, wetting front merging, layer boundary crossing, and lower boundary crossing all occur in a loop that
+// // happens after wetting fronts have been moved. This prevents the model from crashing, as there are rare but possible cases where multiple
+// // merging / layer boundary crossing events will happen in the same time step. For example, if two wetting fronts cross a layer boundary in
+// // the same time step, it will be necessary for merging to occur before layer boundary crossing. So, LGAR-C now approaches merging in the
+// // same way as in LGAR-Py, where wetting fronts are moved, then a new loop does merging for all wetting fronts, then a new loop does layer
+// // boundary corssing for all wetting fronts, then a new loop does merging again for all wetting fronts, and then a new loop does lower
+// // boundary crossing for all wetting fronts.
   //   if (next != NULL) {
   //     // merge wetting fronts, function also returns water leaving through the bottom boundary
   //      bottom_boundary_flux_cm += lgar_merge_wetting_fronts(num_layers, current, cum_layer_thickness_cm,
@@ -1459,11 +1450,10 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
     listPrint();
   }
 
-//PTL: moving merging code outside of loop that moves wetting fronts
+//PTL: moving merging, layer boundary crossing, and lower boudnary crossing code outside of loop that moves wetting fronts
 
 //merge
 for (int wf=1; wf != listLength(); wf++) {
-//for (int wf=listLength(); wf != 0; wf--) {
 
     if (verbosity.compare("high") == 0) {
       printf("Looping over wetting front = %d \n", wf);
@@ -1566,7 +1556,7 @@ for (int wf=1; wf != listLength(); wf++) {
       next_old = NULL;// PTL late afternoon 7 March 2023
     }
 
-    // // PTL late afternoon 7 March 2023: there is an opportunity to get maybe 0.5 faster runtime on a run that is currently like 8 seconds.
+    // // PTL late afternoon 7 March 2023: there is an opportunity to get maybe 0.5 seconds faster runtime on a run that is currently like 8 seconds.
     // // In most of the //merge //cross //merge //lower boundary code, the listFindFront function actually only has to be called once to generate current,
     // // and the 2-3 other calls of this function per conditional are not needed. Also aside from layer_num, these blocks of code also don't need to have the soil params defined (eg most of the code right below this).
     // // I've commented the end of each line that I think can be deleted with "// PTL late afternoon 7 March 2023". I commented these out and ran the code; it was maybe a bit faster. Anyway would take a lot of time to test this generally. Might save some runtime.
@@ -1794,8 +1784,9 @@ for (int wf=1; wf != listLength(); wf++) {
 
 
   // adjust AET based on updated mass balance, this ensures water/mass is lost from the system
+  // // PTL takeout: I implemented similar code but in bmi_lgar.cxx
 
-  // if (*AET_demand_cm > 0 && mass_change != 0) { //PTL 10 march 2023: tried removing 
+  // if (*AET_demand_cm > 0 && mass_change != 0) { //PTL 10 march 2023: tried removing
   //   if (mass_change > 0)
   //     *AET_demand_cm -= mass_change;
   //   else {
@@ -1816,7 +1807,7 @@ for (int wf=1; wf != listLength(); wf++) {
   // if (mass_correction>1.E-12) {
   //   std::cout<<"Mass balance error after moving wetting fronts.. "<<mass_correction<<"\n";
   //   //abort();
-  // } //PTL takeout
+  // } //PTL takeout; mass balance check in bmi_lgar
 
   /*
    // let's come back to this later
@@ -1878,6 +1869,7 @@ for (int wf=1; wf != listLength(); wf++) {
   //     }
   //   }
 //Just a check to make sure that, when there is only 1 layer, than the existing wetting front is at the correct depth.
+//This might have been fixed with other debugging related to scenarios with just 1 layer where the wetting front is completely satruated. Not sure this is necessary.
   if (listLength()==1){
     if (current->depth_cm != cum_layer_thickness_cm[1]){
       current->depth_cm = cum_layer_thickness_cm[1];
@@ -1886,7 +1878,9 @@ for (int wf=1; wf != listLength(); wf++) {
       // abort();
     }
   }
-  // //But it looks like it's more general and applies to the deepest WF. Technically I guess this means it had a nonzero deriv at some point.
+  //But it looks like it's more general and applies to the deepest WF. Technically I guess this means it had a nonzero deriv at some point.
+  //This code was used to fix the issue where the model crashed when there was only one saturated wetting front that reached too large of a depth.
+  //However this issue was solved in a different, more thorough way.
   // current = head;
   // for (int wf=1; wf != listLength()+1; wf++) {
   //   if (wf==listLength()){
@@ -1903,7 +1897,6 @@ for (int wf=1; wf != listLength(); wf++) {
 // ############################################################################################
 /*
   the function merges wetting fronts; called from lgar_move_wetting_fronts.
-  also the function updates variables in the list for non-merging wetting fronts//PTL not anymore
 */
 // ############################################################################################
 
@@ -1971,7 +1964,7 @@ extern void lgar_merge_wetting_fronts(int num_layers, struct wetting_front *curr
 
   }
 
-  //
+  // // // PTL: old code from the previous merging fxn
   // // case : wetting front moving (no merging) within a layer; just update values (check if this is actually needed)
   // /**********************************************************/
   // else if (current->depth_cm < next->depth_cm && current->to_bottom == false) {
@@ -2007,6 +2000,14 @@ extern void lgar_merge_wetting_fronts(int num_layers, struct wetting_front *curr
   }
 
 }
+
+
+
+// ############################################################################################
+/*
+  the function lets wetting fronts of a sufficient depth cross layer boundaries; called from lgar_move_wetting_fronts.
+*/
+// ############################################################################################
 
 extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers, struct wetting_front *current,
 					double* cum_layer_thickness_cm, int *soil_type,
@@ -2119,6 +2120,9 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers, struct wett
 
 
     //}
+    // // PTL: the old layer boundary crossing code checked if merging was necessary after layer boundary crossing.
+    // // However this only works if the WF that crossed the layer boundary needs to merge with just 1 wetting front, whereas it might pass multiple
+    // // WFs in the same time step. Now the code handles merging, layer boundary crossing, and lower boundary corssing independently.
     // else {
     //   // if the new wetting front that just entered passes the top wetting front in the layer then merge the wetting fronts
     //   next->theta = current->theta; // assign current theta to next layer theta before deleting the wetting front
@@ -2156,6 +2160,13 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers, struct wett
     listPrint();
   }
 }
+
+
+// ############################################################################################
+/*
+  the function lets wetting fronts of a sufficient depth interact with the lower boundary; called from lgar_move_wetting_fronts.
+*/
+// ############################################################################################
 
 extern double lgar_deepest_wetting_front_goes_below_lower_boundary(int num_layers, struct wetting_front *current,
 					double* cum_layer_thickness_cm, int *soil_type,
@@ -2373,6 +2384,7 @@ extern void lgar_fix_dry_over_wet_fronts(double *mass_change, double* cum_layer_
 	   for mass_before the functions compuates more than the actual mass; removing fabs in that function
 	   might be one option, but for now we are adding fabs to mass_change to make sure we added extra water
 	   back to AET after deleting the drier front */
+     // PTL: tried changing whether lgar_calc_mass_bal uses fabs or not, seems to not significantly change the output for 8 month run at Phillipsburg
 
       }
 
@@ -2402,7 +2414,7 @@ extern double lgar_insert_water(int nint, double timestep_h, double *ponded_dept
 				double *cum_layer_thickness_cm, double *frozen_factor,
 				struct soil_properties_ *soil_properties, int use_closed_form_of_G)
 {
-  // note ponded_depth_cm is a pointer.   Access it's value as (*ponded_depth_cm).
+  // note ponded_depth_cm is a pointer.   Access its value as (*ponded_depth_cm).
 
   int wf_that_supplies_free_drainage_demand = wf_free_drainage_demand;
 
@@ -2416,7 +2428,6 @@ extern double lgar_insert_water(int nint, double timestep_h, double *ponded_dept
   int soil_num;
   double f_p = 0.0;
   double runoff = 0.0;
-  //int use_closed_form_of_G = lgar_bmi_params.use_closed_form_of_G; //PTL 7 march 2023
 
   double h_p = fmax(*ponded_depth_cm - precip_timestep_cm * timestep_h, 0.0); // water ponded on the surface
 
@@ -2471,21 +2482,13 @@ extern double lgar_insert_water(int nint, double timestep_h, double *ponded_dept
     for (int k = 1; k < layer_num_fp; k++) {
       int soil_num_k = soil_type[layer_num_fp-k];
       double Ksat_cm_per_h_k = soil_properties[soil_num_k].Ksat_cm_per_h * frozen_factor[layer_num_fp - k];
-      // printf("##################################################################Inside f_p calc. Ksat_cm_per_h_k %.17g\n", Ksat_cm_per_h_k);
-      // printf("##################################################################Inside f_p calc. theta %.17g\n", current->theta);
-      // printf("soil_num_k: %d", soil_num_k);
 
       bottom_sum += (cum_layer_thickness_cm[layer_num_fp - k] - cum_layer_thickness_cm[layer_num_fp - (k+1)])/ Ksat_cm_per_h_k;
-      //printf("##################################################################Inside f_p calc. bottom_sum %.17g\n", bottom_sum);
     }
 
     f_p = (current_free_drainage->depth_cm / bottom_sum) + ((Geff + h_p)*Ksat_cm_per_h/(current_free_drainage->depth_cm)); //Geff + h_p
-    //printf("##################################################################Inside f_p calc. f_p %.17g\n", f_p);
 
   }
-  // if (head->theta >= theta_e && f_p == 0 && AET_cm>0 &&*volin_this_timestep>0){
-  //   f_p = AET_cm;
-  // } PTL
 
   // checkpoint # AJ
   int soil_num_k = soil_type[head->layer_num];
@@ -2548,7 +2551,7 @@ extern void lgar_create_surfacial_front(double *ponded_depth_cm, double *volin, 
 					double theta1, int *soil_type, double *cum_layer_thickness_cm,
 					double *frozen_factor, struct soil_properties_ *soil_properties)
 {
-  // into the soil.  Note ponded_depth_cm is a pointer.   Access it's value as (*ponded_depth_cm).
+  // into the soil.  Note ponded_depth_cm is a pointer.   Access its value as (*ponded_depth_cm).
 
   // local vars
   double theta_e,Se,theta_r;
@@ -2890,7 +2893,6 @@ extern void lgar_dzdt_calc(int nint, double h_p, int *soil_type, double *cum_lay
 
     if(current->layer_num == 1) { // this front is in the upper layer
       if (delta_theta > 0){
-  //Se =  //PTL
   //current->K_cm_per_h = calc_K_from_Se(calc_Se_from_theta(current->theta,theta_e,theta_r), Ksat_cm_per_h, vg_m); //PTL
 	dzdt = 1.0/delta_theta*(Ksat_cm_per_h*(Geff+h_p)/current->depth_cm+current->K_cm_per_h);}
       else{
@@ -2943,9 +2945,8 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 {
 
   double psi_cm_loc = psi_cm; // location psi
-  //printf("##################################################################Inside mass bal calc. Value psi_cm_loc at start %.17g\n", psi_cm_loc);
   double delta_mass = fabs(new_mass - prior_mass); // mass different between the new and prior
-  //double delta_mass = new_mass - prior_mass; // mass different between the new and prior
+  //double delta_mass = new_mass - prior_mass; // mass different between the new and prior // PTL 14 March 2023. If you do this also make fabs(delta_mass) in comparisons to tolerance
   //printf("##################################################################Inside mass bal calc. Value delta_mass %.17g\n", delta_mass);
   double tolerance = 1e-12;
 
@@ -2956,7 +2957,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 
 
   // check if the difference is less than the tolerance
-  if (delta_mass <= tolerance) { //PTL added fabs
+  if (delta_mass <= tolerance) {
     theta = calc_theta_from_h(psi_cm_loc, soil_properties[soil_num].vg_alpha_per_cm, soil_properties[soil_num].vg_m,
 			      soil_properties[soil_num].vg_n,soil_properties[soil_num].theta_e,soil_properties[soil_num].theta_r);
     return theta;
@@ -2964,9 +2965,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 
   // the loop increments/decrements the capillary head until mass difference between
   // the new and prior is within the tolerance
-  while (delta_mass > tolerance) { //PTL added fabs
-    //printf("##################################################################Inside mass bal calc. Value psi_cm_loc %.17g\n", psi_cm_loc);
-
+  while (delta_mass > tolerance) {
 
     if (new_mass>prior_mass) {
       psi_cm_loc += 0.1 * factor;
@@ -2981,14 +2980,11 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
       double psi_cm_loc_temp = psi_cm_loc;
       psi_cm_loc -= 0.1 * factor;
 
-      if (psi_cm_loc<0 && psi_cm_loc_temp!=0){
-        //printf("###########################################################Inside mass bal calc. Value psi_cm_loc that should be below 0%.17g\n", psi_cm_loc);
+      if (psi_cm_loc<0 && psi_cm_loc_temp!=0){// this is for the extremely rare case when iterative psi_cm_loc calculation temporarily yields a negative value
+                                              // // and the actual answer for psi_cm_loc is nonzero. For example when a completely saturated wetting front with a tiny
+                                              // // amount of ET should yield a resulting theta that is slightly below saturation.
         //abort();
         psi_cm_loc = psi_cm_loc_temp/10;
-        // if (psi_cm_loc==0){
-        //   psi_cm_loc += 0.1;
-        // }
-        //switched = false;
       }
 
     }
@@ -3000,8 +2996,6 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 			      soil_properties[soil_num].vg_n,soil_properties[soil_num].theta_e,
 			      soil_properties[soil_num].theta_r);
     mass_layers += delta_thickness[layer_num] * (theta - delta_theta[layer_num]);
-    //printf("##################################################################Inside mass bal calc. Value psi_cm_loc for theta calc%.17g\n", psi_cm_loc);
-    //printf("##################################################################Inside mass bal calc. Value internal theta %.17g\n", theta);
 
     for (int k=1; k<layer_num; k++) {
       int soil_num_loc =  soil_type[k]; // _loc denotes the variable is local to the loop
@@ -3015,10 +3009,8 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 
     new_mass = mass_layers;
     delta_mass = fabs(new_mass - prior_mass);
-    //delta_mass = new_mass - prior_mass;
-    //printf("##################################################################Inside mass bal calc. Value internal delta_mass %.17g\n", delta_mass);
+    //delta_mass = new_mass - prior_mass; // PTL 14 March 2023
   }
-  //printf("##################################################################Inside mass bal calc. Value output theta %.17g\n", theta);
   return theta;
 
 }
