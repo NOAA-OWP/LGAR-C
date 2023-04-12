@@ -65,7 +65,7 @@ Example configuration files for the two examples above are provided in the [conf
 | layer_soil_type | int (1D array) | - | - | state variable | - | layer soil type (read from the database file soil_params_file) |
 | max_soil_types | int | >1 | - | - | - | maximum number of soil types read from the file soil_params_file (default is set to 15) |
 | wilting_point_psi | double (scalar) | - | cm | state variable | - | wilting point (the amount of water not available for plants) used in computing AET |
-| use_closed_form_of_G | int | 1 or 0 | - | - | - | determines whether the numeric integral or closed form for G is used; a value of 1 will use the closed form. This defaults to 0. |
+| use_closed_form_G | bool | true or false | - | - | - | determines whether the numeric integral or closed form for G is used; a value of true will use the closed form. This defaults to false. |
 | giuh_ordinates | double (1D array)| - | - | state parameter | - | GIUH ordinates (for giuh based surface runoff) |
 | verbosity | string | high, low, none | - | debugging | - | controls IO (screen outputs and writing to disk) |
 | sft_coupled | Boolean | true, false | - | model coupling | impacts hydraulic conductivity | couples LASAM to SFT. Coupling to SFT reduces hydraulic conducitivity, and hence infiltration, when soil is frozen|
