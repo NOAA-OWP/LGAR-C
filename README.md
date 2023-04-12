@@ -9,8 +9,8 @@ Here are two examples to build LASAM: 1) standalone mode and 2) ngen framework. 
 **Example description:** The example provided here simulates infiltration and surface runoff for the period `2016-10-01 to 2017-08-09` using the data from a field site located in Phillipsburg, Kansas.
 
 **Additional examples:**
-- LASAM unit test. It is recommended to build and run the unittest before running other examples. More instructions are provided [here](https://github.com/NOAA-OWP/LGAR-C/tree/master/test).
-- Synthetic simulation ([here](https://github.com/NOAA-OWP/LGAR-C/tree/master/test)) for testing/educational purposes. It simulates 12 hours of rainfall, infiltration, soil saturation, surface ponding, and surface runoff.
+- LASAM unit test. It is recommended to build and run the unittest before running other examples. More instructions are provided [here](https://github.com/NOAA-OWP/LGAR-C/tree/master/tests).
+- Synthetic simulation ([here](https://github.com/NOAA-OWP/LGAR-C/tree/master/tests)) for testing/educational purposes. It simulates 12 hours of rainfall, infiltration, soil saturation, surface ponding, and surface runoff.
 
 
 ### LASAM standalone example
@@ -28,7 +28,7 @@ Here are two examples to build LASAM: 1) standalone mode and 2) ngen framework. 
 #### Build
 - #### LASAM
    - git clone https://github.com/NOAA-OWP/LGAR-C (this should be removed when LGAR-C becomes a subrepo of the framework)
-   - cmake -B extern/LGAR-C/cmake_build -S extern/LGAR-C/ -DNGEN:BOOL=ON
+   - cmake -B extern/LGAR-C/cmake_build -S extern/LGAR-C/ -DNGEN=ON
    - make -C extern/LGAR-C/cmake_build/
 - #### SLoTH
    SLoTH is also needed to run LASAM in the ngen framework. SLoTH is a BMI that is used to set a bmi variable(s) that is not provided by other BMIs but required by the model. So build [SLoTH](https://github.com/NOAA-OWP/SLoTH) using the following instructions
@@ -61,7 +61,7 @@ Example configuration files for the two examples above are provided in the [conf
 | ponded_depth_max | double (scalar)| >=0 | cm | maximum surface ponding | - | the maximum amount of water unavailable for surface drainage, default is set to zero |
 | timestep | double (scalar)| >0 | sec/min/hr | temporal resolution | - | timestep of the model |
 | forcing_resolution | double (scalar)| - | sec/min/hr | temporal resolution | - | timestep of the forcing data |
-| endtime | double (scalar)| >0 | sec/min/hr/d | simulation duration | - | time at which model simulation ends |
+| endtime | double (scalar)| >0 | sec, min, hr, d | simulation duration | - | time at which model simulation ends |
 | layer_soil_type | int (1D array) | - | - | state variable | - | layer soil type (read from the database file soil_params_file) |
 | max_soil_types | int | >1 | - | - | - | maximum number of soil types read from the file soil_params_file (default is set to 15) |
 | wilting_point_psi | double (scalar) | - | cm | state variable | - | wilting point (the amount of water not available for plants) used in computing AET |

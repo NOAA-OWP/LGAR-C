@@ -1,4 +1,4 @@
-verbosity=low
+verbosity=none
 forcing_file=./forcing/forcing_data_resampled_uniform_Bushland.csv
 soil_params_file=./data/vG_default_params_Bushland.dat
 layer_thickness=18.0,76.0,135.0[cm]

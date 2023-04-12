@@ -257,7 +257,7 @@ extern struct wetting_front* listDeleteFront(int front_num)
 /* new front number by 1.                                             */
 /*####################################################################*/
 extern struct wetting_front* listInsertFront(double depth, double theta, int new_front_num,
-                                           int layer_num, bool bottom_flag)
+                                             int layer_num, bool bottom_flag)
 {
   //start from the first link
   struct wetting_front* current = NULL;

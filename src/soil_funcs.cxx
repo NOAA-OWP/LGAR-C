@@ -28,14 +28,14 @@
 /*                                                                                             */
 /* author: Fred Ogden, June, 2021,                                                             */
 /***********************************************************************************************/
-extern double calc_Geff(double theta1, double theta2, double theta_e, double theta_r,
-                        double vg_alpha, double vg_n, double vg_m, double h_min, double Ksat, int nint, int use_closed_form_of_G, double lambdaa, double bc_psib_cm)//PTL 7 march 2023
+extern double calc_Geff(bool use_closed_form_G, double theta1, double theta2, double theta_e, double theta_r,
+                        double vg_alpha, double vg_n, double vg_m, double h_min, double Ksat, int nint, double lambda, double bc_psib_cm)
 {
   double Geff;       // this is the result to be returned.
-  //printf("use closed form of G?: %d", use_closed_form_of_G);
+  //printf("use closed form of G?: %d", use_closed_form_G);
   //printf("nint: %d", nint);
 
-  if (use_closed_form_of_G==0){//PTL 7 march 2023
+  if (use_closed_form_G==false){
     // local variables
     // note: units of h in cm.  units of K in cm/s
     double h_i,h_f,Se_i,Se_f;  // variables to store initial and final values
@@ -110,29 +110,18 @@ extern double calc_Geff(double theta1, double theta2, double theta_e, double the
     //return Geff;
 
   }
-   else{
+   else {
 
      double Se_f = calc_Se_from_theta(theta1,theta_e,theta_r);    // the scaled moisture content of the wetting front
-     //printf("Se_f = %8.6lf\n", Se_f);
      double Se_i = calc_Se_from_theta(theta2,theta_e,theta_r);    // the scaled moisture content below the wetting front
-     //printf("Se_i = %8.6lf\n", Se_i);
-     double H_c = bc_psib_cm*((2+3*lambdaa)/(1+3*lambdaa));            // Green ampt capillary drive parameter, which can be used in the approximation of G with the Brooks-Corey model (See Ogden and Saghafian, 1997)
-     //printf("H_c = %8.6lf\n", H_c);
-     Geff = H_c*(pow(Se_i,(3+1/lambdaa))-pow(Se_f,(3+1/lambdaa)))/(1-pow(Se_f,(3+1/lambdaa)));
-     //printf("Geff = %8.6lf\n", Geff);
+     double H_c = bc_psib_cm*((2+3*lambda)/(1+3*lambda));            // Green ampt capillary drive parameter, which can be used in the approximation of G with the Brooks-Corey model (See Ogden and Saghafian, 1997)
+     Geff = H_c*(pow(Se_i,(3+1/lambda))-pow(Se_f,(3+1/lambda)))/(1-pow(Se_f,(3+1/lambda)));
      if (isinf(Geff)){
        Geff = H_c;
      }
      if (isnan(Geff)){
        Geff = H_c;
      }
-     // printf("lambdaa = %8.6lf\n", lambdaa);
-     // printf("bc_psib_cm = %8.6lf\n", bc_psib_cm);
-     // printf("H_c = %8.6lf\n", H_c);
-     // printf("vg_alpha = %8.6lf\n", vg_alpha);
-     // printf("Ksat = %8.6lf\n", Ksat);
-
-     //printf("Geff = %8.6lf\n", Geff);
 
      return Geff;
 
