@@ -6,7 +6,7 @@ The LASAM simulates infiltration and runoff based on Layered Green & Ampt with r
 ### Build and Run LASAM
 Here are two examples to build LASAM: 1) standalone mode and 2) ngen framework. Building LASAM requires [GCC](https://gcc.gnu.org) and [CMAKE](https://cmake.org/) on your machine.
 
-**Example description:** The example provided here simulates infiltration and surface runoff for the period `2016-10-01 to 2017-08-09` using the data from a field site located in Phillipsburg, Kansas.
+**Example description:** The example provided here simulates infiltration and surface runoff for the period `2016-10-01 to 2017-08-09` using the data from a field site located in Phillipsburg, Kansas. There is also another example using data from Bushland, Texas. 
 
 **Additional examples:**
 - LASAM unit test. It is recommended to build and run the unittest before running other examples. More instructions are provided [here](https://github.com/NOAA-OWP/LGAR-C/tree/master/tests).
