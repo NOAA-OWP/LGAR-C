@@ -1496,12 +1496,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
   //due to issues with merging, seemingly the only issues left were tiny mass balance errors that occured when the model domain was completely satruated and either new precip events occurred or
   //there was AET>0. Rather than cosnidering all possible such cases, which would probably take a lot of time, the mass balance errors are just swept into AET. This seems to be a good solution in practice; the
   //mass balance errors due to precip or AET on totally saturated soil seem to be 1) very rare and 2) very small in magnitude. For LGARTO development, might have to revisit, but for LGAR this seems to work great.
-    if (mass_change<0){
-      *AET_demand_cm = *AET_demand_cm - mass_change;
-    }
-    else{
-      *AET_demand_cm = *AET_demand_cm - mass_change;
-    }
+    *AET_demand_cm = *AET_demand_cm - mass_change;
   }
 
 
@@ -1613,13 +1608,16 @@ extern void lgar_merge_wetting_fronts(int num_layers,
 					double *frozen_factor, struct soil_properties_ *soil_properties)
 {
   struct wetting_front *current;
+  struct wetting_front *next;
+  struct wetting_front *next_to_next;
   current = head; 
+
+  if (verbosity.compare("high") == 0) {
+    printf("Inside merging wetting fronts... \n");
+  }
   for (int wf=1; wf != listLength(); wf++) {
     if (verbosity.compare("high") == 0) {
       printf("Looping over wetting front = %d \n", wf);
-    }
-    if (verbosity.compare("high") == 0) {
-      printf("Inside merging wetting fronts... \n");
     }
 
     // local variables
@@ -1642,8 +1640,8 @@ extern void lgar_merge_wetting_fronts(int num_layers,
     //Se          = calc_Se_from_theta(theta, theta_e, theta_r);
     //psi_cm      = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
 
-    struct wetting_front *next = current->next; //listFindFront(l+2,NULL); // next->next;
-    struct wetting_front *next_to_next = current->next->next; //listFindFront(l+2,NULL); // next->next;
+    next = current->next; //listFindFront(l+2,NULL); // next->next;
+    next_to_next = current->next->next; //listFindFront(l+2,NULL); // next->next;
 
     // case : wetting front passing another wetting front within a layer
     /**********************************************************/
@@ -1729,14 +1727,18 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
 					double *frozen_factor, struct soil_properties_ *soil_properties)
 {
   struct wetting_front *current;
+  struct wetting_front *next;
+  struct wetting_front *next_to_next;
   current = head; 
+
+  if (verbosity.compare("high") == 0) {
+    printf("Inside layer boundary crossing... \n");
+  }
   for (int wf=1; wf != listLength(); wf++) {
     if (verbosity.compare("high") == 0) {
       printf("Looping over wetting front = %d \n", wf);
     }
-    if (verbosity.compare("high") == 0) {
-      printf("Inside layer boundary crossing... \n");
-    }
+
 
     // local variables
     double theta_e,theta_r;
@@ -1759,8 +1761,10 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
     //Se          = calc_Se_from_theta(theta, theta_e, theta_r);
     //psi_cm      = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
 
-    struct wetting_front *next = current->next; //listFindFront(l+2,NULL); // next->next;
-    struct wetting_front *next_to_next = current->next->next; //listFindFront(l+2,NULL); // next->next;
+    // struct wetting_front *next = current->next; //listFindFront(l+2,NULL); // next->next;
+    // struct wetting_front *next_to_next = current->next->next; //listFindFront(l+2,NULL); // next->next;
+    next = current->next; //listFindFront(l+2,NULL); // next->next;
+    next_to_next = current->next->next; //listFindFront(l+2,NULL); // next->next;
 
     // case : wetting front passing the layer depth
     /**********************************************************/
@@ -1896,14 +1900,17 @@ extern double lgar_wetting_front_cross_domain_boundary(int num_layers,
 					double *frozen_factor, struct soil_properties_ *soil_properties)
 {
   struct wetting_front *current;
+  struct wetting_front *next;
+  struct wetting_front *next_to_next;
   current = head; 
   double bottom_flux_cm = 0.0;
+
+  if (verbosity.compare("high") == 0) {
+    printf("Inside bottom flux calc... \n");
+  }
   for (int wf=1; wf != listLength(); wf++) {
     if (verbosity.compare("high") == 0) {
       printf("Looping over wetting front = %d \n", wf);
-    }
-    if (verbosity.compare("high") == 0) {
-      printf("Inside bottom flux calc... \n");
     }
 
     // local variables
@@ -1926,8 +1933,8 @@ extern double lgar_wetting_front_cross_domain_boundary(int num_layers,
     //Se          = calc_Se_from_theta(theta, theta_e, theta_r);
     //psi_cm      = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
 
-    struct wetting_front *next = current->next; //listFindFront(l+2,NULL); // next->next;
-    struct wetting_front *next_to_next = current->next->next; //listFindFront(l+2,NULL); // next->next;
+    next = current->next; //listFindFront(l+2,NULL); // next->next;
+    next_to_next = current->next->next; //listFindFront(l+2,NULL); // next->next;
 
 
     // // case : wetting front moving (no merging) within a layer; just update values (check if this is actually needed)
