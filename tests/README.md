@@ -1,7 +1,6 @@
 ## Tests
 #### - Unit test: Checks basic BMI functionality and runs model for one timestep (1 hour) to compare results against a benchmark.
 #### - Synthetic tests: There are two synthetic examples for testing and to demonstrate the usage of the model. The examples use different soil hydraulic properties and different precipitation intensities without PET to simulate precipitation partitioning into infiltration and runoff. These simulate precipitation partitionind due to a short rainfall pulse that infiltrates entirely, followed by a longer precipitation pulse that generates runoff.
-#### - Tests using observed forcing and soil hydraulic data: There are two examples using forcing and soil hydraulic data from USDA SCAN sites, near Phillipsburg, KS and Bushland, TX. Note that the outputs for these USDA examples are included in the tests folder but these are run from the 'LGAR-C' folder. The results of these simulations will be different than in the LGAR paper using these sites, as the forcing data in this repo have been resampled differently, and in the Phillipsburg example in this repo, the maximum ponded head is 2 cm, rather than 0 cm (as in the paper).
 
 
 #### Build:
@@ -14,7 +13,7 @@
 #### Run:
   - cd test
   - run `./run_unittest.sh` (for unittest)
-  - run `./run_synthetic.sh OPTION` (for synthetic test; OPTION = 1 or 3 - these numbers correspond to different examples)
+  - run `./run_synthetic.sh OPTION` (for synthetic test; OPTION = 1 or 2 - these numbers correspond to different examples)
 
 #### Visualization
   - Use `plot_synthetic_examples.ipynb` to plot and compare synthetic lgar examples with hydrus output
