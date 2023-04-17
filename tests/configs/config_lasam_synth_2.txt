@@ -1,12 +1,12 @@
-verbosity=none
-forcing_file=../forcing/forcing_data_synth_3.txt
-soil_params_file=../data/vG_default_params_synthetic.dat
+verbosity=low
+forcing_file=../forcing/forcing_data_synth_2.txt
+soil_params_file=../data/vG_default_params_synth_2.dat
 layer_thickness=10.0,30.0,30.0[cm]
 initial_psi=100.0[cm]
 timestep=300[sec]
 endtime=12[hr]
 forcing_resolution=300[sec]
-layer_soil_type=16,17,18
+layer_soil_type=13,14,15
 max_soil_types=25
 wilting_point_psi=15495.0[cm]
 giuh_ordinates=0.0,0.0,0.0,0.0,0.0

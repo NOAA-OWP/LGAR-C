@@ -13,14 +13,14 @@
 /*#########################################################*/
 //---------------------------------------------------------
 //
-// linked   LL           II     SSS      TTTTTTTTTTT   
+// linked   LL           II     SSS      TTTTTTTTTTT
 //          LL           II   SSS  SSS        TT
 //          LL           II  SS      SS       TT
 //          LL           II  SS               TT
 //          LL           II   SSSS            TT
 //          LL           II       SSS         TT
 //          LL           II         SSS       TT
-//          LL           II  SS      SS       TT 
+//          LL           II  SS      SS       TT
 //          LL           II   SSS  SSS        TT
 //          LLLLLLLLLL   II     SSSS          TT  functions
 //___________________________________________________________
@@ -45,7 +45,7 @@ extern void listPrint()
 	     current->front_num, current->to_bottom, current->dzdt_cm_per_h, current->K_cm_per_h, current->psi_cm);
     current = current->next;
   }
-  
+
 }
 
 /*###########################################################*/
@@ -59,7 +59,7 @@ extern struct wetting_front* listCopy(struct wetting_front* current)
   else {
 
     struct wetting_front* wf = (struct wetting_front*)malloc(sizeof(struct wetting_front));
-    
+
     wf->depth_cm = current->depth_cm;
     wf->theta = current->theta;
     wf->psi_cm = current->psi_cm;
@@ -70,7 +70,7 @@ extern struct wetting_front* listCopy(struct wetting_front* current)
     wf->dzdt_cm_per_h = current->dzdt_cm_per_h;
     wf->next = listCopy(current->next);
 
-    if (state_previous == NULL) 
+    if (state_previous == NULL)
       state_previous = wf;
     return wf;
   }
@@ -85,41 +85,41 @@ extern void listInsertFirst(double depth, double theta, int front_num, int layer
 
   //create a link
   struct wetting_front *link = (struct wetting_front*) malloc(sizeof(struct wetting_front));
-  
+
   link->depth_cm = depth;
-  link->theta = theta;  
+  link->theta = theta;
   link->front_num = front_num;
   link->layer_num = layer_num;
   link->to_bottom = bottom_flag;
   link->dzdt_cm_per_h = (double)0.0;
-  
+
   //point it to old first wetting_front
   link->next = head;
-  
+
   //point head to new first wetting_front  FORGET THIS CODE WON'T WORK
   head = link;
   link = head->next;
-  
+
   while (link != NULL) {
     link->front_num++;
     link=link->next;
   }
-  
+
 }
 
 
 /*#######################################################*/
 /* listDeleteFirst -deletes the first entry of a linked list */
 /*#######################################################*/
-extern struct wetting_front* listDeleteFirst() 
+extern struct wetting_front* listDeleteFirst()
 {
 
   //save reference to first link
   struct wetting_front *tempLink = head;
-  
-  //mark next to first link as first 
+
+  //mark next to first link as first
   head = head->next;
-  
+
   //return the deleted link
   return tempLink;
 }
@@ -129,8 +129,8 @@ extern struct wetting_front* listDeleteFirst()
 /*#######################################################*/
 /* listIsEmpty - checks to see if the list is empty          */
 /*#######################################################*/
-bool listIsEmpty() 
-{  
+bool listIsEmpty()
+{
   return head == NULL;
 }
 
@@ -143,11 +143,11 @@ int listLength()
 {
   int listLength = 0;
   struct wetting_front *current;
-  
+
   for(current = head; current != NULL; current = current->next) {
     listLength++;
   }
-  
+
   return listLength;
 }
 
@@ -157,31 +157,31 @@ int listLength()
 /*#######################################################################################*/
 extern struct wetting_front* listFindFront(int key, struct wetting_front* head_old)
 {
-  
+
   //start from the first link
   struct wetting_front* current=NULL;
   if (head_old == NULL)
     current = head;
   else
     current = head_old;
-  
+
   //iff list is empty
   if (head == NULL) {
     return NULL;
   }
-  
+
   //list not empty, so search through list
-  while(current->front_num != key) { // as soon as front_num==key, this loop stops 
+  while(current->front_num != key) { // as soon as front_num==key, this loop stops
     //if it is last wetting_front
     if(current->next == NULL) {
       return NULL;
-    } 
+    }
     else {
       //go to next link
       current = current->next;
     }
-  }      
-  
+  }
+
   //if data found, return the current Link
   return current;
 }
@@ -195,7 +195,7 @@ extern struct wetting_front* listDeleteFront(int front_num)
   //start from the first link
   struct wetting_front* current = head;
   struct wetting_front* previous = NULL;
-  
+
   //if list is empty
   // debugging
   bool front_found = false;
@@ -205,20 +205,20 @@ extern struct wetting_front* listDeleteFront(int front_num)
     }
     current = current->next;
   }
-  
+
   if (!front_found) abort();
-  
+
   current = head;
   if(head == NULL) {
     return NULL; // can't do anything, there is no list.
   }
-  
+
   //navigate through list
   while(current->front_num != front_num) {
     //if it is last wetting_front
     if(current->next == NULL) {
       return NULL;
-    } 
+    }
     else {
       //store reference to current link
       previous = current;
@@ -226,7 +226,7 @@ extern struct wetting_front* listDeleteFront(int front_num)
       current = current->next;
     }
   }
-  
+
   //found a match, update the link
   if(current == head) {
     //change first to point to next link
@@ -237,16 +237,16 @@ extern struct wetting_front* listDeleteFront(int front_num)
     //bypass the current link
     previous->next = current->next;
     previous = current->next;
-    
+
   }
-  
+
   current = previous;
 
   while(previous != NULL) { // decrement all front numbers
     previous->front_num--;
-    previous = previous->next;  
+    previous = previous->next;
   }
-  
+
   return current;
 }
 
@@ -256,20 +256,20 @@ extern struct wetting_front* listDeleteFront(int front_num)
 /* and increase all front numbers greater than or equal to the        */
 /* new front number by 1.                                             */
 /*####################################################################*/
-extern struct wetting_front* listInsertFront(double depth, double theta, int new_front_num, 
-                                           int layer_num, bool bottom_flag)
+extern struct wetting_front* listInsertFront(double depth, double theta, int new_front_num,
+                                             int layer_num, bool bottom_flag)
 {
   //start from the first link
   struct wetting_front* current = NULL;
   struct wetting_front* previous = NULL;
-  
+
   if(head == NULL) { // list is empty
     if(new_front_num==1) { // create it
       //create a link
       struct wetting_front *link = (struct wetting_front*) malloc(sizeof(struct wetting_front));
-      
+
       link->depth_cm = depth;
-      link->theta = theta;      
+      link->theta = theta;
       link->front_num = new_front_num;
       link->layer_num = layer_num;
       link->to_bottom = bottom_flag;
@@ -282,14 +282,14 @@ extern struct wetting_front* listInsertFront(double depth, double theta, int new
       return NULL;
     }
   }
-  
+
   // list is not empty, so search through list
   previous = head;
   do {
     if (previous->front_num == new_front_num-1) { // this is where we want to insert it
       //create a new link
       struct wetting_front *link = (struct wetting_front*) malloc(sizeof(struct wetting_front));
-      
+
       link->depth_cm = depth;
       link->theta = theta;
       link->front_num = new_front_num;
@@ -298,20 +298,20 @@ extern struct wetting_front* listInsertFront(double depth, double theta, int new
       link->dzdt_cm_per_h = (double)(0.0);
       link->next = previous->next ;
       previous->next = link;
-      
+
       while(link->next != NULL) { // increment all front numbers
 	current = link->next;
 	current->front_num++;
 	previous = current;
 	current = current->next;
       }
-      
+
       return link;
     }
-    
+
     previous = previous->next;
   } while(TRUE);
-  
+
 }
 
 /*############################################################################*/
@@ -326,28 +326,28 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
   int el_layer=0;
   bool extends_to_bottom_flag = FALSE;
   bool layer_found_flag = FALSE;
-  
+
   struct wetting_front *link = NULL;
-  
+
   //start from the first link
   struct wetting_front* current = head;
   struct wetting_front* previous = NULL;
-  
+
   if(head == NULL) { // list is empty
     // Kinda weird.  Shouldn't call this function to start a list.  Create link in the first position
-    
+
     link = (struct wetting_front*) malloc(sizeof(struct wetting_front));
-    
+
     link->depth_cm = depth;
-    link->theta = theta;        
+    link->theta = theta;
     link->to_bottom = FALSE;
-    
+
     layer_found_flag = listFindLayer(link,num_layers,cum_layer_thickness, &el_layer, &extends_to_bottom_flag);
-    
+
     if(layer_found_flag ==FALSE) {
       return NULL; // this should never happen, unless it asks to create a front not in the soil
     }
-    
+
     link->layer_num = el_layer;
     link->to_bottom = extends_to_bottom_flag;
     link->dzdt_cm_per_h = (double)(-1.0);
@@ -360,49 +360,49 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
     if(depth < current->depth_cm) {
       // yep.  It's first
       //create a link and put it at the beginning of the list
-      
-      link = (struct wetting_front*) malloc(sizeof(struct wetting_front));      
-      
+
+      link = (struct wetting_front*) malloc(sizeof(struct wetting_front));
+
       link->depth_cm = depth;
       link->theta = theta;
       link->to_bottom = FALSE;
-      
+
       layer_found_flag = listFindLayer(link,num_layers,cum_layer_thickness, &el_layer, &extends_to_bottom_flag);
-      
+
       if(layer_found_flag ==FALSE) {
 	return NULL; // this should never happen, unless it asks to create a front not in the soil
       }
-      
+
       link->layer_num = el_layer;
       link->to_bottom = extends_to_bottom_flag;
       link->dzdt_cm_per_h = (double)(-1.0);
       link->next = head;   // point to the old first list entry
       head=link;  // don't forget this.  Must keep head point to the beginning of the list
-      return link;    
+      return link;
     }
     else {
       // the new one is not the first wetting front in the list sorted by depth, search to see where it fits.
-      
+
       previous=current;
       current=current->next;
       do {
 	if((depth > previous->depth_cm ) && (depth <= current->depth_cm) ) {
 	  // it is in this interval
-	  
+
 	  // create a link
-	  link = (struct wetting_front*) malloc(sizeof(struct wetting_front));      
-	  
+	  link = (struct wetting_front*) malloc(sizeof(struct wetting_front));
+
 	  link->depth_cm = depth;
 	  link->theta = theta;
 	  link->to_bottom = FALSE;
-	  
-	  layer_found_flag = listFindLayer(link,num_layers,cum_layer_thickness, 
+
+	  layer_found_flag = listFindLayer(link,num_layers,cum_layer_thickness,
 					   &el_layer, &extends_to_bottom_flag);
-	  
+
 	  if(layer_found_flag ==FALSE) {
 	    return NULL; // this should never happen, unless it asks to create a front not in the soil
 	  }
-	  
+
 	  link->layer_num = el_layer;
 	  link->to_bottom = extends_to_bottom_flag;
 	  link->dzdt_cm_per_h = (double)(-1.0);
@@ -412,11 +412,11 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
 	  current = previous->next;
 	  break;
 	}
-	
+
 	previous=current;
 	current=previous->next;
       } while ( current != NULL );
-      
+
       if (layer_found_flag == TRUE && current->next != NULL) {
 	//re-number the links that follow the current link
 	current=current->next;
@@ -427,15 +427,15 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
 	  previous = current;
 	  current = current->next;
         }
-	
+
 	return link;
       }
       else {
 	return NULL;
-      }        
-    }  
+      }
+    }
   }
-  
+
 }
 
 
@@ -448,7 +448,7 @@ extern bool listFindLayer( struct wetting_front* link, int num_layers, double *c
 
   int layer;
   double depth;
-  
+
   (*lives_in_layer)=0;
   depth=link->depth_cm;
   for (layer=1; layer<=num_layers; layer++) {
@@ -468,44 +468,44 @@ extern bool listFindLayer( struct wetting_front* link, int num_layers, double *c
 /*#################################################################################################*/
 /* listSortFrontsByDepth -if fronts get out of order, this routine sorts them back into order by depth */
 /*#################################################################################################*/
-extern void listSortFrontsByDepth() 
+extern void listSortFrontsByDepth()
 {
   int i, j, k, tempKey;
   double tempData;
   struct wetting_front *current;
   struct wetting_front *next;
-  
+
   int size = listLength();
   k = size ;
-  
+
   for ( i = 0 ; i < size - 1 ; i++, k-- ) {
     current = head;
     next = head->next;
-    
-    for ( j = 1 ; j < k ; j++ ) {   
+
+    for ( j = 1 ; j < k ; j++ ) {
       if ( current->depth_cm > next->depth_cm ) {
 	tempData = current->depth_cm;
 	current->depth_cm = next->depth_cm;
 	next->depth_cm = tempData;
-	
+
 	tempData = current->theta;
 	current->theta = next->theta;
 	next->theta = tempData;
-	
+
 	tempKey = current->layer_num;
 	current->layer_num = next->layer_num;
 	next->layer_num = tempKey;
-	
+
 	tempKey = current->front_num;
 	current->front_num = next->front_num;
 	next->front_num = tempKey;
       }
-                      
+
       current = current->next;
       next = next->next;
     }
   }
-  
+
 }
 
 
@@ -514,20 +514,19 @@ extern void listSortFrontsByDepth()
 /* listReverseOrder  - reverses the order of the current linked list  */
 /*####################################################################*/
 // probably not needed, left in as an example of how it's done
-extern void listReverseOrder(struct wetting_front** head_ref) 
+extern void listReverseOrder(struct wetting_front** head_ref)
 {
   printf("In Reverse order.... \n ");
   struct wetting_front* prev   = NULL;
   struct wetting_front* current = *head_ref;  // notice that it is passed down as a pointer to a pointer, that explains
-  struct wetting_front* next;                 // why they call this "head_ref", it is a pointer referencing the 
+  struct wetting_front* next;                 // why they call this "head_ref", it is a pointer referencing the
   // pointer struct wetting_front *head.
   while (current != NULL) {
     next  = current->next;
-    current->next = prev;   
+    current->next = prev;
     prev = current;
     current = next;
   }
-  
+
   *head_ref = prev;
 }
-

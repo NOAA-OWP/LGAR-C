@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     printf("Outputs are written to files `variables_data.csv and layers_data.csv`.\n");
     return SUCCESS;
   }
- 
+
   std::cout<<"\n**************** BEGIN LASAM BMI UNIT TEST *******************\n";
 
   model.Initialize(argv[1]);
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 					       "potential_evapotranspiration", "actual_evapotranspiration", "surface_runoff",
 					       "giuh_runoff", "soil_storage", "total_discharge",
 					       "infiltration", "percolation", "mass_balance"};
-    
+
   int nbytes_input[] = {sizeof(double), sizeof(double), sizeof(double)};
   int nbytes_output[] = {int(num_layers * sizeof(double)), int(num_wetting_fronts * sizeof(double)),
 			 int(num_layers * sizeof(double)), int(num_wetting_fronts * sizeof(double)),
@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 
   std::vector<std::string> bmi_units = {"mm h^-1", "mm h^-1", "K"};
   // *************************************************************************************
-  
+
   // screen outout
   std::cout<<"Number layers:             "<< num_layers <<"\n";
   std::cout<<"Number of wetting fronts:  "<< num_layers <<"\n";
@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
   std::cout<<"Number of output vars:     "<< num_output_vars <<"\n";
 
   std::cout<<"\nPulling information from BMI\n************************************\n";
-  
+
   // Test get_component_name()
   std::string model_name = model.GetComponentName();
   if (VERBOSITY)
@@ -88,10 +88,10 @@ int main(int argc, char *argv[])
   int count_out = 0;
   std::vector<std::string> names_in;
   std::vector<std::string> names_out;
-  
+
   // Test GetInputItemCount
   count_in = model.GetInputItemCount();
-  
+
   if (VERBOSITY)
     std::cout<<"Input item count: "<< count_in <<"\n";
 
@@ -106,8 +106,8 @@ int main(int argc, char *argv[])
     throw std::runtime_error(errMsg.str());
   }
 
-  
-  names_in = model.GetInputVarNames(); // call to BMI GetInputVarNames 
+
+  names_in = model.GetInputVarNames(); // call to BMI GetInputVarNames
   if (VERBOSITY) {
     std::cout<<"Input variable names \n";
     for (int i=0; i<count_in; i++)
@@ -139,15 +139,15 @@ int main(int argc, char *argv[])
   }
 
   // *************************************************************************************
-  
+
   // Test BMI: VARIABLE INFORMATION FUNCTIONS
   std::cout<<"\n**************** TEST BMI VARIABLE INFORMATION FUNCTIONS\n***************************\n";
-  
+
   int grid, itemsize, nbytes;
   std::string location;
   std::string units;
   std::string vartype;
-  
+
   // Loop over input variables and test important BMI functions
   for (int i=0; i<count_in; i++) {
     std::string var_name = names_in[i];
@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
       errMsg << "grid < 0 \n";
       throw std::runtime_error(errMsg.str());
     }
-    
+
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++/
     // get variable item size; should be sizeof(int) or sizeof(double)
     itemsize = model.GetVarItemsize(var_name);
@@ -197,7 +197,7 @@ int main(int argc, char *argv[])
       test_status &= false;
     else
       test_status &= true;
-	
+
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++/
     // get input variable units and compare with the expected units (benchmark)
     units = model.GetVarUnits(var_name);
@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
       test_status &= false;
     else
       test_status &= true;
-    
+
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++/
     // get_var_nbytes()
     nbytes = model.GetVarNbytes(var_name);
@@ -252,14 +252,14 @@ int main(int argc, char *argv[])
 
   if (VERBOSITY)
     std::cout<<"\n*****************************************\n";
-  
+
   for (int i=0; i<count_out; i++) {
     std::string var_name = names_out[i];
     if (VERBOSITY)
       std::cout<<"Output var_name: "<< var_name <<"\n";
-    
+
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++/
-    // Test get_var_grid() 
+    // Test get_var_grid()
     grid = model.GetVarGrid(var_name);
     std::cout<<grid<<"\n";
     if (grid == -1) return -1;
@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
       test_status &= true;
     else
       test_status &= false;
-    
+
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     // Test get_var_itemsize()
     itemsize = model.GetVarItemsize(var_name);
@@ -282,7 +282,7 @@ int main(int argc, char *argv[])
       test_status &= true;
     else
       test_status &= false;
-    
+
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++/
     // Test get_var_location()
     location = model.GetVarLocation(var_name);
@@ -294,13 +294,13 @@ int main(int argc, char *argv[])
       test_status &= false;
     else
       test_status &= true;
-    
+
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++/
     // Test get_var_units()
     units = model.GetVarUnits(var_name);
     if (VERBOSITY)
       std::cout<<" units: ["<< units <<"]\n";
-    
+
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++/
     // Test get_var_type()
     vartype = model.GetVarType(var_name);
@@ -312,7 +312,7 @@ int main(int argc, char *argv[])
     // get_var_nbytes()
     nbytes = model.GetVarNbytes(var_name);
     if (nbytes == 0) return FAILURE;
-    
+
     if (VERBOSITY)
       std::cout<<" nbytes: "<< nbytes<<"\n";
 
@@ -334,27 +334,27 @@ int main(int argc, char *argv[])
       throw std::runtime_error(errMsg.str());
 
     }
-      
+
   }
-  
+
   // Test BMI: MODEL GRID FUNCTIONS
   std::cout<<"\n \n**************** TEST BMI GRID FUNCTIONS***********************\n";
   int grid_id[] = {0,1,2,3};
   int grid_size_test[] = {1,1,num_layers,num_wetting_fronts};
   int grid_rank, grid_size;
   std::string grid_type;
-  
+
   for (int i=0; i< 4; i++) {
-    if (VERBOSITY)  
+    if (VERBOSITY)
       std::cout<<"Grid id "<< grid_id[i] <<"\n";
-    
+
     /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
     // Test get_grid_rank()
     grid_rank = model.GetGridRank(grid_id[i]);
     if (grid_rank == FAILURE) return FAILURE;
     if (VERBOSITY)
       std::cout<<" rank: "<<grid_rank<<"\n";
-    
+
     /*++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
     // Test get_grid_size
     grid_size = model.GetGridSize(grid_id[i]);
@@ -373,7 +373,7 @@ int main(int argc, char *argv[])
     }
 
   }
-  
+
   //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++/
 
   std::cout<<GREEN<<"\n";
@@ -382,17 +382,17 @@ int main(int argc, char *argv[])
   std::cout<<"| All tests passed until this point: "<<passed<<"\n";
   std::cout<<"| *************************************** \n";
   std::cout<<RESET<<"\n";
-  
-  
+
+
   // Test BMI: GET VALUE FUNCTIONS
   std::cout<<"\n\n************** TEST BMI GETTER SETTER FUNCTIONS********************************\n";
-  
+
   std::cout<<"********** Input variables ***************** \n";
   // Loop through both input and output variables and call get/set_value_*()
   for (int i=0; i<count_in; i++) {
     std::string var_name = names_in[i];
     std::cout<<"Variable name: "<< var_name <<"\n";
-    
+
     double *var = new double[1];
     double *dest = new double[1];
     int indices[] = {0};
@@ -401,31 +401,31 @@ int main(int argc, char *argv[])
     // Test get_value() at each timestep
     model.GetValue(var_name, &(var[0]));
     std::cout<<" Get value: "<< var[0] <<"\n";
-    
+
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++/
     // Test get_value_at_indices()
     model.GetValueAtIndices(var_name, dest, indices, len);
     std::cout<<" Get value at indices: " << dest[0]<<"\n";
-    
+
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++/
     // Test get_value_ptr()
     double *var_ptr = new double[1];
     var_ptr = (double*) model.GetValuePtr(var_name);
     std::cout<<" Get value ptr: "<<*var_ptr<<"\n";
-    
+
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++/
     // Test BMI set_value_at_indices()
     double dest_new[] = {0.0};
-    
+
     if (var_name == "precipitation_rate")
       dest_new[0] = 1.896; // in mm/hr
     else if (var_name == "potential_evapotranspiration_rate")
       dest_new[0] = 0.104; // in mm/hr
-    
+
     double *dest_new_up = new double[1];
-    
+
     model.SetValueAtIndices(var_name, &indices[0], len, &dest_new[0]);
-    
+
     std::cout<<" Set value at indices: "<<dest_new[0]<<"\n";
     // get_value_at_indices to see if changed
     model.GetValueAtIndices(var_name, dest_new_up,  &indices[0], len);
@@ -443,14 +443,15 @@ int main(int argc, char *argv[])
   std::cout<<"| All tests passed until this point: "<<passed<<"\n";
   std::cout<<"| *************************************** \n";
   std::cout<<RESET<<"\n";
-  
+
   std::cout<<"************* Output variables ***************** \n";
   model.Update();
 
   // Benchmark values of wetting fronts depth and moisture (b is for benchmark)
-  std::vector<double> depth_wf_b = {1.873813, 44.00,175.0, 200.0}; // in cm
+  //std::vector<double> depth_wf_b = {1.873813, 44.00,175.0, 200.0}; // in cm
+  std::vector<double> depth_wf_b = {1.87381310384, 44.00,175.0, 200.0}; // in cm
   std::vector<double> theta_wf_b = {0.23249416531131, 0.13189262181112, 0.20696418908685, 0.25000990545822};
-  
+
   int m_to_cm = 100;
   int m_to_mm = 1000;
   // note model outputs depths in meters
@@ -459,34 +460,34 @@ int main(int argc, char *argv[])
   // computed values (c is for computed) ; 4 = number of computed wetting fronts
   double *depth_wf_c = new double[num_wf_base];
   double *theta_wf_c = new double[num_wf_base];
-  
+
   for (int i=0; i<count_out; i++) {
 
     std::string var_name = names_out[i];
     if (var_name == "soil_moisture_wetting_fronts") {
       std::cout<<"variable name: "<< var_name <<" "<<test_status<<"\n";
-      
+
       model.GetValue(var_name, &theta_wf_c[0]);
       std::cout<<" Get value: "<< theta_wf_c[0] <<"\n";
-      
+
       for (int k=0; k<num_wf_base; k++)
 	if (fabs(theta_wf_b[k] - theta_wf_c[k]) < 0.0001)
 	  test_status &= true;
 	else
 	  test_status &= false;
-      
+
     }
     else if (var_name == "soil_thickness_wetting_fronts") {
       std::cout<<"variable name: "<< var_name <<" "<<test_status<<"\n";
-      
+
       model.GetValue(var_name, &depth_wf_c[0]);
-      
+
       for (int k=0; k<num_wf_base; k++)
 	if (fabs(depth_wf_b[k] - depth_wf_c[k]*m_to_cm) < 0.0001)
 	  test_status &= true;
 	else
 	  test_status &= false;
-      
+
     }
   }
 
@@ -507,7 +508,7 @@ int main(int argc, char *argv[])
 	     << setw(1) << abs(theta_wf_b[i] - theta_wf_c[i])<<"\n";
     assert (abs(theta_wf_b[i] - theta_wf_c[i]) < 1.E-5);
   }
-      
+
   passed = test_status > 0 ? "Yes" : "No";
 
 
@@ -518,12 +519,12 @@ int main(int argc, char *argv[])
   double infiltration_computed = 0.0;
   double PET_computed = 0.0;
   double AET_computed = 0.0;
-  
+
   model.GetValue("infiltration", &infiltration_computed);
   model.GetValue("potential_evapotranspiration", &PET_computed);
   model.GetValue("actual_evapotranspiration", &AET_computed);
-  
-  
+
+
   std::cout<<GREEN<<"\n";
   std::cout<<"| *************************************** \n";
   std::cout<<"| All BMI Tests passed: "<<passed<<"\n";
@@ -541,18 +542,18 @@ int main(int argc, char *argv[])
     errMsg << "Error between benchmark and simulated infiltration is "<< fabs(infiltration_check_mm - infiltration_computed * m_to_cm) << " which is unexpected. \n";
     throw std::runtime_error(errMsg.str());
   }
-  
+
   if (fabs(PET_check_mm - PET_computed * m_to_mm) > 1.E-5) {
     std::stringstream errMsg;
     errMsg << "Error between benchmark and simulated PET is "<< fabs(PET_check_mm - PET_computed * m_to_mm) << " which is unexpected. \n";
     throw std::runtime_error(errMsg.str());
   }
-  
+
   if (fabs(AET_check_mm - AET_computed * m_to_mm) > 1.E-5) {
     std::stringstream errMsg;
     errMsg << "Error between benchmark and simulated AET is "<< fabs(AET_check_mm - AET_computed * m_to_mm) << " which is unexpected. \n";
     throw std::runtime_error(errMsg.str());
   }
-  
+
   return FAILURE;
 }

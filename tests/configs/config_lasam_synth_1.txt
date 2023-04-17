@@ -1,6 +1,6 @@
-verbosity=none
+verbosity=low
 forcing_file=../forcing/forcing_data_synth_1.txt
-soil_params_file=../data/vG_default_params_synthetic.dat
+soil_params_file=../data/vG_default_params_synth_1.dat
 layer_thickness=10.0,30.0,30.0[cm]
 initial_psi=100.0[cm]
 timestep=300[sec]

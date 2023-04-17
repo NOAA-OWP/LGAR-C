@@ -31,7 +31,7 @@ void ReadForcingData(std::string config_file, std::vector<std::string>& time, st
 
 int main(int argc, char *argv[])
 {
-  
+
   BmiLGAR model_state;
 
   bool is_IO_supress = false; // if true no output files will be written
@@ -46,10 +46,10 @@ int main(int argc, char *argv[])
   clock_t start_time, end_time;
   double elapsed;
   start_time = clock();
- 
+
   model_state.Initialize(argv[1]);
-  
-  
+
+
   std::string var_name_precip = "precipitation_rate";
   std::string var_name_pet = "potential_evapotranspiration_rate";
   std::string var_name_wf = "soil_moisture_wetting_fronts";
@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
   int num_output_var = 10;
   std::vector<std::string> output_var_names(num_output_var);
   std::vector<double> output_var_data(num_output_var);
-  
+
   output_var_names[0] = "precipitation";
   output_var_names[1] = "potential_evapotranspiration";
   output_var_names[2] = "actual_evapotranspiration";
@@ -78,23 +78,23 @@ int main(int argc, char *argv[])
   double endtime = model_state.GetEndTime();
   double timestep = model_state.GetTimeStep();
   int nsteps = int(endtime/timestep); // total number of time steps
-  
+
   std::vector<std::string> time;
   std::vector<double> precipitation;
   std::vector<double> PET;
-  
+
   ReadForcingData(argv[1], time, precipitation, PET);
 
   assert (nsteps <= int(PET.size()) ); // assertion to ensure that nsteps are less or equal than the input data
   
   if (verbosity.compare("high") == 0 && !is_IO_supress) {
     std::cout<<"Variables are written to file           : \'data_variables.csv\' \n";
-    std::cout<<"Wetting fronts state is written to file : \'data_layers.csv\' \n"; 
+    std::cout<<"Wetting fronts state is written to file : \'data_layers.csv\' \n";
   }
 
   FILE *outdata_fptr = NULL;
   FILE *outlayer_fptr = NULL;
-  
+
   if (!is_IO_supress) {
     outdata_fptr = fopen("data_variables.csv", "w");  // write output variables (e.g. infiltration, storage etc.) to this file pointer
     outlayer_fptr = fopen("data_layers.csv", "w");    // write output layers to this file pointer
@@ -114,13 +114,13 @@ int main(int argc, char *argv[])
   // model timestep and forcing timestep are read from a config file in lgar.cxx
   //  double dt = 3600;
   for (int i = 0; i < nsteps; i++) {
-    
+
     if (verbosity.compare("none") != 0) {
       std::cout<<"===============================================================\n";
       std::cout<<"Timestep | "<<i<<" , "<<time[i]<<"\n";
       std::cout<<"Rainfall [mm/h], PET [mm/h] = "<<precipitation[i]<<" , "<<PET[i]<<"\n";
     }
-    
+
     model_state.SetValue(var_name_precip, &precipitation[i]);
     model_state.SetValue(var_name_pet, &PET[i]);
 
@@ -130,16 +130,16 @@ int main(int argc, char *argv[])
 
     if (!is_IO_supress) {
       int num_wetting_fronts =  model_state.get_model()->lgar_bmi_params.num_wetting_fronts;
-      
+
       double *soil_moisture_wetting_front = new double[num_wetting_fronts];
       double *soil_thickness_wetting_front = new double[num_wetting_fronts];
-      
+
       model_state.GetValue(var_name_wf,&soil_moisture_wetting_front[0]);
       model_state.GetValue(var_name_thickness_wf,&soil_thickness_wetting_front[0]);
-      
+
       // write bmi output variables to file
       fprintf(outdata_fptr,"%s,",time[i].c_str());
-      
+
       for (int j = 0; j < num_output_var; j++) {
 	std::string name = output_var_names[j];
 	double value = 0.0;
@@ -150,13 +150,13 @@ int main(int argc, char *argv[])
 	else
 	  fprintf(outdata_fptr,",");
       }
-      
-      
+
+
       // write layers data to file
       fprintf(outlayer_fptr,"# Timestep = %d, %s \n", i, time[i].c_str());
       write_state(outlayer_fptr);
     }
-    
+
   }
 
   // do final mass balance
@@ -168,12 +168,12 @@ int main(int argc, char *argv[])
   }
 
   end_time = clock();
-  
+
   elapsed = (double)(end_time - start_time) / CLOCKS_PER_SEC;
 
   std::cout<<setprecision(4);
   std::cout<<"Time                     =   "<< elapsed <<" sec \n";
-   
+
   return SUCCESS;
 }
 
@@ -195,7 +195,7 @@ ReadForcingData(std::string config_file, std::vector<std::string>& time, std::ve
 
   std::string forcing_file;
   bool is_forcing_file_set=false;
-  
+
   while (file) {
     std::string line;
     std::string param_key, param_value;
@@ -218,16 +218,16 @@ ReadForcingData(std::string config_file, std::vector<std::string>& time, std::ve
     errMsg << config_file << " does not provide forcing_file";
     throw std::runtime_error(errMsg.str());
   }
-  
+
   std::ifstream fp;
   fp.open(forcing_file);
   if (!fp) {
     cout<<"file "<<forcing_file<<" doesn't exist. \n";
     abort();
   }
-  
+
   std::string line, cell;
-  
+
   //read first line of strings which contains forcing variables names.
   std::getline(fp, line);
 
@@ -236,7 +236,7 @@ ReadForcingData(std::string config_file, std::vector<std::string>& time, std::ve
     std::stringstream lineStream(line);
     int count = 0;
     while(std::getline(lineStream,cell, ',')) {
-      
+
       if (count == 0) {
 	time.push_back(cell);
 	count++;
@@ -257,7 +257,7 @@ ReadForcingData(std::string config_file, std::vector<std::string>& time, std::ve
 
   }
 
- 
+
 }
 
 
