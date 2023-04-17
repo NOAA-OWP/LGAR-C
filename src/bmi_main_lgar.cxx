@@ -85,8 +85,8 @@ int main(int argc, char *argv[])
 
   ReadForcingData(argv[1], time, precipitation, PET);
 
-  assert (nsteps <= int(PET.size()) ); // assertion to ensure that nsteps are less or equal than the input data.
-
+  assert (nsteps <= int(PET.size()) ); // assertion to ensure that nsteps are less or equal than the input data
+  
   if (verbosity.compare("high") == 0 && !is_IO_supress) {
     std::cout<<"Variables are written to file           : \'data_variables.csv\' \n";
     std::cout<<"Wetting fronts state is written to file : \'data_layers.csv\' \n";
