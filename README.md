@@ -17,7 +17,7 @@ Here are two examples to build LASAM: 1) standalone mode and 2) ngen framework. 
 #### Build
  - git clone https://github.com/NOAA-OWP/LGAR-C
  - cd LGAR-C && mkdir build && cd build
- - cmake ../ -DSTANDALONE:BOOL=ON
+ - cmake ../ -DSTANDALONE=ON
  - make && cd ..
 #### Run
 ```
