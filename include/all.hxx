@@ -22,7 +22,6 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <vector>
-//#include "X_stuff.hxx"
 #include <time.h>
 #include <sstream>
 
@@ -130,7 +129,8 @@ struct lgar_bmi_parameters
 					    depth from the surface in meters */
   double *frozen_factor;                 // frozen factor added to the hydraulic conductivity due to coupling to soil freeze-thaw
   double  wilting_point_psi_cm;          // wilting point (the amount of water not available for plants or not accessible by plants)
-  bool   use_closed_form_G = false;       // true if closed form of capillary drive calculation is desired, false if numeric integral for capillary drive calculation is desired
+  bool   use_closed_form_G = false;      /* true if closed form of capillary drive calculation is desired, false if numeric integral
+					    for capillary drive calculation is desired */
   double ponded_depth_cm;                // amount of water on the surface unavailable for surface runoff
   double ponded_depth_max_cm;            // maximum amount of water on the surface unavailable for surface runoff
   double precip_previous_timestep_cm;    // amount of rainfall (previous time step)
@@ -138,8 +138,9 @@ struct lgar_bmi_parameters
   int    nint = 120;            // number of trapezoids used in integrating the Geff function
   double time_s;                // current time [s] (this is the bmi output 'time')
   double endtime_s;             // simulation endtime in seconds (bmi output endtime)
+  int    timesteps;             // number of timesteps until the current time 
   int    sft_coupled = 0;       // model coupling flag. if true, lasam is coupled to soil freeze thaw model; default is uncoupled version
-
+  
   double *giuh_ordinates;       // geomorphological instantaneous unit hydrograph
   int    num_giuh_ordinates;    // number of giuh ordinates
 
@@ -234,8 +235,7 @@ extern double calc_Se_from_h(double h, double alpha, double m, double n);
 extern double calc_theta_from_h(double h, double alpha, double m, double n, double theta_e, double theta_r);
 extern double calc_Se_from_theta(double theta,double effsat,double residual);
 extern double calc_Geff(bool use_closed_form_G, double theta1, double theta2, double theta_e, double theta_r,
-                        double alpha, double n, double m, double h_min, double Ks, int nint, double lambda, double bc_psib_cm);//PTL 7 march 2023 added use_closed_form_G, lambda, and bc_psib_cm to allow for closed form calculation of G
-//extern double calc_Geff_closed(double theta1, double theta_2, double psi_b, double lambda, double theta_r, double theta_s); //PTL takeout
+                        double alpha, double n, double m, double h_min, double Ks, int nint, double lambda, double bc_psib_cm);
 
 /*########################################*/
 /* LGAR calculation function prototypes   */
@@ -244,8 +244,8 @@ extern double calc_Geff(bool use_closed_form_G, double theta1, double theta2, do
 extern double lgar_calc_mass_bal(double *cum_layer_thickness);
 
 // computes derivatives; called derivs() in Python code
-extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *soil_type, double *cum_layer_thickness, double *frozen_factor,
-			  struct soil_properties_ *soil_properties);
+extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *soil_type, double *cum_layer_thickness,
+			   double *frozen_factor, struct soil_properties_ *soil_properties);
 
 // computes dry depth
 extern double lgar_calc_dry_depth(bool use_closed_form_G, int nint, double timestep_h, double *deltheta, int *soil_type,
@@ -262,9 +262,9 @@ extern void lgar_create_surfacial_front(double *ponded_depth_cm, double *volin, 
 					double *frozen_factor, struct soil_properties_ *soil_properties);
 
 // computes the infiltration capacity, fp, of the soil
-extern double lgar_insert_water(bool use_closed_form_G, int nint, double timestep_h, double *ponded_depth, double *volin_this_timestep,
-				double precip_timestep_cm, int wf_free_drainge_demand, int num_layers,
-				double ponded_depth_max_cm, int *soil_type, double *cum_layer_thickness_cm,
+extern double lgar_insert_water(bool use_closed_form_G, int nint, double timestep_h, double *ponded_depth,
+				double *volin_this_timestep, double precip_timestep_cm, int wf_free_drainge_demand,
+				int num_layers, double ponded_depth_max_cm, int *soil_type, double *cum_layer_thickness_cm,
 				double *frozen_factor, struct soil_properties_ *soil_properties);
 
 // the subroutine moves wetting fronts, merges wetting fronts, and does the mass balance correction if needed
@@ -274,17 +274,15 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm,
 				     struct soil_properties_ *soil_properties);
 
 // the subroutine merges the wetting fronts; called from lgar_move_wetting_fronts
-extern void lgar_merge_wetting_fronts(int num_layers, double* cum_layer_thickness_cm,
-					int *soil_type, double *frozen_factor, struct soil_properties_ *soil_properties);
+extern void lgar_merge_wetting_fronts(int *soil_type, double *frozen_factor, struct soil_properties_ *soil_properties);
 
 // the subroutine lets wetting fronts cross soil layer boundaries; called from lgar_move_wetting_fronts
 extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers, double* cum_layer_thickness_cm,
 					int *soil_type, double *frozen_factor, struct soil_properties_ *soil_properties);
 
-// the subroutine allows the deepest wetting front to partially leave the model through the lower boundary if necessary; called from lgar_move_wetting_fronts
-// eventually (today is 14 Marhc 2023) fluxes from the lower boundary will always be 0 and this fraction of a wetting front will be dealth with in another way
-extern double lgar_wetting_front_cross_domain_boundary(int num_layers, double* cum_layer_thickness_cm,
-					int *soil_type, double *frozen_factor, struct soil_properties_ *soil_properties);
+// the subroutine allows the deepest wetting front to partially leave the model through the lower boundary if necessary; called from lgar_move_wetting_fronts. Currently, fluxes from the lower boundary will always be 0 and this fraction of a wetting front will be dealth with in another way
+extern double lgar_wetting_front_cross_domain_boundary(double* cum_layer_thickness_cm, int *soil_type, double *frozen_factor,
+						       struct soil_properties_ *soil_properties);
 
 // subroutine to handle wet over dry wetting fronts condtions
 extern void lgar_fix_dry_over_wet_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
@@ -305,15 +303,15 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 extern void lgar_initialize(string config_file, struct model_state *state);
 extern void InitFromConfigFile(string config_file, struct model_state *state);
 extern vector<double> ReadVectorData(string key);
-extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm, double *frozen_factor, struct soil_properties_ *soil_properties);
+extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm,
+				    double *frozen_factor, struct soil_properties_ *soil_properties);
 
 /********************************************************************/
 /*Other function prototypes for doing hydrology calculations, etc.  */
 /********************************************************************/
 
-extern double calc_aet(double PET_timestep_cm, double timestep_h, double wilting_point_psi_cm,
-                       int *soil_type, double AET_thresh_Theta, double AET_expon,
-		       struct soil_properties_ *soil_props);
+extern double calc_aet(double PET_timestep_cm, double timestep_h, double wilting_point_psi_cm, int *soil_type,
+		       double AET_thresh_Theta, double AET_expon, struct soil_properties_ *soil_props);
 
 /********************************************************************/
 /* Input/Output functions, etc.  */

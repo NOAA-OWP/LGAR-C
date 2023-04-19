@@ -17,16 +17,17 @@ Here are two examples to build LASAM: 1) standalone mode and 2) ngen framework. 
 #### Build
  - git clone https://github.com/NOAA-OWP/LGAR-C
  - cd LGAR-C && mkdir build && cd build
- - cmake ../ -DSTANDALONE:BOOL=ON
+ - cmake ../ -DSTANDALONE=ON
  - make && cd ..
 #### Run
 ```
-./build/lasam_standalone configs/config_lasam.txt (run this from LGAR-C directory)
+./build/lasam_standalone configs/config_lasam_Phillipsburg.txt (run this from LGAR-C directory)
 ```
 ### LASAM ngen framework example
 - See general [instructions](https://github.com/NOAA-OWP/ngen/wiki/NGen-Tutorial#running-cfe) for building models in the ngen framework. Assuming you have a running ngen framework, follow the below instructions to build LASAM and SLoTH, and then run the example.
 #### Build
 - #### LASAM
+   - cd extern
    - git clone https://github.com/NOAA-OWP/LGAR-C (this should be removed when LGAR-C becomes a subrepo of the framework)
    - cmake -B extern/LGAR-C/cmake_build -S extern/LGAR-C/ -DNGEN=ON
    - make -C extern/LGAR-C/cmake_build/
@@ -42,6 +43,7 @@ Here are two examples to build LASAM: 1) standalone mode and 2) ngen framework. 
 mkdir lasam && cd lasam
 ln -s ../extern
 ln -s ../data
+cp extern/LGAR-C/data/vG_default_params.dat data/
 ../cmake_build/ngen data/catchment_data.geojson cat-27 data/nexus_data.geojson nex-26 extern/LGAR-C/configs/realization_config_lasam.json
 ```
 

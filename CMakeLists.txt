@@ -19,7 +19,6 @@ if(NGEN)
   message("ngen framework build!")
   add_definitions(-DNGEN)
 endif()
-#message("${NGEN} ${STANDALONE}")
 
 if(STANDALONE)
  set(exe_name "lasam_standalone")
@@ -47,13 +46,6 @@ message("CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0")
-
-if ( CMAKE_COMPILER_IS_GNUCC )
-    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Wextra -g")
-endif()
-if ( MSVC )
-    set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} /W4")
-endif()
 
 # -I option adds path to find header files
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I/usr/X11/include")
@@ -83,9 +75,6 @@ set(LASAM_LIB_DESC_CMAKE "OWP LASAM BMI Module Shared Library")
 
 # Make sure these are compiled with this directive
 add_compile_definitions(BMI_ACTIVE)
-
-#add_library(lasambmi SHARED src/bmi_lgar.cxx src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.c include/all.hxx ./giuh/giuh.h)
-#target_include_directories(lasambmi PRIVATE include)
 
 if(WIN32)
   add_library(lasambmi SHARED src/bmi_lgar.cxx src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.c include/all.hxx ./giuh/giuh.h)
