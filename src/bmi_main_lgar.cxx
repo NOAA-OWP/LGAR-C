@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
 
     if (verbosity.compare("none") != 0) {
       std::cout<<"===============================================================\n";
-      std::cout<<"Timestep | "<<i<<" , "<<time[i]<<"\n";
+      std::cout<<"Real time | "<<time[i]<<"\n";
       std::cout<<"Rainfall [mm/h], PET [mm/h] = "<<precipitation[i]<<" , "<<PET[i]<<"\n";
     }
 
