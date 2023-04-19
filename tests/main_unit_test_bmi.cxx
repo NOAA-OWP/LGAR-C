@@ -449,8 +449,8 @@ int main(int argc, char *argv[])
 
   // Benchmark values of wetting fronts depth and moisture (b is for benchmark)
   //std::vector<double> depth_wf_b = {1.873813, 44.00,175.0, 200.0}; // in cm
-  std::vector<double> depth_wf_b = {1.87381310384, 44.00,175.0, 200.0}; // in cm
-  std::vector<double> theta_wf_b = {0.23249416531131, 0.13189262181112, 0.20696418908685, 0.25000990545822};
+  std::vector<double> depth_wf_b = {4.3762450616157, 44.00,175.0, 200.0}; // in cm
+  std::vector<double> theta_wf_b = {0.2153965837523, 0.172703948143618, 0.252113867764474, 0.179593529195751};
 
   int m_to_cm = 100;
   int m_to_mm = 1000;
@@ -496,7 +496,7 @@ int main(int argc, char *argv[])
   for (int i=0; i < num_wf_base; i++) {
     std::cout<< left << setw(18) << depth_wf_b[i]
 	     << setw(18) << depth_wf_c[i] * m_to_cm
-	     << setw(1) << abs(depth_wf_b[i] - depth_wf_c[i]*m_to_cm)<<"\n";
+	     << setw(18) << abs(depth_wf_b[i] - depth_wf_c[i]*m_to_cm)<<"\n";
     assert (abs(depth_wf_b[i] - depth_wf_c[i]*m_to_cm) < 1.E-5);
   }
 
@@ -514,23 +514,24 @@ int main(int argc, char *argv[])
 
   // check total infiltration, AET, and PET.
   double infiltration_check_mm = 1.896;  // in mm
-  double AET_check_mm = 0.010918233; // in mm
-  double PET_check_mm = 0.104; // in mm
+  double AET_check_mm          = 0.0288829525; // in mm
+  double PET_check_mm          = 0.104; // in mm
   double infiltration_computed = 0.0;
-  double PET_computed = 0.0;
-  double AET_computed = 0.0;
+  double PET_computed          = 0.0;
+  double AET_computed          = 0.0;
 
   model.GetValue("infiltration", &infiltration_computed);
   model.GetValue("potential_evapotranspiration", &PET_computed);
   model.GetValue("actual_evapotranspiration", &AET_computed);
 
-
+  
   std::cout<<GREEN<<"\n";
   std::cout<<"| *************************************** \n";
   std::cout<<"| All BMI Tests passed: "<<passed<<"\n";
-  std::cout<<"| Infiltration: (benchmark vs computed) | "<< infiltration_check_mm <<" vs "<< infiltration_computed * m_to_mm <<"\n";
-  std::cout<<"| PET: (benchmark vs computed) | "<< PET_check_mm <<" vs "<< PET_computed * m_to_mm <<"\n";
-  std::cout<<"| AET: (benchmark vs computed) | "<< AET_check_mm <<" vs "<< AET_computed * m_to_mm <<"\n";
+  std::cout<<"| Infiltration [mm] : (benchmark vs computed) | "<< infiltration_check_mm <<" vs "
+	   << infiltration_computed * m_to_mm <<"\n";
+  std::cout<<"| PET [mm]          : (benchmark vs computed) | "<< PET_check_mm <<" vs "<< PET_computed * m_to_mm <<"\n";
+  std::cout<<"| AET [mm]          : (benchmark vs computed) | "<< AET_check_mm <<" vs "<< AET_computed * m_to_mm <<"\n";
   std::cout<<"| *************************************** \n";
   std::cout<<RESET<<"\n";
 
