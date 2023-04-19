@@ -21,7 +21,7 @@ Here are two examples to build LASAM: 1) standalone mode and 2) ngen framework. 
  - make && cd ..
 #### Run
 ```
-./build/lasam_standalone configs/config_lasam.txt (run this from LGAR-C directory)
+./build/lasam_standalone configs/config_lasam_Phillipsburg.txt (run this from LGAR-C directory)
 ```
 ### LASAM ngen framework example
 - See general [instructions](https://github.com/NOAA-OWP/ngen/wiki/NGen-Tutorial#running-cfe) for building models in the ngen framework. Assuming you have a running ngen framework, follow the below instructions to build LASAM and SLoTH, and then run the example.
