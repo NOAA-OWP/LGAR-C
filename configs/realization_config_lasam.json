@@ -46,7 +46,7 @@
 				"params": {
 				    "model_type_name": "bmi_lasam",
 				    "library_file": "./extern/LGAR-C/cmake_build/liblasambmi",
-				    "init_config": "./extern/LGAR-C/configs/config_lasam_Phillipsburg_ngen.txt",
+				    "init_config": "./extern/LGAR-C/configs/config_lasam_Phillipsburg.txt",
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "precipitation_rate",
 				    "variables_names_map" : {

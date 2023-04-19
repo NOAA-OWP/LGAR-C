@@ -72,16 +72,16 @@ Update()
   // local variables for a full timestep (i.e., timestep of the forcing data)
   // see 'struct lgar_mass_balance_variables' in all.hxx for full description of the variables
   double precip_timestep_cm = 0.0;
-  double PET_timestep_cm = 0.0;
-  double AET_timestep_cm = 0.0;
-  double volend_timestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm); //0.0; // this should not be reset to 0.0 in the for loop
-  double volin_timestep_cm = 0.0;
-  double volon_timestep_cm = state->lgar_mass_balance.volon_timestep_cm;
-  double volrunoff_timestep_cm = 0.0;
-  double volrech_timestep_cm = 0.0;
+  double PET_timestep_cm    = 0.0;
+  double AET_timestep_cm    = 0.0;
+  double volend_timestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm); // this should not be reset to 0.0 in the for loop
+  double volin_timestep_cm  = 0.0;
+  double volon_timestep_cm  = state->lgar_mass_balance.volon_timestep_cm;
+  double volrunoff_timestep_cm      = 0.0;
+  double volrech_timestep_cm        = 0.0;
   double surface_runoff_timestep_cm = 0.0; // direct surface runoff
   double volrunoff_giuh_timestep_cm = 0.0;
-  double volQ_timestep_cm = 0.0;
+  double volQ_timestep_cm           = 0.0;
 
   // local variables for a subtimestep (i.e., timestep of the model)
   double precip_subtimestep_cm;
@@ -91,7 +91,7 @@ Update()
   double ponded_depth_subtimestep_cm;
   double AET_subtimestep_cm;
   double volstart_subtimestep_cm;
-  double volend_subtimestep_cm = volend_timestep_cm; //0.0; // this should not be reset to 0.0 in the for loop
+  double volend_subtimestep_cm = volend_timestep_cm; // this should not be reset to 0.0 in the for loop
   double volin_subtimestep_cm;
   double volon_subtimestep_cm;
   double volrunoff_subtimestep_cm;
@@ -107,24 +107,27 @@ Update()
 
   // constant value used in the AET function
   double AET_thresh_Theta = 0.85;    // scaled soil moisture (0-1) above which AET=PET (fix later!)
-  double AET_expon = 1.0;            // exponent that allows curvature of the rising portion of the Budyko curve (fix later!)
+  double AET_expon        = 1.0;     // exponent that allows curvature of the rising portion of the Budyko curve (fix later!)
 
   double ponded_depth_max_cm = state->lgar_bmi_params.ponded_depth_max_cm;
 
   if (verbosity.compare("high") == 0) {
-
-    std::cerr<<"Pr [cm/h] (timestep) = "<<state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<"\n";
-    assert (state->lgar_bmi_input_params->precipitation_mm_per_h >= 0.0);
-
+    std::cerr<<"Pr  [cm/h] (timestep) = "<<state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<"\n";
     std::cerr<<"PET [cm/h] (timestep) = "<<state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<"\n"; 
-    assert(state->lgar_bmi_input_params->PET_mm_per_h >=0.0); //PTL: why do we have assertions that depend on verbosity level? 
   }
 
+  assert (state->lgar_bmi_input_params->precipitation_mm_per_h >= 0.0);
+  assert(state->lgar_bmi_input_params->PET_mm_per_h >=0.0);
+  
   // subcycling loop (loop over model's timestep)
   for (int cycle=1; cycle <= subcycles; cycle++) {
 
+    this->state->lgar_bmi_params.time_s    += subtimestep_h * state->units.hr_to_sec;
+    this->state->lgar_bmi_params.timesteps ++;
+    
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::cerr<<"Subcycle | --------------------------------------------- : "<< cycle <<" of "<<subcycles<<std::endl;
+      std::cerr<<"BMI Update |---------------------------------------------------------------|\n";
+      std::cerr<<"BMI Update |Timesteps = "<< state->lgar_bmi_params.timesteps<<", Time [h] = "<<this->state->lgar_bmi_params.time_s / 3600.<<", Subcycle = "<< cycle <<" of "<<subcycles<<std::endl;
     }
 
     state_previous = NULL;
@@ -132,7 +135,7 @@ Update()
 
     // ensure precip and PET are non-negative
     state->lgar_bmi_input_params->precipitation_mm_per_h = fmax(state->lgar_bmi_input_params->precipitation_mm_per_h, 0.0);
-    state->lgar_bmi_input_params->PET_mm_per_h = fmax(state->lgar_bmi_input_params->PET_mm_per_h, 0.0);
+    state->lgar_bmi_input_params->PET_mm_per_h           = fmax(state->lgar_bmi_input_params->PET_mm_per_h, 0.0);
 
     /* Note unit conversion:
        Pr and PET are rates (fluxes) in mm/h
@@ -164,7 +167,6 @@ Update()
     AET_subtimestep_cm = 0.0;
     volstart_subtimestep_cm = 0.0;
     volin_subtimestep_cm = 0.0;
-    //volon_subtimestep_cm= 0.0 + volon_timestep_cm; 
     volrunoff_subtimestep_cm = 0.0;
     volrech_subtimestep_cm = 0.0;
     surface_runoff_subtimestep_cm = 0.0;
@@ -192,14 +194,13 @@ Update()
 
     int soil_num = state->lgar_bmi_params.layer_soil_type[head->layer_num];
     double theta_e = state->soil_properties[soil_num].theta_e;
-    bool is_top_wf_saturated = (head->theta+1e-12) >= theta_e ? true : false; //PTL: sometimes a machine precision error would erroneously create a new wetting front during saturated conditions. The + 1e-12 seems to prevent this.
-    if (volon_timestep_cm<0){ 
-      volon_timestep_cm=0; //addressed machine precision issues where nolon_timestep_error could be for example -1e-17
-    }
-    //printf("volon_timestep_cm bmi_lgar %lf \n", volon_timestep_cm); //magic line where printing changes value
-    //volon_timestep_cm = state->lgar_mass_balance.volon_timestep_cm;
-    //print time here
-    bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0 && volon_timestep_cm == 0); //PTL the volon_timestep_cm == 0 condition is necessary; a new wetting front can't be created if there is already ponded head greater than 0
+    bool is_top_wf_saturated = (head->theta+1e-12) >= theta_e ? true : false; //PTL: sometimes a machine precision error would erroneously create a new wetting front during saturated conditions. The + 1E-12 seems to prevent this.
+
+    //addressed machine precision issues where volon_timestep_error could be for example -1E-17 or 1.E-20 or smaller
+    volon_timestep_cm = fmax(volon_timestep_cm,0.0);
+    volon_timestep_cm = volon_timestep_cm > 1.0E-12 ? volon_timestep_cm : 0.0;
+
+    bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0 && volon_timestep_cm == 0);
 
     int wf_free_drainage_demand = wetting_front_free_drainage();
 
@@ -283,7 +284,9 @@ Update()
        of wetting fronts has already happened at the time of creating surficial front,
        so no need to move them here. */
     if (!create_surficial_front) { 
-      double volin_subtimestep_cm_temp = volin_subtimestep_cm;  // passing this for mass balance only, the method modifies it and returns percolated value, so we need to keep its original value stored to copy it back
+      double volin_subtimestep_cm_temp = volin_subtimestep_cm;  /* passing this for mass balance only, the method modifies it
+								   and returns percolated value, so we need to keep its original
+								   value stored to copy it back*/
       lgar_move_wetting_fronts(subtimestep_h, &volin_subtimestep_cm, wf_free_drainage_demand, volend_subtimestep_cm,
 			       num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
 			       state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
@@ -302,8 +305,6 @@ Update()
 		   state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
 		   state->soil_properties);
 
-    // AET_timestep_cm += AET_subtimestep_cm; //PTL moved to after mass balance correction code. A few dozen lines lower now
-
     volend_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm);
     volend_timestep_cm = volend_subtimestep_cm;
     state->lgar_bmi_params.precip_previous_timestep_cm = precip_subtimestep_cm;
@@ -314,7 +315,7 @@ Update()
     double local_mb = volstart_subtimestep_cm + precip_subtimestep_cm + volon_timestep_cm - volrunoff_subtimestep_cm
                       - AET_subtimestep_cm - volon_subtimestep_cm - volrech_subtimestep_cm - volend_subtimestep_cm;
 
-    AET_timestep_cm += AET_subtimestep_cm; //PTL moved from right after dZdt calc
+    AET_timestep_cm += AET_subtimestep_cm;
     volon_timestep_cm = volon_subtimestep_cm; // surface ponded water at the end of the timestep 
 
 
@@ -336,7 +337,7 @@ Update()
       listPrint();
     }
 
-    bool unexpected_local_error = fabs(local_mb) > 1.0e-7 ? true : false;
+    bool unexpected_local_error = fabs(local_mb) > 1.0E-7 ? true : false;
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0 || unexpected_local_error) {
       printf("\nLocal mass balance at this timestep... \n\
@@ -348,7 +349,9 @@ Update()
       Runoff        = %14.10f \n\
       AET           = %14.10f \n\
       Percolation   = %14.10f \n\
-      Final water   = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volon_subtimestep_cm, volin_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm, volend_subtimestep_cm);
+      Final water   = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volon_subtimestep_cm,
+	     volin_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm,
+	     volend_subtimestep_cm);
 
       if (unexpected_local_error) {
 	printf("Local mass balance (in this timestep) is %14.10f, larger than expected, needs some debugging...\n ",local_mb);
@@ -360,9 +363,7 @@ Update()
     // store local mass balance error to the struct
     state->lgar_mass_balance.local_mass_balance = local_mb;
 
-    assert (head->depth_cm > 0.0); // check on negative layer depth
-
-    this->state->lgar_bmi_params.time_s += subtimestep_h * state->units.hr_to_sec; // convert hour to seconds (AJ: fix this 3600 hacked value)
+    assert (head->depth_cm > 0.0); // check on negative layer depth --> move this to somewhere else AJ (later)
 
     bool lasam_standalone = true;
 #ifdef NGEN
@@ -432,12 +433,6 @@ Update()
   bmi_unit_conv.volrunoff_giuh_timestep_m = volrunoff_giuh_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volQ_timestep_m = volQ_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volPET_timestep_m = PET_timestep_cm * state->units.cm_to_m;
-
-  // Update time
-  //this->state->lgar_bmi_params.time_s += this->state->lgar_bmi_params.forcing_resolution_h * state->units.hr_to_sec; // convert hour to seconds (AJ: fix this 3600 hacked value)
-
-  if (verbosity.compare("high") == 0){
-   std::cerr<<"Current time = "<<this->state->lgar_bmi_params.time_s / state->units.hr_to_sec <<" hours \n";}
 
 }
 
@@ -694,8 +689,8 @@ GetValuePtr (std::string name)
     errMsg << "variable "<< name << " does not exist";
     throw std::runtime_error(errMsg.str());
     return NULL;
-    }
-
+  }
+  
   // delete it later
   return NULL;
 }
@@ -832,7 +827,7 @@ GetTimeUnits() {
 
 double BmiLGAR::
 GetTimeStep () {
-  return this->state->lgar_bmi_params.forcing_resolution_h * 3600; // convert hours to seconds
+  return this->state->lgar_bmi_params.forcing_resolution_h * 3600.; // convert hours to seconds
 }
 
 std::string BmiLGAR::
@@ -878,12 +873,6 @@ GetGridNodeCount(const int grid)
   // this is not needed but printing here to avoid compiler warnings
   std::cerr<<"GetGridNodeCount: "<<grid<<"\n";
   throw bmi_lgar::NotImplemented();
-  /*
-  if (grid == 0)
-    return this->model->shape[0];
-  else
-    return -1;
-  */
 }
 
 
