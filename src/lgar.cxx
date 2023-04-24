@@ -112,6 +112,9 @@ extern void lgar_initialize(string config_file, struct model_state *state)
   // setting volon and precip at the initial time to 0.0 as they determine the creation of surficail wetting front
   state->lgar_mass_balance.volon_timestep_cm = 0.0;
   state->lgar_bmi_params.precip_previous_timestep_cm = 0.0;
+
+  // setting flux from groundwater_reservoir_to_stream to zero, will be non-zero when groundwater reservoir is added/simulated
+  state->lgar_mass_balance.volQ_gw_timestep_cm = 0.0;
 }
 
 

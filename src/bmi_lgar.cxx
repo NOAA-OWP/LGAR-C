@@ -18,7 +18,8 @@
 string verbosity="none";
 
 
-/* The `head` pointer stores the address in memory of the first member of the linked list containing all the wetting fronts. The contents of struct wetting_front are defined in "all.h" */
+/* The `head` pointer stores the address in memory of the first member of the linked list containing
+   all the wetting fronts. The contents of struct wetting_front are defined in "all.h" */
 
 struct wetting_front *head = NULL;
 struct wetting_front *state_previous = NULL; // copy of the previous state used in mass balance computation
@@ -34,7 +35,9 @@ Initialize (std::string config_file)
   num_giuh_ordinates = state->lgar_bmi_params.num_giuh_ordinates;
 
 
-  // giuh ordinates are static and read in the lgar.cxx, and we need to have a copy of it to pass to giuh.cxx, so allocating/copying here
+  /* giuh ordinates are static and read in the lgar.cxx, and we need to have a copy of it to pass to
+     giuh.cxx, so allocating/copying here*/
+  
   giuh_ordinates = new double[num_giuh_ordinates];
   giuh_runoff_queue = new double[num_giuh_ordinates+1];
 
@@ -82,7 +85,8 @@ Update()
   double surface_runoff_timestep_cm = 0.0; // direct surface runoff
   double volrunoff_giuh_timestep_cm = 0.0;
   double volQ_timestep_cm           = 0.0;
-
+  double volQ_gw_timestep_cm        = 0.0;
+  
   // local variables for a subtimestep (i.e., timestep of the model)
   double precip_subtimestep_cm;
   double precip_subtimestep_cm_per_h;
@@ -99,7 +103,8 @@ Update()
   double surface_runoff_subtimestep_cm; // direct surface runoff
   double precip_previous_subtimestep_cm;
   double volrunoff_giuh_subtimestep_cm;
-
+  double volQ_gw_subtimestep_cm = 0.0; // fix it for non-zero values after adding groundwater reservoir
+  
   double subtimestep_h = state->lgar_bmi_params.timestep_h;
   int nint = state->lgar_bmi_params.nint;
   double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
@@ -332,12 +337,15 @@ Update()
 
     volQ_timestep_cm += volrunoff_giuh_subtimestep_cm;
 
+    // adding groundwater flux to stream channel (note: this will be updated/corrected after adding the groundwater reservoir)
+    volQ_gw_timestep_cm += volQ_gw_subtimestep_cm;
+    
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
       printf("Printing wetting fronts at this subtimestep... \n");
       listPrint();
     }
 
-    bool unexpected_local_error = fabs(local_mb) > 1.0E-7 ? true : false;
+    bool unexpected_local_error = fabs(local_mb) > 1.0E-6 ? true : false;
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0 || unexpected_local_error) {
       printf("\nLocal mass balance at this timestep... \n\
@@ -393,47 +401,49 @@ Update()
     state->lgar_bmi_params.soil_thickness_wetting_fronts[i] = current->depth_cm * state->units.cm_to_m;
     current = current->next;
     if (verbosity.compare("high") == 0)
-      std::cerr<<"Wetting fronts (bmi outputs) (depth in meters, theta)= "<<state->lgar_bmi_params.soil_thickness_wetting_fronts[i]
+      std::cerr<<"Wetting fronts (bmi outputs) (depth in meters, theta)= "
+	       <<state->lgar_bmi_params.soil_thickness_wetting_fronts[i]
 	       <<" "<<state->lgar_bmi_params.soil_moisture_wetting_fronts[i]<<"\n";
   }
 
   // add to mass balance timestep variables
-  state->lgar_mass_balance.volprecip_timestep_cm = precip_timestep_cm;
-  state->lgar_mass_balance.volin_timestep_cm = volin_timestep_cm;
-  state->lgar_mass_balance.volon_timestep_cm = volon_timestep_cm;
-  state->lgar_mass_balance.volend_timestep_cm = volend_timestep_cm;
-  state->lgar_mass_balance.volAET_timestep_cm = AET_timestep_cm;
-  state->lgar_mass_balance.volrech_timestep_cm = volrech_timestep_cm;
-  state->lgar_mass_balance.volrunoff_timestep_cm = volrunoff_timestep_cm;
+  state->lgar_mass_balance.volprecip_timestep_cm  = precip_timestep_cm;
+  state->lgar_mass_balance.volin_timestep_cm      = volin_timestep_cm;
+  state->lgar_mass_balance.volon_timestep_cm      = volon_timestep_cm;
+  state->lgar_mass_balance.volend_timestep_cm     = volend_timestep_cm;
+  state->lgar_mass_balance.volAET_timestep_cm     = AET_timestep_cm;
+  state->lgar_mass_balance.volrech_timestep_cm    = volrech_timestep_cm;
+  state->lgar_mass_balance.volrunoff_timestep_cm  = volrunoff_timestep_cm;
+  state->lgar_mass_balance.volQ_timestep_cm       = volQ_timestep_cm;
+  state->lgar_mass_balance.volQ_gw_timestep_cm    = volQ_gw_timestep_cm;
+  state->lgar_mass_balance.volPET_timestep_cm     = PET_timestep_cm;
   state->lgar_mass_balance.volrunoff_giuh_timestep_cm = volrunoff_giuh_timestep_cm;
-  state->lgar_mass_balance.volQ_timestep_cm = volQ_timestep_cm;
-  state->lgar_mass_balance.volPET_timestep_cm = PET_timestep_cm;
 
   // add to mass balance accumulated variables
-  state->lgar_mass_balance.volprecip_cm += precip_timestep_cm;
-  state->lgar_mass_balance.volin_cm += volin_timestep_cm;
-  state->lgar_mass_balance.volon_cm = volon_timestep_cm;
-  state->lgar_mass_balance.volend_cm = volend_timestep_cm;
-  state->lgar_mass_balance.volAET_cm += AET_timestep_cm;
-  state->lgar_mass_balance.volrech_cm += volrech_timestep_cm;
-  state->lgar_mass_balance.volrunoff_cm += volrunoff_timestep_cm;
+  state->lgar_mass_balance.volprecip_cm  += precip_timestep_cm;
+  state->lgar_mass_balance.volin_cm      += volin_timestep_cm;
+  state->lgar_mass_balance.volon_cm       = volon_timestep_cm;
+  state->lgar_mass_balance.volend_cm      = volend_timestep_cm;
+  state->lgar_mass_balance.volAET_cm     += AET_timestep_cm;
+  state->lgar_mass_balance.volrech_cm    += volrech_timestep_cm;
+  state->lgar_mass_balance.volrunoff_cm  += volrunoff_timestep_cm;
+  state->lgar_mass_balance.volQ_cm       += volQ_timestep_cm;
+  state->lgar_mass_balance.volQ_gw_cm    += volQ_gw_timestep_cm;
+  state->lgar_mass_balance.volPET_cm     += PET_timestep_cm;
   state->lgar_mass_balance.volrunoff_giuh_cm += volrunoff_giuh_timestep_cm;
-  state->lgar_mass_balance.volQ_cm += volQ_timestep_cm;
-  state->lgar_mass_balance.volPET_cm += PET_timestep_cm;
-
 
   // converted values, a struct local to the BMI and has bmi output variables
-  bmi_unit_conv.mass_balance_m = state->lgar_mass_balance.local_mass_balance * state->units.cm_to_m;
-  bmi_unit_conv.volprecip_timestep_m = precip_timestep_cm * state->units.cm_to_m;
-  bmi_unit_conv.volin_timestep_m = volin_timestep_cm * state->units.cm_to_m;
-  bmi_unit_conv.volend_timestep_m = volend_timestep_cm * state->units.cm_to_m;
-  bmi_unit_conv.volAET_timestep_m = AET_timestep_cm * state->units.cm_to_m;
-  bmi_unit_conv.volrech_timestep_m = volrech_timestep_cm * state->units.cm_to_m;
-  bmi_unit_conv.volrunoff_timestep_m = volrunoff_timestep_cm * state->units.cm_to_m;
+  bmi_unit_conv.mass_balance_m        = state->lgar_mass_balance.local_mass_balance * state->units.cm_to_m;
+  bmi_unit_conv.volprecip_timestep_m  = precip_timestep_cm * state->units.cm_to_m;
+  bmi_unit_conv.volin_timestep_m      = volin_timestep_cm * state->units.cm_to_m;
+  bmi_unit_conv.volend_timestep_m     = volend_timestep_cm * state->units.cm_to_m;
+  bmi_unit_conv.volAET_timestep_m     = AET_timestep_cm * state->units.cm_to_m;
+  bmi_unit_conv.volrech_timestep_m    = volrech_timestep_cm * state->units.cm_to_m;
+  bmi_unit_conv.volrunoff_timestep_m  = volrunoff_timestep_cm * state->units.cm_to_m;
+  bmi_unit_conv.volQ_timestep_m       = volQ_timestep_cm * state->units.cm_to_m;
+  bmi_unit_conv.volQ_gw_timestep_m    = volQ_gw_timestep_cm * state->units.cm_to_m;
+  bmi_unit_conv.volPET_timestep_m     = PET_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volrunoff_giuh_timestep_m = volrunoff_giuh_timestep_cm * state->units.cm_to_m;
-  bmi_unit_conv.volQ_timestep_m = volQ_timestep_cm * state->units.cm_to_m;
-  bmi_unit_conv.volPET_timestep_m = PET_timestep_cm * state->units.cm_to_m;
-
 }
 
 
@@ -469,12 +479,15 @@ GetVarGrid(std::string name)
     return 0;
   else if (name.compare("precipitation_rate") == 0 || name.compare("precipitation") == 0)
     return 1;
-  else if (name.compare("potential_evapotranspiration_rate") == 0 || name.compare("potential_evapotranspiration") == 0
+  else if (name.compare("potential_evapotranspiration_rate") == 0
+	   || name.compare("potential_evapotranspiration") == 0
 	   || name.compare("actual_evapotranspiration") == 0) // double
     return 1;
-  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("soil_storage") == 0) // double
+  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
+	   || name.compare("soil_storage") == 0) // double
     return 1;
-  else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
+  else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
+	   || name.compare("percolation") == 0 || name.compare("groundwater_to_stream_recharge") == 0) // double
     return 1;
   else if (name.compare("mass_balance") == 0)
     return 1;
@@ -522,13 +535,16 @@ GetVarUnits(std::string name)
 {
   if (name.compare("precipitation_rate") == 0 || name.compare("potential_evapotranspiration_rate") == 0)
     return "mm h^-1";
-  else if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0 || name.compare("actual_evapotranspiration") == 0) // double
+  else if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0
+	   || name.compare("actual_evapotranspiration") == 0) // double
     return "m";
-  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("soil_storage") == 0) // double
+  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
+	   || name.compare("soil_storage") == 0) // double
     return "m";
-  else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
+  else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
+	   || name.compare("percolation") == 0) // double
     return "m";
-  else if (name.compare("mass_balance") == 0)
+  else if (name.compare("mass_balance") == 0 || name.compare("groundwater_to_stream_recharge") == 0)
     return "m";
   else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles
     return "none";
@@ -561,15 +577,18 @@ GetVarLocation(std::string name)
       name.compare("potential_evapotranspiration") == 0 || name.compare("potential_evapotranspiration_rate") == 0
       || name.compare("actual_evapotranspiration") == 0) // double
     return "node";
-  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("soil_storage") == 0) // double
+  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
+	   || name.compare("soil_storage") == 0) // double
     return "node";
-   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0 || name.compare("percolation") == 0) // double
+   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
+	    || name.compare("percolation") == 0 || name.compare("groundwater_to_stream_recharge") == 0) // double
     return "node";
   else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles
     return "node";
   else if (name.compare("mass_balance") == 0)
     return "node";
-  else if (name.compare("soil_thickness_layers") == 0 || name.compare("soil_thickness_wetting_fronts") == 0 || name.compare("soil_num_wetting_fronts") == 0) // array of doubles
+  else if (name.compare("soil_thickness_layers") == 0 || name.compare("soil_thickness_wetting_fronts") == 0
+	   || name.compare("soil_num_wetting_fronts") == 0) // array of doubles
     return "node";
   else if (name.compare("soil_temperature_profile") == 0)
     return "node";
@@ -670,6 +689,8 @@ GetValuePtr (std::string name)
     return (void*)(&bmi_unit_conv.volin_timestep_m);
   else if (name.compare("percolation") == 0)
     return (void*)(&bmi_unit_conv.volrech_timestep_m);
+  else if (name.compare("groundwater_to_stream_recharge") == 0)
+    return (void*)(&bmi_unit_conv.volQ_gw_timestep_m);
   else if (name.compare("mass_balance") == 0)
     return (void*)(&bmi_unit_conv.mass_balance_m);
   else if (name.compare("soil_moisture_layers") == 0)

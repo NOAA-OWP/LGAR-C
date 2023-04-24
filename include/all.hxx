@@ -161,7 +161,9 @@ struct lgar_mass_balance_variables
   double volrech_timestep_cm;        // volume of water leaving soil to the ground water (ground water recharge)
   double volrunoff_giuh_timestep_cm; // volume of giuh runoff at each timestep
   double volQ_timestep_cm;           // total outgoing water (giuh_runoff + volrech)
-
+  double volQ_gw_timestep_cm;        /* volume of water from groundwater to stream
+					(i.e., stream water recharge from groundwater reservoir) */
+  
   // for global mass balance (compute cumulative mass balance)
   double volstart_cm;         // initial volume of water in the soil (at timestep 0)
   double volend_cm;           // volume of water
@@ -175,6 +177,7 @@ struct lgar_mass_balance_variables
   double volrech_cm;          // volume of water leaving soil through the bottom of the domain (ground water recharge)
   double volrunoff_giuh_cm;   // volume of giuh runoff
   double volQ_cm;             // total outgoing water
+  double volQ_gw_cm;          // outgoing water from ground reservoir to stream channel
   double local_mass_balance;  // local (per timestep) mass balance error
 };
 

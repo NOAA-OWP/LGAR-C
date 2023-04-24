@@ -51,28 +51,28 @@ int main(int argc, char *argv[])
 
 
   std::string var_name_precip = "precipitation_rate";
-  std::string var_name_pet = "potential_evapotranspiration_rate";
-  std::string var_name_wf = "soil_moisture_wetting_fronts";
+  std::string var_name_pet    = "potential_evapotranspiration_rate";
+  std::string var_name_wf     = "soil_moisture_wetting_fronts";
   std::string var_name_thickness_wf = "soil_thickness_wetting_fronts";
 
-  int num_output_var = 10;
+  int num_output_var = 11;
   std::vector<std::string> output_var_names(num_output_var);
   std::vector<double> output_var_data(num_output_var);
 
-  output_var_names[0] = "precipitation";
-  output_var_names[1] = "potential_evapotranspiration";
-  output_var_names[2] = "actual_evapotranspiration";
-  output_var_names[3] = "surface_runoff"; // direct surface runoff
-  output_var_names[4] = "giuh_runoff";
-  output_var_names[5] = "soil_storage";
-  output_var_names[6] = "total_discharge";
-  output_var_names[7] = "infiltration";
-  output_var_names[8] = "percolation";
-  output_var_names[9] = "mass_balance";
+  output_var_names[0]  = "precipitation";
+  output_var_names[1]  = "potential_evapotranspiration";
+  output_var_names[2]  = "actual_evapotranspiration";
+  output_var_names[3]  = "surface_runoff"; // direct surface runoff
+  output_var_names[4]  = "giuh_runoff";
+  output_var_names[5]  = "soil_storage";
+  output_var_names[6]  = "total_discharge";
+  output_var_names[7]  = "infiltration";
+  output_var_names[8]  = "percolation";
+  output_var_names[9]  = "groundwater_to_stream_recharge";
+  output_var_names[10] = "mass_balance";
 
 
   // total number of timesteps
-  //int nsteps = 7500;
 
   // get time steps
   double endtime = model_state.GetEndTime();

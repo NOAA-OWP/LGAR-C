@@ -51,7 +51,8 @@ public:
     this->output_var_names[12] = "infiltration";
     this->output_var_names[13] = "percolation";
     this->output_var_names[14] = "mass_balance";
-
+    this->output_var_names[15] = "groundwater_to_stream_recharge";
+    
     /*
     this->output_var_names[13] = "cum_precipitation";
     this->output_var_names[14] = "cum_potential_evapotranspiration";
@@ -123,7 +124,7 @@ public:
 private:
   struct model_state* state;
   static const int input_var_name_count = 3;
-  static const int output_var_name_count = 15;
+  static const int output_var_name_count = 16;
   
   std::string input_var_names[input_var_name_count];
   std::string output_var_names[output_var_name_count];
@@ -142,6 +143,7 @@ private:
     double volrunoff_timestep_m;
     double volrunoff_giuh_timestep_m;
     double volQ_timestep_m;
+    double volQ_gw_timestep_m;
     double volPET_timestep_m;
     double mass_balance_m;
   };
