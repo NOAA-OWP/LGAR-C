@@ -50,8 +50,8 @@ public:
     this->output_var_names[11] = "total_discharge";
     this->output_var_names[12] = "infiltration";
     this->output_var_names[13] = "percolation";
-    this->output_var_names[14] = "mass_balance";
-    this->output_var_names[15] = "groundwater_to_stream_recharge";
+    this->output_var_names[14] = "groundwater_to_stream_recharge";
+    this->output_var_names[15] = "mass_balance";
     
     /*
     this->output_var_names[13] = "cum_precipitation";
