@@ -37,7 +37,7 @@ public:
     this->output_var_names[0] = "soil_moisture_layers";
     this->output_var_names[1] = "soil_moisture_wetting_fronts";
     this->output_var_names[2] = "soil_thickness_layers";
-    this->output_var_names[3] = "soil_thickness_wetting_fronts";
+    this->output_var_names[3] = "soil_depth_wetting_fronts";
     this->output_var_names[4] = "soil_num_wetting_fronts";
     
     // vis outputs

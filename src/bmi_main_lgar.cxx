@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
   std::string var_name_precip = "precipitation_rate";
   std::string var_name_pet    = "potential_evapotranspiration_rate";
   std::string var_name_wf     = "soil_moisture_wetting_fronts";
-  std::string var_name_thickness_wf = "soil_thickness_wetting_fronts";
+  std::string var_name_thickness_wf = "soil_depth_wetting_fronts";
 
   int num_output_var = 11;
   std::vector<std::string> output_var_names(num_output_var);

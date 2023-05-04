@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 					      "soil_temperature_profile"};
 
   std::vector <std::string> var_name_output = {"soil_moisture_layers", "soil_moisture_wetting_fronts",
-					       "soil_thickness_layers", "soil_thickness_wetting_fronts",
+					       "soil_thickness_layers", "soil_depth_wetting_fronts",
 					       "soil_num_wetting_fronts", "precipitation", "potential_evapotranspiration",
 					       "actual_evapotranspiration", "surface_runoff",
 					       "giuh_runoff", "soil_storage", "total_discharge",
@@ -480,7 +480,7 @@ int main(int argc, char *argv[])
 	  test_status &= false;
 
     }
-    else if (var_name == "soil_thickness_wetting_fronts") {
+    else if (var_name == "soil_depth_wetting_fronts") {
       std::cout<<"variable name: "<< var_name <<" "<<test_status<<"\n";
 
       model.GetValue(var_name, &depth_wf_c[0]);
