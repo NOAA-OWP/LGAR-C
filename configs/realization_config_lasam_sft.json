@@ -39,7 +39,10 @@
                                     "model_params": {
 					"sloth_soil_storage(1,double,m,node)" : 0.0,
 					"soil_storage_change(1,double,m,node)" : 0.0,
-					"ground_surface_temperature(1,double,K,node)" : 275.15
+					"ground_surface_temperature(1,double,K,node)" : 275.15,
+					"Qb_topmodel(1,double,1,node)": 0.0,
+					"Qv_topmodel(1,double,1,node)": 0.0,
+					"global_deficit(1,double,1,node)": 0.0
                                     }
 				}
                             },
@@ -52,9 +55,9 @@
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "soil_water_table",
 				    "variables_names_map" : {
-					"soil_moisture_layered" : "soil_moisture_wetting_fronts",
-					"soil_depths_layered" : "soil_thickness_wetting_fronts",
-					"num_cells_layered" : "soil_num_wetting_fronts"
+					"soil_moisture_wetting_fronts" : "soil_moisture_wetting_fronts",
+					"soil_depth_wetting_fronts" : "soil_thickness_wetting_fronts",
+					"num_wetting_fronts" : "soil_num_wetting_fronts"
 				    },
 				    "uses_forcing_file": false
 				}
@@ -64,7 +67,7 @@
 				"params": {
 				    "model_type_name": "bmi_sft",
 				    "library_file": "./extern/SoilFreezeThaw/cmake_build/libsftbmi",
-				    "init_config": "./extern/SoilFreezeThaw/SoilFreezeThaw/configs/laramie_bmi_config_ftm.txt",
+				    "init_config": "./extern/SoilFreezeThaw/SoilFreezeThaw/configs/laramie_config_sft.txt",
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "num_cells",
 				    "variables_names_map" : {
@@ -82,8 +85,8 @@
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "precipitation_rate",
 				    "variables_names_map" : {
-					"precipitation_rate" : "P(mm)",
-					"potential_evapotranspiration_rate" : "PET(mm)" 
+					"precipitation_rate" : "P(mm/h)",
+					"potential_evapotranspiration_rate" : "PET(mm/h)"
 				    },
 				    "output_variables" : [
 					"precipitation",
@@ -105,7 +108,7 @@
 		}
             ],
             "forcing": {
-		"path" : "./extern/LGAR-C/forcing/forcing_data_Phillipsburg.csv"
+		"path" : "./extern/LGAR-C/forcing/forcing_data_resampled_uniform_Phillipsburg.csv"
             }
         }
     }

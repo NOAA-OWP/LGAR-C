@@ -122,7 +122,7 @@ struct lgar_bmi_parameters
   double *soil_moisture_layers;    // 1D array of thetas (mean soil moisture content) per layer; output option to other models if needed
   double *soil_moisture_wetting_fronts; /* 1D array of thetas (soil moisture content) per wetting front;
 					   output to other models (e.g. soil freeze-thaw) */
-  double *soil_thickness_wetting_fronts; /* 1D array of absolute depths of the wetting fronts [meters];
+  double *soil_depth_wetting_fronts;    /* 1D array of absolute depths of the wetting fronts [meters];
 					    output to other models (e.g. soil freeze-thaw) */
   double *soil_temperature;              // 1D array of soil temperature [K]; bmi input for coupling lasam to soil freeze thaw model
   double *soil_temperature_z;            /* 1D array of soil discretization associated with temperature profile [m];

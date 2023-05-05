@@ -66,7 +66,7 @@ using namespace std;
 /*
   @param soil_moisture_wetting_fronts  : 1D array of thetas (soil moisture content) per wetting front;
                                          output to other models (e.g. soil freeze-thaw)
-  @param soil_thickness_wetting_fronts : 1D array of absolute depths of the wetting fronts [meters];
+  @param soil_depth_wetting_fronts : 1D array of absolute depths of the wetting fronts [meters];
 					 output to other models (e.g. soil freeze-thaw)
 */
 // ############################################################################################
@@ -79,7 +79,7 @@ extern void lgar_initialize(string config_file, struct model_state *state)
 
   // initial number of wetting fronts are same are number of layers
   state->lgar_bmi_params.num_wetting_fronts = state->lgar_bmi_params.num_layers;
-  state->lgar_bmi_params.soil_thickness_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
+  state->lgar_bmi_params.soil_depth_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
   state->lgar_bmi_params.soil_moisture_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
 
   // initialize thickness/depth and soil moisture of wetting fronts (used for model coupling)
@@ -87,7 +87,7 @@ extern void lgar_initialize(string config_file, struct model_state *state)
   for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
     assert (current != NULL);
     state->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
-    state->lgar_bmi_params.soil_thickness_wetting_fronts[i] = current->depth_cm * state->units.cm_to_m;
+    state->lgar_bmi_params.soil_depth_wetting_fronts[i] = current->depth_cm * state->units.cm_to_m;
     current = current->next;
   }
 

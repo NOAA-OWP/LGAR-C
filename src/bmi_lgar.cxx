@@ -390,7 +390,7 @@ Update()
   state->lgar_bmi_params.num_wetting_fronts = listLength();
 
   // allocate new memory based on updated wetting fronts; we could make it conditional i.e. create only if no. of wf are changed
-  state->lgar_bmi_params.soil_thickness_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
+  state->lgar_bmi_params.soil_depth_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
   state->lgar_bmi_params.soil_moisture_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
 
   // update thickness/depth and soil moisture of wetting fronts (used for state coupling)
@@ -398,11 +398,11 @@ Update()
   for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
     assert (current != NULL);
     state->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
-    state->lgar_bmi_params.soil_thickness_wetting_fronts[i] = current->depth_cm * state->units.cm_to_m;
+    state->lgar_bmi_params.soil_depth_wetting_fronts[i] = current->depth_cm * state->units.cm_to_m;
     current = current->next;
     if (verbosity.compare("high") == 0)
       std::cerr<<"Wetting fronts (bmi outputs) (depth in meters, theta)= "
-	       <<state->lgar_bmi_params.soil_thickness_wetting_fronts[i]
+	       <<state->lgar_bmi_params.soil_depth_wetting_fronts[i]
 	       <<" "<<state->lgar_bmi_params.soil_moisture_wetting_fronts[i]<<"\n";
   }
 
@@ -493,7 +493,7 @@ GetVarGrid(std::string name)
     return 1;
   else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_thickness_layers") == 0) // array of doubles (fixed length)
     return 2;
-  else if (name.compare("soil_moisture_wetting_fronts") == 0 || name.compare("soil_thickness_wetting_fronts") == 0) // array of doubles (dynamic length)
+  else if (name.compare("soil_moisture_wetting_fronts") == 0 || name.compare("soil_depth_wetting_fronts") == 0) // array of doubles (dynamic length)
     return 3;
   else if (name.compare("soil_temperature_profile") == 0) // array of doubles (fixed and of the size of soil temperature profile)
     return 4;
@@ -548,7 +548,7 @@ GetVarUnits(std::string name)
     return "m";
   else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles
     return "none";
-  else if (name.compare("soil_thickness_layers") == 0 || name.compare("soil_thickness_wetting_fronts") == 0) // array of doubles
+  else if (name.compare("soil_thickness_layers") == 0 || name.compare("soil_depth_wetting_fronts") == 0) // array of doubles
     return "m";
   else if (name.compare("soil_temperature_profile") == 0)
     return "K";
@@ -587,7 +587,7 @@ GetVarLocation(std::string name)
     return "node";
   else if (name.compare("mass_balance") == 0)
     return "node";
-  else if (name.compare("soil_thickness_layers") == 0 || name.compare("soil_thickness_wetting_fronts") == 0
+  else if (name.compare("soil_thickness_layers") == 0 || name.compare("soil_depth_wetting_fronts") == 0
 	   || name.compare("soil_num_wetting_fronts") == 0) // array of doubles
     return "node";
   else if (name.compare("soil_temperature_profile") == 0)
@@ -699,8 +699,8 @@ GetValuePtr (std::string name)
     return (void*)this->state->lgar_bmi_params.soil_moisture_layers;  // this too and, if needed, change soil_moisture_layers to soil_thickness_layers
   else if (name.compare("soil_moisture_wetting_fronts") == 0)
     return (void*)this->state->lgar_bmi_params.soil_moisture_wetting_fronts;
-  else if (name.compare("soil_thickness_wetting_fronts") == 0)
-    return (void*)this->state->lgar_bmi_params.soil_thickness_wetting_fronts;
+  else if (name.compare("soil_depth_wetting_fronts") == 0)
+    return (void*)this->state->lgar_bmi_params.soil_depth_wetting_fronts;
   else if (name.compare("soil_num_wetting_fronts") == 0)
     return (void*)(&state->lgar_bmi_params.num_wetting_fronts);
   else if (name.compare("soil_temperature_profile") == 0)
