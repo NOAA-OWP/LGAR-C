@@ -1221,7 +1221,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 	double depth_new = wf_free_drainage->depth_cm;
 
 	// loop to adjust the depth for mass balance
-	while (mass_balance_error > tolerance) {
+	while (fabs(mass_balance_error - tolerance) > 1.E-12) {
 
 	  if (current_mass < mass_timestep) {
 	    depth_new += 0.01 * factor;
@@ -2240,16 +2240,16 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 
   // check if the difference is less than the tolerance
   if (delta_mass <= tolerance) {
-    theta = calc_theta_from_h(psi_cm_loc, soil_properties[soil_num].vg_alpha_per_cm, soil_properties[soil_num].vg_m,
-			      soil_properties[soil_num].vg_n,soil_properties[soil_num].theta_e,soil_properties[soil_num].theta_r);
+    theta = calc_theta_from_h(psi_cm_loc, soil_properties[soil_num].vg_alpha_per_cm,
+			      soil_properties[soil_num].vg_m, soil_properties[soil_num].vg_n,
+			      soil_properties[soil_num].theta_e,soil_properties[soil_num].theta_r);
     return theta;
   }
 
   // the loop increments/decrements the capillary head until mass difference between
   // the new and prior is within the tolerance
   while (delta_mass > tolerance) {
-
-    if (new_mass>prior_mass) {
+    if (new_mass > prior_mass) {
       psi_cm_loc += 0.1 * factor;
       switched = false;
     }
@@ -2257,18 +2257,24 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
       if (!switched) {
 	switched = true;
 	factor = factor * 0.1;
-  //factor = factor * 1;
       }
+      
       double psi_cm_loc_temp = psi_cm_loc;
       psi_cm_loc -= 0.1 * factor;
-
-      if (psi_cm_loc<0 && psi_cm_loc_temp!=0){// this is for the extremely rare case when iterative psi_cm_loc calculation temporarily yields a negative value
-                                              // // and the actual answer for psi_cm_loc is nonzero. For example when a completely saturated wetting front with a tiny
-                                              // // amount of ET should yield a resulting theta that is slightly below saturation.
-        //abort();
+      
+      if (psi_cm_loc<0 && psi_cm_loc_temp!=0) {
+	/* this is for the extremely rare case when iterative psi_cm_loc calculation temporarily
+	   yields a negative value and the actual answer for psi_cm_loc is nonzero. For example
+	   when a completely saturated wetting front with a tiny amount of ET should yield a resulting
+	   theta that is slightly below saturation. */
         psi_cm_loc = psi_cm_loc_temp * 0.1;
       }
 
+      // stop the loop if the error between the current and previous psi is less than 10^-15
+      // 1. enough accuracy, 2. the algorithm can't improve the error further,
+      // 3. avoid infinite loop, 4. handles a corner case when prior mass is tiny (e.g., <1.E-5)
+      if (fabs(psi_cm_loc - psi_cm_loc_temp) < 1E-15)
+	break;
     }
 
     double theta_layer;
@@ -2282,17 +2288,18 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
     for (int k=1; k<layer_num; k++) {
       int soil_num_loc =  soil_type[k]; // _loc denotes the variable is local to the loop
 
-      theta_layer = calc_theta_from_h(psi_cm_loc, soil_properties[soil_num_loc].vg_alpha_per_cm, soil_properties[soil_num_loc].vg_m,
-				      soil_properties[soil_num_loc].vg_n,soil_properties[soil_num_loc].theta_e,
-				      soil_properties[soil_num_loc].theta_r);
+      theta_layer = calc_theta_from_h(psi_cm_loc, soil_properties[soil_num_loc].vg_alpha_per_cm,
+				      soil_properties[soil_num_loc].vg_m, soil_properties[soil_num_loc].vg_n,
+				      soil_properties[soil_num_loc].theta_e, soil_properties[soil_num_loc].theta_r);
 
       mass_layers += delta_thickness[k] * (theta_layer - delta_theta[k]);
     }
 
     new_mass = mass_layers;
     delta_mass = fabs(new_mass - prior_mass);
-    //delta_mass = new_mass - prior_mass; 
+    
   }
+  
   return theta;
 
 }
