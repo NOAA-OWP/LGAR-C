@@ -1049,15 +1049,15 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
       // theta mass balance computes new theta that conserves the mass; new theta is assigned to the current wetting front
       double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass,
 						 delta_thetas, delta_thickness, soil_type, soil_properties);
-
+      
       current->theta = fmin(theta_new, theta_e);
 
       double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
       current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
 
       /* note: theta and psi of the current wetting front are updated here based on the wetting front's mass balance,
-	 upper wetting fronts will be updated later in the lgar_merge_ module (the place where all state variables are updated
-	 before proceeding to the next timestep. */
+	 upper wetting fronts will be updated later in the lgar_merge_ module (the place where all state
+	 variables are updated before proceeding to the next timestep. */
 
     }
 
@@ -1172,14 +1172,11 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 
 	if (wf_free_drainage_demand == wf)
 	  prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
-
-
 	// theta mass balance computes new theta that conserves the mass; new theta is assigned to the current wetting front
 	double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass,
 						   delta_thetas, delta_thickness, soil_type, soil_properties);
 
 	current->theta = fmin(theta_new, theta_e);
-
       }
 
 
@@ -1187,13 +1184,12 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
       current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
     }
 
-
     // if f_p (predicted infiltration) causes theta > theta_e, mass correction is needed.
     // depth of the wetting front is increased to close the mass balance when theta > theta_e.
     // l == 1 is the last iteration (top most wetting front), so do a check on the mass balance)
     // this part should be moved out of here to a subroutine; add a call to that subroutine
     if (wf == 1) {
-
+      
       int soil_num_k1  = soil_type[wf_free_drainage_demand];
       double theta_e_k1 = soil_properties[soil_num_k1].theta_e;
 
@@ -1202,9 +1198,9 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
       double mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand + free_drainage_demand);
 
       assert (old_mass > 0.0);
-
-      if (wf_free_drainage->theta == theta_e_k1) {
-
+      
+      if (fabs(wf_free_drainage->theta - theta_e_k1) < 1E-15) {
+	
 	double current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm);
 
 	double mass_balance_error = fabs(current_mass - mass_timestep); // mass error
@@ -1245,8 +1241,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 
       }
     }
-
-  
+    
   }
   
   /*******************************************************************/
@@ -2155,7 +2150,7 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *so
 
     bottom_sum = 0.0;  // needed ffor multi-layered dz/dt equation.  Equal to sum from n=1 to N-1 of (L_n/K_n(theta_n))
 
-    if(current->to_bottom == TRUE) { // checkpoint # AJ
+    if(current->to_bottom == TRUE) {
       if(layer_num > 1)
 	current->dzdt_cm_per_h = 0.0;
       else
@@ -2236,8 +2231,11 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   bool switched = false; // flag that determines capillary head to be incremented or decremented
 
   double theta = 0; // this will be updated and returned
-
-
+  double psi_cm_loc_prev = psi_cm_loc;
+  double delta_mass_prev = delta_mass;
+  int count_no_mass_change     = 0;
+  int break_no_mass_change = 5;
+  
   // check if the difference is less than the tolerance
   if (delta_mass <= tolerance) {
     theta = calc_theta_from_h(psi_cm_loc, soil_properties[soil_num].vg_alpha_per_cm,
@@ -2249,6 +2247,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   // the loop increments/decrements the capillary head until mass difference between
   // the new and prior is within the tolerance
   while (delta_mass > tolerance) {
+    
     if (new_mass > prior_mass) {
       psi_cm_loc += 0.1 * factor;
       switched = false;
@@ -2259,22 +2258,17 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 	factor = factor * 0.1;
       }
       
-      double psi_cm_loc_temp = psi_cm_loc;
+      psi_cm_loc_prev = psi_cm_loc;
       psi_cm_loc -= 0.1 * factor;
       
-      if (psi_cm_loc<0 && psi_cm_loc_temp!=0) {
+      if (psi_cm_loc < 0 && psi_cm_loc_prev != 0) {
 	/* this is for the extremely rare case when iterative psi_cm_loc calculation temporarily
 	   yields a negative value and the actual answer for psi_cm_loc is nonzero. For example
 	   when a completely saturated wetting front with a tiny amount of ET should yield a resulting
 	   theta that is slightly below saturation. */
-        psi_cm_loc = psi_cm_loc_temp * 0.1;
+        psi_cm_loc = psi_cm_loc_prev * 0.1;
       }
-
-      // stop the loop if the error between the current and previous psi is less than 10^-15
-      // 1. enough accuracy, 2. the algorithm can't improve the error further,
-      // 3. avoid infinite loop, 4. handles a corner case when prior mass is tiny (e.g., <1.E-5)
-      if (fabs(psi_cm_loc - psi_cm_loc_temp) < 1E-15)
-	break;
+      
     }
 
     double theta_layer;
@@ -2297,7 +2291,29 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 
     new_mass = mass_layers;
     delta_mass = fabs(new_mass - prior_mass);
+
+    // stop the loop if the error between the current and previous psi is less than 10^-15
+    // 1. enough accuracy, 2. the algorithm can't improve the error further,
+    // 3. avoid infinite loop, 4. handles a corner case when prior mass is tiny (e.g., <1.E-5)
+    // printf("A1 = %.20f, %.18f %.18f %.18f %.18f \n ",fabs(psi_cm_loc - psi_cm_loc_prev) , psi_cm_loc, psi_cm_loc_prev, factor, delta_mass);
     
+    if (fabs(psi_cm_loc - psi_cm_loc_prev) < 1E-15 && factor < 1E-13) break;
+
+    // another condition to avoid infinite loop when the error does not improve
+    if (fabs(delta_mass - delta_mass_prev) < 1E-15)
+      count_no_mass_change++;
+    else
+      count_no_mass_change = 0;
+
+    // break the loop if the mass does not change in the five consecutive iterations.
+    if (count_no_mass_change == break_no_mass_change)
+      break;
+    
+    // -ve pressure will return NAN, so terminate the loop if previous psi is way small and current psi is zero
+    // the wetting front is almost saturated
+    if (psi_cm_loc <= 0 && psi_cm_loc_prev < 1E-50) break;
+
+    delta_mass_prev = delta_mass;
   }
   
   return theta;
