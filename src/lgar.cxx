@@ -631,13 +631,19 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
   double Ksat_cm_per_h;
   struct wetting_front *current;
 
+  printf("this text means that for loop that establishes initial moisture is about to begin \n");
   for(int layer=1;layer<=num_layers;layer++) {
+    printf("inside for loop, at the start. Printing states \n");
+    listPrint();
     front++;
+    printf("inside for loop. front: %d \n", front);
 
     soil = layer_soil_type[layer];
     theta_init = calc_theta_from_h(initial_psi_cm,soil_properties[soil].vg_alpha_per_cm,
 				   soil_properties[soil].vg_m,soil_properties[soil].vg_n,
 				   soil_properties[soil].theta_e,soil_properties[soil].theta_r);
+
+    printf("inside for loop. checkpoint 1 \n");
 
     if (verbosity.compare("high") == 0) {
       printf("layer, theta, psi, alpha, m, n, theta_e, theta_r = %d, %6.6f, %6.6f, %6.6f, %6.6f, %6.6f, %6.6f, %6.6f \n",
@@ -646,16 +652,27 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
     }
 
     // the next lines create the initial moisture profile
+    printf("inside for loop. checkpoint 1.1 \n");
     bottom_flag=true;  // all initial wetting fronts are in contact with the bottom of the layer they exist in
+    printf("inside for loop. checkpoint 1.2 \n");
     // NOTE: The listInsertFront function does lots of stuff.
+    printf("layer %d \n", layer);
+    printf("front %d \n", front);
+    printf("cum_layer_thickness_cm[layer]: %lf \n", cum_layer_thickness_cm[layer]);
+    printf("theta_init: %lf \n", theta_init);
     current = listInsertFront(cum_layer_thickness_cm[layer],theta_init,front,layer,bottom_flag);
+    printf("inside for loop. checkpoint 2 \n");
     current->psi_cm = initial_psi_cm;
     Se = calc_Se_from_theta(current->theta,soil_properties[soil].theta_e,soil_properties[soil].theta_r);
+    printf("inside for loop. checkpoint 3 \n");
 
     Ksat_cm_per_h = frozen_factor[layer] * soil_properties[soil].Ksat_cm_per_h;
+    printf("inside for loop. checkpoint 4 \n");
     current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h , soil_properties[soil].vg_m);  // cm/s
+    printf("inside for loop. checkpoint 5 \n");
 
   }
+  printf("this text means that the last for loop completed \n");
 
 }
 
@@ -859,7 +876,6 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 				     double old_mass, int num_layers, double *AET_demand_cm, double *cum_layer_thickness_cm,
 				     int *soil_type, double *frozen_factor, struct soil_properties_ *soil_properties)
 {
-
   if (verbosity.compare("high") == 0) {
     printf("State before moving wetting fronts...\n");
     listPrint();
@@ -1338,6 +1354,15 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
     }
   }
 
+  current = listFindFront(listLength(), NULL); //In the event that moving wetting fronts has erroneously made two wetting fronts at the model lower boundary, the following code deletes the redundant one. 
+  previous = listFindFront(listLength() - 1, NULL);
+  if (previous!=NULL){
+    if ( (previous->depth_cm >= cum_layer_thickness_cm[num_layers]) && (previous->to_bottom==FALSE) ){
+      previous->to_bottom=TRUE;
+      previous->dzdt_cm_per_h = 0.0;
+      listDeleteFront(current->front_num);
+    }
+  }
 
 }
 
