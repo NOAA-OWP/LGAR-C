@@ -633,7 +633,7 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
 
   printf("this text means that for loop that establishes initial moisture is about to begin \n");
   for(int layer=1;layer<=num_layers;layer++) {
-    printf("inside for loop, at the start. Printing states \n");
+    printf("inside for loop, at the start. Printing states. This should be empty \n");
     listPrint();
     front++;
     printf("inside for loop. front: %d \n", front);
@@ -1362,6 +1362,12 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
       previous->dzdt_cm_per_h = 0.0;
       listDeleteFront(current->front_num);
     }
+  }
+
+  if (head->depth_cm < 0.0){//There is a rare case when mass conservative wetting front merging will yield a wetting front with a negative depth, which can occur when two wetting fronts are extremely close in moisture value. 
+                            //In this case the small mass balance error is accounted for in AET.
+    *AET_demand_cm = *AET_demand_cm + head->depth_cm*(head->theta - head->next->theta);
+    listDeleteFront(1);
   }
 
 }
