@@ -1401,81 +1401,39 @@ extern void lgar_merge_wetting_fronts(int *soil_type, double *frozen_factor, str
     // 'current->layer_num == next->layer_num' ensures wetting fronts are in the same layer
     // '!next->to_bottom' ensures that the next wetting front is not the deepest wetting front in the layer
     if ( (current->depth_cm > next->depth_cm) && (current->layer_num == next->layer_num) && !next->to_bottom) {
-
-      // if (current->theta>next->theta){
       
-        double current_mass_this_layer = current->depth_cm*(current->theta - next->theta) + next->depth_cm*(next->theta - next_to_next->theta);
-        current->depth_cm = current_mass_this_layer / (current->theta - next_to_next->theta);
-        
-        layer_num = current->layer_num;
-        soil_num  = soil_type[layer_num];
-        theta_e   = soil_properties[soil_num].theta_e;
-        theta_r   = soil_properties[soil_num].theta_r;
-        vg_a      = soil_properties[soil_num].vg_alpha_per_cm;
-        vg_m      = soil_properties[soil_num].vg_m;
-        vg_n      = soil_properties[soil_num].vg_n;
-        Se        = calc_Se_from_theta(current->theta,theta_e,theta_r);
+      double current_mass_this_layer = current->depth_cm*(current->theta - next->theta) + next->depth_cm*(next->theta - next_to_next->theta);
+      current->depth_cm = current_mass_this_layer / (current->theta - next_to_next->theta);
+      
+      layer_num = current->layer_num;
+      soil_num  = soil_type[layer_num];
+      theta_e   = soil_properties[soil_num].theta_e;
+      theta_r   = soil_properties[soil_num].theta_r;
+      vg_a      = soil_properties[soil_num].vg_alpha_per_cm;
+      vg_m      = soil_properties[soil_num].vg_m;
+      vg_n      = soil_properties[soil_num].vg_n;
+      Se        = calc_Se_from_theta(current->theta,theta_e,theta_r);
 
-        Ksat_cm_per_h  = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[current->layer_num];
+      Ksat_cm_per_h  = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[current->layer_num];
 
-        current->psi_cm     = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-        current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m);
-        
-        if (verbosity.compare("high") == 0) {
-          printf ("Deleting wetting front (before)... \n");
-          listPrint();
-        }
-        
-        listDeleteFront(next->front_num);
-        
-        if (verbosity.compare("high") == 0) {
-          printf ("Deleting wetting front (after) ... \n");
-          listPrint();
-        }
-      // }
-
-
-      // else{
-      //   double current_mass_this_layer = current->depth_cm*(current->theta - next->theta) + next->depth_cm*(next->theta - next_to_next->theta);
-      //   next->depth_cm = current_mass_this_layer / (next->theta - next_to_next->theta);
-        
-      //   layer_num = current->layer_num;
-      //   soil_num  = soil_type[layer_num];
-      //   theta_e   = soil_properties[soil_num].theta_e;
-      //   theta_r   = soil_properties[soil_num].theta_r;
-      //   vg_a      = soil_properties[soil_num].vg_alpha_per_cm;
-      //   vg_m      = soil_properties[soil_num].vg_m;
-      //   vg_n      = soil_properties[soil_num].vg_n;
-      //   Se        = calc_Se_from_theta(next->theta,theta_e,theta_r);
-
-      //   Ksat_cm_per_h  = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[current->layer_num];
-
-      //   next->psi_cm     = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-      //   next->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m);
-        
-      //   if (verbosity.compare("high") == 0) {
-      //     printf ("Deleting wetting front (before)... \n");
-      //     listPrint();
-      //   }
-        
-      //   listDeleteFront(current->front_num);
-        
-      //   if (verbosity.compare("high") == 0) {
-      //     printf ("Deleting wetting front (after) ... \n");
-      //     listPrint();
-      //   }
-      // }
-
+      current->psi_cm     = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
+      current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m);
+      
+      if (verbosity.compare("high") == 0) {
+        printf ("Deleting wetting front (before)... \n");
+        listPrint();
+      }
+      
+      listDeleteFront(next->front_num);
+      
+      if (verbosity.compare("high") == 0) {
+        printf ("Deleting wetting front (after) ... \n");
+        listPrint();
+      }
 
     }
     
-    if (current==NULL){
-      current = next;
-    }
-    else{
       current = current->next;
-    }
-    
 
   }
 
