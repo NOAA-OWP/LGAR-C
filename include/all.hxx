@@ -118,7 +118,7 @@ struct lgar_bmi_parameters
   int    num_soil_types;           // number of soil types; must be less than or equal to MAX_NUM_SOIL_TYPES
   double AET_cm;                   // actual evapotranspiration in cm
 
-  double *soil_moisture_layers;    // 1D array of thetas (mean soil moisture content) per layer; output option to other models if needed
+  //double *soil_moisture_layers;    // 1D array of thetas (mean soil moisture content) per layer; output option to other models if needed
   double *soil_moisture_wetting_fronts; /* 1D array of thetas (soil moisture content) per wetting front;
 					   output to other models (e.g. soil freeze-thaw) */
   double *soil_depth_wetting_fronts;    /* 1D array of absolute depths of the wetting fronts [meters];
@@ -220,8 +220,7 @@ extern void                     listInsertFirst(double d, double t, int f, int l
 extern struct wetting_front*    listInsertFront(double d, double t, int f, int l, bool b, struct wetting_front** head);
 extern struct wetting_front*    listInsertFrontAtDepth(int numlay, double *tvec,double d, double t, struct wetting_front* head);
 extern void                     listReverseOrder(struct wetting_front** head_ref);
-extern bool                     listFindLayer(struct wetting_front* link, int num_layers,
-					      double *cum_layer_thickness_cm,
+extern bool                     listFindLayer(struct wetting_front* link, int num_layers, double *cum_layer_thickness_cm,
 					      int *lives_in_layer, bool *extends_to_bottom_flag);
 extern struct wetting_front*    listCopy(struct wetting_front* current, struct wetting_front* state_previous=NULL);
 

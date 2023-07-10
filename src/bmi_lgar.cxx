@@ -344,7 +344,7 @@ Update()
     }
 
     bool unexpected_local_error = fabs(local_mb) > 1.0E-6 ? true : false;
-
+    
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0 || unexpected_local_error) {
       printf("\nLocal mass balance at this timestep... \n\
       Error         = %14.10f \n\
@@ -403,7 +403,7 @@ Update()
 	       <<state->lgar_bmi_params.soil_depth_wetting_fronts[i]
 	       <<" "<<state->lgar_bmi_params.soil_moisture_wetting_fronts[i]<<"\n";
   }
-
+  
   // add to mass balance timestep variables
   state->lgar_mass_balance.volprecip_timestep_cm  = precip_timestep_cm;
   state->lgar_mass_balance.volin_timestep_cm      = volin_timestep_cm;
@@ -442,6 +442,7 @@ Update()
   bmi_unit_conv.volQ_gw_timestep_m    = volQ_gw_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volPET_timestep_m     = PET_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volrunoff_giuh_timestep_m = volrunoff_giuh_timestep_cm * state->units.cm_to_m;
+  
 }
 
 
@@ -489,7 +490,7 @@ GetVarGrid(std::string name)
     return 1;
   else if (name.compare("mass_balance") == 0)
     return 1;
-  else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_thickness_layers") == 0) // array of doubles (fixed length)
+  else if (name.compare("soil_depth_layers") == 0) // array of doubles (fixed length)
     return 2;
   else if (name.compare("soil_moisture_wetting_fronts") == 0 || name.compare("soil_depth_wetting_fronts") == 0) // array of doubles (dynamic length)
     return 3;
@@ -544,9 +545,9 @@ GetVarUnits(std::string name)
     return "m";
   else if (name.compare("mass_balance") == 0 || name.compare("groundwater_to_stream_recharge") == 0)
     return "m";
-  else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles
+  else if (name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles
     return "none";
-  else if (name.compare("soil_thickness_layers") == 0 || name.compare("soil_depth_wetting_fronts") == 0) // array of doubles
+  else if (name.compare("soil_depth_layers") == 0 || name.compare("soil_depth_wetting_fronts") == 0) // array of doubles
     return "m";
   else if (name.compare("soil_temperature_profile") == 0)
     return "K";
@@ -581,11 +582,11 @@ GetVarLocation(std::string name)
    else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
 	    || name.compare("percolation") == 0 || name.compare("groundwater_to_stream_recharge") == 0) // double
     return "node";
-  else if (name.compare("soil_moisture_layers") == 0 || name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles
+  else if (name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles
     return "node";
   else if (name.compare("mass_balance") == 0)
     return "node";
-  else if (name.compare("soil_thickness_layers") == 0 || name.compare("soil_depth_wetting_fronts") == 0
+  else if (name.compare("soil_depth_layers") == 0 || name.compare("soil_depth_wetting_fronts") == 0
 	   || name.compare("soil_num_wetting_fronts") == 0) // array of doubles
     return "node";
   else if (name.compare("soil_temperature_profile") == 0)
@@ -691,10 +692,8 @@ GetValuePtr (std::string name)
     return (void*)(&bmi_unit_conv.volQ_gw_timestep_m);
   else if (name.compare("mass_balance") == 0)
     return (void*)(&bmi_unit_conv.mass_balance_m);
-  else if (name.compare("soil_moisture_layers") == 0)
-    return (void*)this->state->lgar_bmi_params.soil_moisture_layers; // this is probably not needed
-  else if (name.compare("soil_thickness_layers") == 0)
-    return (void*)this->state->lgar_bmi_params.soil_moisture_layers;  // this too and, if needed, change soil_moisture_layers to soil_thickness_layers
+  else if (name.compare("soil_depth_layers") == 0)
+    return (void*)this->state->lgar_bmi_params.cum_layer_thickness_cm;  // this too and, if needed, change soil_moisture_layers to soil_thickness_layers
   else if (name.compare("soil_moisture_wetting_fronts") == 0)
     return (void*)this->state->lgar_bmi_params.soil_moisture_wetting_fronts;
   else if (name.compare("soil_depth_wetting_fronts") == 0)
