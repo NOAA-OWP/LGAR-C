@@ -16,7 +16,7 @@
 
 extern double calc_aet(double PET_timestep_cm, double time_step_h, double wilting_point_psi_cm,
 		       int *soil_type, double AET_thresh_Theta, double AET_expon,
-		       struct soil_properties_ *soil_properties)
+		       struct wetting_front* head, struct soil_properties_ *soil_properties)
 {
 
   if (verbosity.compare("high") == 0) {

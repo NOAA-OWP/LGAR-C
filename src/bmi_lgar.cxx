@@ -21,14 +21,13 @@ string verbosity="none";
 /* The `head` pointer stores the address in memory of the first member of the linked list containing
    all the wetting fronts. The contents of struct wetting_front are defined in "all.h" */
 
-struct wetting_front *head = NULL;
-struct wetting_front *state_previous = NULL; // copy of the previous state used in mass balance computation
-
 void BmiLGAR::
 Initialize (std::string config_file)
 {
   if (config_file.compare("") != 0 ) {
     this->state = new model_state;
+    state->head = NULL;
+    state->state_previous = NULL;
     lgar_initialize(config_file, state);
   }
 
@@ -61,7 +60,7 @@ Update()
   if (verbosity.compare("none") != 0) {
     std::cerr<<"*** LASAM BMI Update... ***  \n";
   }
-
+ 
   // if lasam is coupled to soil freeze-thaw, frozen fraction module is called
   if (state->lgar_bmi_params.sft_coupled)
     frozen_factor_hydraulic_conductivity(state->lgar_bmi_params);
@@ -77,7 +76,7 @@ Update()
   double precip_timestep_cm = 0.0;
   double PET_timestep_cm    = 0.0;
   double AET_timestep_cm    = 0.0;
-  double volend_timestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm); // this should not be reset to 0.0 in the for loop
+  double volend_timestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head); // this should not be reset to 0.0 in the for loop
   double volin_timestep_cm  = 0.0;
   double volon_timestep_cm  = state->lgar_mass_balance.volon_timestep_cm;
   double volrunoff_timestep_cm      = 0.0;
@@ -135,8 +134,8 @@ Update()
       std::cerr<<"BMI Update |Timesteps = "<< state->lgar_bmi_params.timesteps<<", Time [h] = "<<this->state->lgar_bmi_params.time_s / 3600.<<", Subcycle = "<< cycle <<" of "<<subcycles<<std::endl;
     }
 
-    state_previous = NULL;
-    state_previous = listCopy(head);
+    state->state_previous = NULL;
+    state->state_previous = listCopy(state->head);
 
     // ensure precip and PET are non-negative
     state->lgar_bmi_input_params->precipitation_mm_per_h = fmax(state->lgar_bmi_input_params->precipitation_mm_per_h, 0.0);
@@ -169,11 +168,11 @@ Update()
       std::cerr<<"PET [cm/h], PET [cm] (subtimestep) = "<<state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<", "<< PET_subtimestep_cm<<"\n";
     }
 
-    AET_subtimestep_cm = 0.0;
-    volstart_subtimestep_cm = 0.0;
-    volin_subtimestep_cm = 0.0;
-    volrunoff_subtimestep_cm = 0.0;
-    volrech_subtimestep_cm = 0.0;
+    AET_subtimestep_cm            = 0.0;
+    volstart_subtimestep_cm       = 0.0;
+    volin_subtimestep_cm          = 0.0;
+    volrunoff_subtimestep_cm      = 0.0;
+    volrech_subtimestep_cm        = 0.0;
     surface_runoff_subtimestep_cm = 0.0;
 
     precip_previous_subtimestep_cm = state->lgar_bmi_params.precip_previous_timestep_cm; // creation of a new wetting front depends on previous timestep's rainfall
@@ -186,20 +185,20 @@ Update()
     // Calculate AET from PET if PET is non-zero
     if (PET_subtimestep_cm_per_h > 0.0) {
       AET_subtimestep_cm = calc_aet(PET_subtimestep_cm_per_h, subtimestep_h, wilting_point_psi_cm,
-				    state->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon,
-				    state->soil_properties);
+                                    state->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon,
+                                    state->head, state->soil_properties);
     }
 
 
     precip_timestep_cm += precip_subtimestep_cm;
     PET_timestep_cm += fmax(PET_subtimestep_cm,0.0); // ensures non-negative PET
 
-    volstart_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm);
+    volstart_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
 
 
-    int soil_num = state->lgar_bmi_params.layer_soil_type[head->layer_num];
+    int soil_num = state->lgar_bmi_params.layer_soil_type[state->head->layer_num];
     double theta_e = state->soil_properties[soil_num].theta_e;
-    bool is_top_wf_saturated = (head->theta+1e-12) >= theta_e ? true : false; //PTL: sometimes a machine precision error would erroneously create a new wetting front during saturated conditions. The + 1E-12 seems to prevent this.
+    bool is_top_wf_saturated = (state->head->theta+1e-12) >= theta_e ? true : false; //PTL: sometimes a machine precision error would erroneously create a new wetting front during saturated conditions. The + 1E-12 seems to prevent this.
 
     //addressed machine precision issues where volon_timestep_error could be for example -1E-17 or 1.E-20 or smaller
     volon_timestep_cm = fmax(volon_timestep_cm,0.0);
@@ -207,7 +206,7 @@ Update()
 
     bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0 && volon_timestep_cm == 0);
 
-    int wf_free_drainage_demand = wetting_front_free_drainage();
+    int wf_free_drainage_demand = wetting_front_free_drainage(state->head);
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
       std::string flag = (create_surficial_front && !is_top_wf_saturated) == true ? "Yes" : "No";
@@ -225,27 +224,26 @@ Update()
       lgar_move_wetting_fronts(subtimestep_h, &temp_pd, wf_free_drainage_demand, volend_subtimestep_cm,
 			       num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
 			       state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
-			       state->soil_properties);
-
-
+			       &state->head, state->state_previous, state->soil_properties);
+      
       // depth of the surficial front to be created
       dry_depth = lgar_calc_dry_depth(use_closed_form_G, nint, subtimestep_h, &delta_theta, state->lgar_bmi_params.layer_soil_type,
 				      state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
-				      state->soil_properties);
-
-      lgar_create_surfacial_front(&ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth, head->theta,
+				      state->head, state->soil_properties);
+      
+      lgar_create_surficial_front(&ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth, state->head->theta,
 				  state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
-				  state->lgar_bmi_params.frozen_factor, state->soil_properties);
+				  state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
 
-      state_previous = NULL;
-      state_previous = listCopy(head);
+      state->state_previous = NULL;
+      state->state_previous = listCopy(state->head);
 
       volin_timestep_cm += volin_subtimestep_cm;
 
       if (verbosity.compare("high") == 0) {
 	std::cerr<<"New wetting front created...\n";
 	std::cerr<<" "<<"\n";
-	listPrint();
+	listPrint(state->head);
       }
     }
 
@@ -259,7 +257,7 @@ Update()
 						   precip_subtimestep_cm_per_h, wf_free_drainage_demand, num_layers,
 						   ponded_depth_max_cm, state->lgar_bmi_params.layer_soil_type,
 						   state->lgar_bmi_params.cum_layer_thickness_cm,
-						   state->lgar_bmi_params.frozen_factor, state->soil_properties); 
+						   state->lgar_bmi_params.frozen_factor, state->head, state->soil_properties); 
 
       volin_timestep_cm += volin_subtimestep_cm;
       volrunoff_timestep_cm += volrunoff_subtimestep_cm;
@@ -295,7 +293,7 @@ Update()
       lgar_move_wetting_fronts(subtimestep_h, &volin_subtimestep_cm, wf_free_drainage_demand, volend_subtimestep_cm,
 			       num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
 			       state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
-			       state->soil_properties);
+			       &state->head, state->state_previous, state->soil_properties);
 
       // this is the volume of water leaving through the bottom
       volrech_subtimestep_cm = volin_subtimestep_cm;
@@ -308,9 +306,9 @@ Update()
     // calculate derivative (dz/dt) for all wetting fronts
     lgar_dzdt_calc(use_closed_form_G, nint, ponded_depth_subtimestep_cm, state->lgar_bmi_params.layer_soil_type,
 		   state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
-		   state->soil_properties);
+		   state->head, state->soil_properties);
 
-    volend_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm);
+    volend_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
     volend_timestep_cm = volend_subtimestep_cm;
     state->lgar_bmi_params.precip_previous_timestep_cm = precip_subtimestep_cm;
 
@@ -342,7 +340,7 @@ Update()
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
       printf("Printing wetting fronts at this subtimestep... \n");
-      listPrint();
+      listPrint(state->head);
     }
 
     bool unexpected_local_error = fabs(local_mb) > 1.0E-6 ? true : false;
@@ -371,7 +369,7 @@ Update()
     // store local mass balance error to the struct
     state->lgar_mass_balance.local_mass_balance = local_mb;
 
-    assert (head->depth_cm > 0.0); // check on negative layer depth --> move this to somewhere else AJ (later)
+    assert (state->head->depth_cm > 0.0); // check on negative layer depth --> move this to somewhere else AJ (later)
 
     bool lasam_standalone = true;
 #ifdef NGEN
@@ -387,14 +385,14 @@ Update()
   // Everything related to lgar state is done this point, now time to update some dynamic variables
 
   // update number of wetting fronts
-  state->lgar_bmi_params.num_wetting_fronts = listLength();
+  state->lgar_bmi_params.num_wetting_fronts = listLength(state->head);
 
   // allocate new memory based on updated wetting fronts; we could make it conditional i.e. create only if no. of wf are changed
   state->lgar_bmi_params.soil_depth_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
   state->lgar_bmi_params.soil_moisture_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
 
   // update thickness/depth and soil moisture of wetting fronts (used for state coupling)
-  struct wetting_front *current = head;
+  struct wetting_front *current = state->head;
   for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
     assert (current != NULL);
     state->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
