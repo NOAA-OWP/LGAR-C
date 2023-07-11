@@ -285,13 +285,18 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers, double* cum
 						     int *soil_type, double *frozen_factor, struct wetting_front** head,
 						     struct soil_properties_ *soil_properties);
 
-// the subroutine allows the deepest wetting front to partially leave the model through the lower boundary if necessary; called from lgar_move_wetting_fronts. Currently, fluxes from the lower boundary will always be 0 and this fraction of a wetting front will be dealth with in another way
+/* the subroutine allows the deepest wetting front to partially leave the model through the lower boundary if necessary;
+   called from lgar_move_wetting_fronts. Currently, fluxes from the lower boundary will always be 0 and this fraction of a
+   wetting front will be dealth with in another way */
 extern double lgar_wetting_front_cross_domain_boundary(double* cum_layer_thickness_cm, int *soil_type, double *frozen_factor,
 						       struct wetting_front** head, struct soil_properties_ *soil_properties);
 
 // subroutine to handle wet over dry wetting fronts condtions
-extern void lgar_fix_dry_over_wet_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
-					 struct wetting_front** head, struct soil_properties_ *soil_properties);
+extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
+						 struct wetting_front** head, struct soil_properties_ *soil_properties);
+
+// checks if dry over wet wetting front exists or not
+extern bool lgar_check_dry_over_wet_wetting_fronts(struct wetting_front* head);
 
 // finds free drainage wetting front (the deepest wetting front with psi value closer to zero; saturated in terms of psi)
 extern int wetting_front_free_drainage(struct wetting_front* head);
