@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
 
       // write layers data to file
       fprintf(outlayer_fptr,"# Timestep = %d, %s \n", i, time[i].c_str());
-      write_state(outlayer_fptr);
+      write_state(outlayer_fptr, model_state.get_model()->head);
     }
 
   }
@@ -261,7 +261,7 @@ ReadForcingData(std::string config_file, std::vector<std::string>& time, std::ve
 }
 
 
-extern void write_state(FILE *out){
+extern void write_state(FILE *out, struct wetting_front* head){
 
   struct wetting_front *current = head;
 

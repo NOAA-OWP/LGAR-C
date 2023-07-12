@@ -60,7 +60,6 @@ struct wetting_front
    in subroutines a pain of referencing.  Since it is just one thing,
    making it global just makes everything easier.
 */
-extern struct wetting_front *head;
 
 
 // Define a data structure to hold properties and parameters for each soil type
@@ -119,7 +118,7 @@ struct lgar_bmi_parameters
   int    num_soil_types;           // number of soil types; must be less than or equal to MAX_NUM_SOIL_TYPES
   double AET_cm;                   // actual evapotranspiration in cm
 
-  double *soil_moisture_layers;    // 1D array of thetas (mean soil moisture content) per layer; output option to other models if needed
+  //double *soil_moisture_layers;    // 1D array of thetas (mean soil moisture content) per layer; output option to other models if needed
   double *soil_moisture_wetting_fronts; /* 1D array of thetas (soil moisture content) per wetting front;
 					   output to other models (e.g. soil freeze-thaw) */
   double *soil_depth_wetting_fronts;    /* 1D array of absolute depths of the wetting fronts [meters];
@@ -185,12 +184,15 @@ struct lgar_mass_balance_variables
 // nested structure of structures; main structure for the use in bmi
 struct model_state
 {
-  struct wetting_front wetting_front;
-  struct soil_properties_* soil_properties; // dynamic allocation
-  struct lgar_bmi_parameters lgar_bmi_params;
-  struct lgar_mass_balance_variables lgar_mass_balance;
-  struct unit_conversion units;
-  struct lgar_bmi_input_parameters* lgar_bmi_input_params;
+  //  struct wetting_front wetting_front;
+  struct wetting_front*               head           = NULL; // head pointer to the current state
+  struct wetting_front*               state_previous = NULL; // head pointer to the previous state,
+                                                             // used in computing derivatives and mass balance
+  struct soil_properties_*            soil_properties;       // dynamic allocation
+  struct lgar_bmi_parameters          lgar_bmi_params;
+  struct lgar_mass_balance_variables  lgar_mass_balance;
+  struct unit_conversion              units;
+  struct lgar_bmi_input_parameters*   lgar_bmi_input_params;
 };
 
 
@@ -207,26 +209,24 @@ struct model_state
 // inside parentheses are the types of require arguments, names don't matter
 
 
-extern void                     listPrint();
-extern void                     listPrintC(struct wetting_front pcurrent);
-extern int                      listLength();
+extern void                     listPrint(struct wetting_front* head);
+extern int                      listLength(struct wetting_front* head);
 extern bool                     listIsEmpty();
-extern struct wetting_front*    listDeleteFirst();
-extern struct wetting_front*    listFindFront(int i,struct wetting_front* head_old);
-extern struct wetting_front*    listDeleteFront(int i);
-extern void                     listSortFrontsByDepth();
-extern void                     listInsertFirst(double d, double t, int f, int l, bool b);
-extern struct wetting_front*    listInsertFront(double d, double t, int f, int l, bool b);
-extern struct wetting_front*    listInsertFrontAtDepth(int numlay, double *tvec,double d, double t);
+extern struct wetting_front*    listDeleteFirst(struct wetting_front** head);
+extern struct wetting_front*    listFindFront(int i, struct wetting_front* head, struct wetting_front* head_old);
+extern struct wetting_front*    listDeleteFront(int i, struct wetting_front** head);
+extern void                     listSortFrontsByDepth(struct wetting_front *head);
+extern void                     listInsertFirst(double d, double t, int f, int l, bool b, struct wetting_front** head);
+extern struct wetting_front*    listInsertFront(double d, double t, int f, int l, bool b, struct wetting_front** head);
+extern struct wetting_front*    listInsertFrontAtDepth(int numlay, double *tvec,double d, double t, struct wetting_front* head);
 extern void                     listReverseOrder(struct wetting_front** head_ref);
-extern bool                     listFindLayer(struct wetting_front* link, int num_layers,
-                                               double *cum_layer_thickness_cm,
-                                               int *lives_in_layer, bool *extends_to_bottom_flag);
-extern struct wetting_front*    listCopy(struct wetting_front* current);
+extern bool                     listFindLayer(struct wetting_front* link, int num_layers, double *cum_layer_thickness_cm,
+					      int *lives_in_layer, bool *extends_to_bottom_flag);
+extern struct wetting_front*    listCopy(struct wetting_front* current, struct wetting_front* state_previous=NULL);
 
 
-// head pointer to the previous state/timestep, used in computing derivatives and mass balance
-extern struct wetting_front *state_previous;
+
+
 
 /*########################################*/
 /*   van Genuchten function prototypes    */
@@ -244,55 +244,62 @@ extern double calc_Geff(bool use_closed_form_G, double theta1, double theta2, do
 /* LGAR calculation function prototypes   */
 /*########################################*/
 // computed mass balance
-extern double lgar_calc_mass_bal(double *cum_layer_thickness);
+extern double lgar_calc_mass_bal(double *cum_layer_thickness, struct wetting_front* head);
 
 // computes derivatives; called derivs() in Python code
 extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *soil_type, double *cum_layer_thickness,
-			   double *frozen_factor, struct soil_properties_ *soil_properties);
+			   double *frozen_factor, struct wetting_front* head, struct soil_properties_ *soil_properties);
 
 // computes dry depth
 extern double lgar_calc_dry_depth(bool use_closed_form_G, int nint, double timestep_h, double *deltheta, int *soil_type,
                                   double *cum_layer_thickness_cm, double *frozen_factor,
-				  struct soil_properties_ *soil_properties);
+				  struct wetting_front* head, struct soil_properties_ *soil_properties);
 
 // reads van Genuchten parameters from a file
 extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_types, double wilting_point_psi_cm,
                                     struct soil_properties_ *soil_properties);
 
 // creates a surficial front (new top most wetting front)
-extern void lgar_create_surfacial_front(double *ponded_depth_cm, double *volin, double dry_depth,
+extern void lgar_create_surficial_front(double *ponded_depth_cm, double *volin, double dry_depth,
 					double theta1, int *soil_type, double *cum_layer_thickness_cm,
-					double *frozen_factor, struct soil_properties_ *soil_properties);
+					double *frozen_factor, struct wetting_front **head, struct soil_properties_ *soil_properties);
 
 // computes the infiltration capacity, fp, of the soil
 extern double lgar_insert_water(bool use_closed_form_G, int nint, double timestep_h, double *ponded_depth,
 				double *volin_this_timestep, double precip_timestep_cm, int wf_free_drainge_demand,
 				int num_layers, double ponded_depth_max_cm, int *soil_type, double *cum_layer_thickness_cm,
-				double *frozen_factor, struct soil_properties_ *soil_properties);
+				double *frozen_factor, struct wetting_front* head, struct soil_properties_ *soil_properties);
 
 // the subroutine moves wetting fronts, merges wetting fronts, and does the mass balance correction if needed
 extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm, int wf_free_drainage_demand,
 				     double old_mass, int number_of_layers, double *actual_ET_demand,
 				     double *cum_layer_thickness_cm, int *soil_type_by_layer, double *frozen_factor,
-				     struct soil_properties_ *soil_properties);
+				     struct wetting_front** head, struct wetting_front* state_previous, struct soil_properties_ *soil_properties);
 
 // the subroutine merges the wetting fronts; called from lgar_move_wetting_fronts
-extern void lgar_merge_wetting_fronts(int *soil_type, double *frozen_factor, struct soil_properties_ *soil_properties);
+extern void lgar_merge_wetting_fronts(int *soil_type, double *frozen_factor, struct wetting_front** head,
+				      struct soil_properties_ *soil_properties);
 
 // the subroutine lets wetting fronts cross soil layer boundaries; called from lgar_move_wetting_fronts
 extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers, double* cum_layer_thickness_cm,
-					int *soil_type, double *frozen_factor, struct soil_properties_ *soil_properties);
+						     int *soil_type, double *frozen_factor, struct wetting_front** head,
+						     struct soil_properties_ *soil_properties);
 
-// the subroutine allows the deepest wetting front to partially leave the model through the lower boundary if necessary; called from lgar_move_wetting_fronts. Currently, fluxes from the lower boundary will always be 0 and this fraction of a wetting front will be dealth with in another way
-extern double lgar_wetting_front_cross_domain_boundary(double* cum_layer_thickness_cm, int *soil_type, double *frozen_factor,
-						       struct soil_properties_ *soil_properties);
+/* the subroutine allows the deepest wetting front to partially leave the model through the lower boundary if necessary;
+   called from lgar_move_wetting_fronts. Currently, fluxes from the lower boundary will always be 0 and this fraction of a
+   wetting front will be dealth with in another way */
+extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, int *soil_type, double *frozen_factor,
+						       struct wetting_front** head, struct soil_properties_ *soil_properties);
 
 // subroutine to handle wet over dry wetting fronts condtions
-extern void lgar_fix_dry_over_wet_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
-					 struct soil_properties_ *soil_properties);
+extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
+						 struct wetting_front** head, struct soil_properties_ *soil_properties);
+
+// checks if dry over wet wetting front exists or not
+extern bool lgar_check_dry_over_wet_wetting_fronts(struct wetting_front* head);
 
 // finds free drainage wetting front (the deepest wetting front with psi value closer to zero; saturated in terms of psi)
-extern int wetting_front_free_drainage();
+extern int wetting_front_free_drainage(struct wetting_front* head);
 
 // computes updated theta (soil moisture content) after moving down a wetting front; called for each wetting front to ensure mass is conserved
 extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm, double new_mass,
@@ -307,14 +314,14 @@ extern void lgar_initialize(string config_file, struct model_state *state);
 extern void InitFromConfigFile(string config_file, struct model_state *state);
 extern vector<double> ReadVectorData(string key);
 extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm,
-				    double *frozen_factor, struct soil_properties_ *soil_properties);
+				    double *frozen_factor, struct wetting_front** head, struct soil_properties_ *soil_properties);
 
 /********************************************************************/
 /*Other function prototypes for doing hydrology calculations, etc.  */
 /********************************************************************/
 
 extern double calc_aet(double PET_timestep_cm, double timestep_h, double wilting_point_psi_cm, int *soil_type,
-		       double AET_thresh_Theta, double AET_expon, struct soil_properties_ *soil_props);
+		       double AET_thresh_Theta, double AET_expon, struct wetting_front* head, struct soil_properties_ *soil_props);
 
 /********************************************************************/
 /* Input/Output functions, etc.  */
@@ -324,7 +331,7 @@ extern double calc_aet(double PET_timestep_cm, double timestep_h, double wilting
 extern void lgar_global_mass_balance(struct model_state *state, double *giuh_runoff_queue);
 
 // writes full state of wetting fronts (depth, theta, no. of wetting front, no. of layer, dz/dt, psi) to a file at each time step
-extern void write_state(FILE *out);
+extern void write_state(FILE *out, struct wetting_front* head);
 
 
 /********************************************************************/
@@ -337,8 +344,8 @@ extern void frozen_factor_hydraulic_conductivity(struct lgar_bmi_parameters lgar
 /*###################################################################*/
 /*   1- and 2-D int and double memory allocation function prototypes */
 /*###################################################################*/
-extern void itwo_alloc( int ***ptr, int x, int y);
-extern void dtwo_alloc( double ***ptr, int x, int y);
+extern void itwo_alloc(int ***ptr, int x, int y);
+extern void dtwo_alloc(double ***ptr, int x, int y);
 extern void d_alloc(double **var,int size);
 extern void i_alloc(int **var,int size);
 extern void f_alloc(float **var,int size);
