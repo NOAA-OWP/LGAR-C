@@ -1277,6 +1277,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
   // *************************** MERGE ************************************
   // check if dry over wet wetting fronts exist before calling merge
   bool is_dry_over_wet_wf = lgar_check_dry_over_wet_wetting_fronts(*head);
+  
   if (is_dry_over_wet_wf)
     lgar_fix_dry_over_wet_wetting_fronts(&mass_change, cum_layer_thickness_cm, soil_type, head, soil_properties);
   
@@ -1300,7 +1301,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
   // ************************ CROSS BOUNDARY ********************************
   
   //lower bound
-  bottom_boundary_flux_cm += lgar_wetting_front_cross_domain_boundary(cum_layer_thickness_cm, soil_type,
+  bottom_boundary_flux_cm += lgar_wetting_front_cross_domain_boundary(cum_layer_thickness_cm[num_layers], soil_type,
 								      frozen_factor, head, soil_properties);
 
   *volin_cm = bottom_boundary_flux_cm;
@@ -1349,15 +1350,14 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 
   }
 
-  if (verbosity.compare("high") == 0) {
+  if (verbosity.compare("high") == 0)
     printf("Moving/merging wetting fronts done... \n");
-  }
 
 
   //Just a check to make sure that, when there is only 1 layer, than the existing wetting front is at the correct depth.
   //This might have been fixed with other debugging related to scenarios with just 1 layer where the wetting front is completely satruated. Not sure this is necessary.
-  if (listLength(*head)==1){
-    if (current->depth_cm != cum_layer_thickness_cm[1]){
+  if (listLength(*head)==1) {
+    if (current->depth_cm != cum_layer_thickness_cm[1]) {
       current->depth_cm = cum_layer_thickness_cm[1];
     }
   }
@@ -1550,7 +1550,7 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
 */
 // ############################################################################################
 
-extern double lgar_wetting_front_cross_domain_boundary(double* cum_layer_thickness_cm, int *soil_type,
+extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, int *soil_type,
 						       double *frozen_factor, struct wetting_front** head,
 						       struct soil_properties_ *soil_properties)
 {
@@ -1559,7 +1559,8 @@ extern double lgar_wetting_front_cross_domain_boundary(double* cum_layer_thickne
   struct wetting_front *next_to_next;
   current = *head; 
   double bottom_flux_cm = 0.0;
-
+  int length = listLength(*head);
+  
   if (verbosity.compare("high") == 0) {
     printf("Domain boundary crossing (bottom flux calc.) \n");
   }
@@ -1570,7 +1571,7 @@ extern double lgar_wetting_front_cross_domain_boundary(double* cum_layer_thickne
   double bottom_flux_cm_temp;
   int layer_num, soil_num;
     
-  for (int wf=1; wf != listLength(*head); wf++) {
+  for (int wf=1; wf != length; wf++) {
 
     if (verbosity.compare("high") == 0) {
       printf("Domain boundary crossing | ***** Wetting Front = %d ****** \n", wf);
@@ -1587,11 +1588,10 @@ extern double lgar_wetting_front_cross_domain_boundary(double* cum_layer_thickne
     
     next = current->next;
     next_to_next = current->next->next;
-
+    
     // case : wetting front is the deepest one in the last layer (most deepested wetting front in the domain)
     /**********************************************************/
-    if (next_to_next == NULL && current->depth_cm >= cum_layer_thickness_cm[layer_num]) {
-      
+    if (next_to_next == NULL && current->depth_cm >= domain_depth_cm) {
       //  this is the water leaving the system through the bottom of the soil
       bottom_flux_cm_temp = (current->theta - next->theta) *  (current->depth_cm - next->depth_cm);
       theta_e   = soil_properties[soil_num].theta_e;
@@ -1724,12 +1724,24 @@ extern bool lgar_check_dry_over_wet_wetting_fronts(struct wetting_front* head)
   struct wetting_front *current = head;
   struct wetting_front *next    = current->next;
   int length = listLength(head);
-
+  
   for (int l=1; l <= length; l++) {
-    if ( next != NULL && (current->theta <= next->theta) && (current->layer_num == next->layer_num) )
-      return true;
+    if (next != NULL) {
+      
+      if ( (current->theta <= next->theta) && (current->layer_num == next->layer_num) )
+	return true;
+      
+      current = current->next;
+      
+      if (current == NULL)
+	next = NULL;
+      else
+	next = current->next;
+      
+    }
+    
   }
-
+  
   return false;
 }
       

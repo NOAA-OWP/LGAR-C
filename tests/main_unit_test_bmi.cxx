@@ -45,27 +45,26 @@ int main(int argc, char *argv[])
   int num_wetting_fronts = 3;       // total number of wetting fronts
   bool test_status = true;          // unit test status flag, if test fail the flag turns false
   int num_input_vars = 3;           // total number of bmi input variables
-  int num_output_vars = 16;         // total number of bmi output variables
+  int num_output_vars = 15;         // total number of bmi output variables
 
   // *************************************************************************************
   // names of the bmi input/output variables and the corresponding sizes, with units of input variables
   std::vector <std::string> var_name_input = {"precipitation_rate", "potential_evapotranspiration_rate",
 					      "soil_temperature_profile"};
 
-  std::vector <std::string> var_name_output = {"soil_moisture_layers", "soil_moisture_wetting_fronts",
-					       "soil_thickness_layers", "soil_depth_wetting_fronts",
-					       "soil_num_wetting_fronts", "precipitation", "potential_evapotranspiration",
+  std::vector <std::string> var_name_output = {"soil_moisture_wetting_fronts", "soil_depth_layers",
+					       "soil_depth_wetting_fronts", "soil_num_wetting_fronts",
+					       "precipitation", "potential_evapotranspiration",
 					       "actual_evapotranspiration", "surface_runoff",
 					       "giuh_runoff", "soil_storage", "total_discharge",
 					       "infiltration", "percolation", "groundwater_to_stream_recharge",
 					       "mass_balance"};
 
   int nbytes_input[] = {sizeof(double), sizeof(double), sizeof(double)};
-  int nbytes_output[] = {int(num_layers * sizeof(double)), int(num_wetting_fronts * sizeof(double)),
-			 int(num_layers * sizeof(double)), int(num_wetting_fronts * sizeof(double)),
-			 sizeof(int),    sizeof(double), sizeof(double), sizeof(double), sizeof(double),
+  int nbytes_output[] = {int(num_wetting_fronts * sizeof(double)), int(num_layers * sizeof(double)),
+			 int(num_wetting_fronts * sizeof(double)), sizeof(int), sizeof(double),
 			 sizeof(double), sizeof(double), sizeof(double), sizeof(double), sizeof(double),
-			 sizeof(double), sizeof(double)};
+			 sizeof(double), sizeof(double), sizeof(double), sizeof(double), sizeof(double)};
 
   std::vector<std::string> bmi_units = {"mm h^-1", "mm h^-1", "K"};
   // *************************************************************************************

@@ -288,7 +288,7 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers, double* cum
 /* the subroutine allows the deepest wetting front to partially leave the model through the lower boundary if necessary;
    called from lgar_move_wetting_fronts. Currently, fluxes from the lower boundary will always be 0 and this fraction of a
    wetting front will be dealth with in another way */
-extern double lgar_wetting_front_cross_domain_boundary(double* cum_layer_thickness_cm, int *soil_type, double *frozen_factor,
+extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, int *soil_type, double *frozen_factor,
 						       struct wetting_front** head, struct soil_properties_ *soil_properties);
 
 // subroutine to handle wet over dry wetting fronts condtions
