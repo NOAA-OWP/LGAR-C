@@ -208,9 +208,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   string soil_params_file;
 
   // a temporary array to store the original (hourly based) giuh values
-  double *giuh_ordinates_temp = NULL;
-  int num_giuh_ordinates_temp;
-
+  std::vector<double> giuh_ordinates_temp;
+ 
   while (fp) {
 
     string line;
@@ -279,17 +278,15 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     else if (param_key == "giuh_ordinates") {
       vector<double> vec = ReadVectorData(param_value);
 
-      giuh_ordinates_temp = new double[vec.size()+1];
-
+      giuh_ordinates_temp.resize(vec.size()+1);
+ 
       for (unsigned int i=1; i <= vec.size(); i++)
 	giuh_ordinates_temp[i] = vec[i-1];
-
-      num_giuh_ordinates_temp = vec.size();
 
       is_giuh_ordinates_set = true;
 
       if (verbosity.compare("high") == 0) {
-	for (int i=1; i<=num_giuh_ordinates_temp; i++)
+	for (int i=1; i <= vec.size(); i++)
 	  std::cerr<<"GIUH ordinates (hourly) : "<<giuh_ordinates_temp[i]<<"\n";
 
 	std::cerr<<"          *****         \n";
@@ -556,24 +553,24 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   if (is_giuh_ordinates_set) {
     int factor = int(1.0/state->lgar_bmi_params.timestep_h);
 
-    state->lgar_bmi_params.num_giuh_ordinates = factor*num_giuh_ordinates_temp;
+    state->lgar_bmi_params.num_giuh_ordinates = factor * (giuh_ordinates_temp.size() - 1);
     state->lgar_bmi_params.giuh_ordinates = new double[state->lgar_bmi_params.num_giuh_ordinates+1];
     
-    for (int i=0; i<num_giuh_ordinates_temp; i++) {
+    for (int i=0; i<giuh_ordinates_temp.size()-1; i++) {
       for (int j=0; j<factor; j++) {
 	int index = j + i * factor + 1;
 	state->lgar_bmi_params.giuh_ordinates[index] = giuh_ordinates_temp[i+1]/double(factor);
       }
     }
     
-    if (verbosity.compare("high") == 0 || true) {
+    if (verbosity.compare("high") == 0) {
       for (int i=1; i<=state->lgar_bmi_params.num_giuh_ordinates; i++)
 	std::cerr<<"GIUH ordinates (scaled) : "<<state->lgar_bmi_params.giuh_ordinates[i]<<"\n";
       
       std::cerr<<"          *****         \n";
     }
     
-    giuh_ordinates_temp = NULL;
+    giuh_ordinates_temp.clear();
   }
   else if (!is_giuh_ordinates_set) {
     stringstream errMsg;
