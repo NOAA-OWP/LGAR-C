@@ -384,7 +384,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       is_timestep_set = true;
 
       if (verbosity.compare("high") == 0) {
-	std::cerr<<"Model timestep [hours,seconds]: "<<state->lgar_bmi_params.timestep_h<<" , "<<state->lgar_bmi_params.timestep_h*3600<<"\n";
+	std::cerr<<"Model timestep [hours,seconds]: "<<state->lgar_bmi_params.timestep_h<<" , "
+		 <<state->lgar_bmi_params.timestep_h*3600<<"\n";
 	std::cerr<<"          *****         \n";
       }
 
@@ -416,11 +417,11 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       state->lgar_bmi_params.forcing_resolution_h = stod(param_value);
 
       if (param_unit == "[s]" || param_unit == "[sec]" || param_unit == "") // defalut time unit is seconds
-	state->lgar_bmi_params.forcing_resolution_h /= 3600; // convert to hours
+	state->lgar_bmi_params.forcing_resolution_h /= 3600;                // convert to hours
       else if (param_unit == "[min]" || param_unit == "[minute]")
-	state->lgar_bmi_params.forcing_resolution_h /= 60; // convert to hours
+	state->lgar_bmi_params.forcing_resolution_h /= 60;                 // convert to hours
       else if (param_unit == "[h]" || param_unit == "[hr]")
-	state->lgar_bmi_params.forcing_resolution_h /= 1.0; // convert to hours
+	state->lgar_bmi_params.forcing_resolution_h /= 1.0;               // convert to hours
 
       assert (state->lgar_bmi_params.forcing_resolution_h > 0);
       is_forcing_resolution_set = true;
@@ -490,7 +491,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     state->soil_properties = new soil_properties_[state->lgar_bmi_params.num_soil_types+1];
     int num_soil_types = state->lgar_bmi_params.num_soil_types;
     double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
-    int max_num_soil_in_file = lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types, wilting_point_psi_cm, state->soil_properties);
+    int max_num_soil_in_file = lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types,
+						       wilting_point_psi_cm, state->soil_properties);
 
     // check if soil layers provided are within the range
     for (int layer=1; layer <= state->lgar_bmi_params.num_layers; layer++) {
@@ -500,8 +502,9 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
     if (verbosity.compare("high") == 0) {
       for (int layer=1; layer<=state->lgar_bmi_params.num_layers; layer++) {
-	int soil = state->lgar_bmi_params.layer_soil_type[layer];// layer_soil_type[layer];
-	std::cerr<<"Soil type/name : "<<state->lgar_bmi_params.layer_soil_type[layer]<<" "<<state->soil_properties[soil].soil_name<<"\n";
+	int soil = state->lgar_bmi_params.layer_soil_type[layer];
+	std::cerr<<"Soil type/name : "<<state->lgar_bmi_params.layer_soil_type[layer]
+		 <<" "<<state->soil_properties[soil].soil_name<<"\n";
       }
       std::cerr<<"          *****         \n";
     }
@@ -552,7 +555,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
   if (is_giuh_ordinates_set) {
     int factor = int(1.0/state->lgar_bmi_params.timestep_h);
-    std::cerr<<"factor = "<<factor<<" "<<state->lgar_bmi_params.timestep_h*3600.<<"\n";
 
     state->lgar_bmi_params.num_giuh_ordinates = factor*num_giuh_ordinates_temp;
     state->lgar_bmi_params.giuh_ordinates = new double[state->lgar_bmi_params.num_giuh_ordinates+1];
@@ -566,7 +568,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     
     if (verbosity.compare("high") == 0 || true) {
       for (int i=1; i<=state->lgar_bmi_params.num_giuh_ordinates; i++)
-	std::cerr<<"GIUH ordinates : "<<state->lgar_bmi_params.giuh_ordinates[i]<<"\n";
+	std::cerr<<"GIUH ordinates (scaled) : "<<state->lgar_bmi_params.giuh_ordinates[i]<<"\n";
       
       std::cerr<<"          *****         \n";
     }
