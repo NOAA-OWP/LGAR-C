@@ -207,7 +207,9 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
   string soil_params_file;
 
-
+  // a temporary array to store the original (hourly based) giuh values
+  std::vector<double> giuh_ordinates_temp;
+ 
   while (fp) {
 
     string line;
@@ -266,9 +268,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       // calculate the cumulative (absolute) depth from land surface to bottom of each soil layer
       state->lgar_bmi_params.cum_layer_thickness_cm[0] = 0;
 
-      for (unsigned int layer=1; layer <= vec.size(); layer++) {
+      for (unsigned int layer=1; layer <= vec.size(); layer++)
       	state->lgar_bmi_params.layer_soil_type[layer] = vec[layer-1];
-      }
 
       is_layer_soil_type_set = true;
 
@@ -277,19 +278,16 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     else if (param_key == "giuh_ordinates") {
       vector<double> vec = ReadVectorData(param_value);
 
-      state->lgar_bmi_params.giuh_ordinates = new double[vec.size()+1];
-
-      for (unsigned int layer=1; layer <= vec.size(); layer++) {
-      	state->lgar_bmi_params.giuh_ordinates[layer] = vec[layer-1];
-      }
-
-      state->lgar_bmi_params.num_giuh_ordinates = vec.size();
+      giuh_ordinates_temp.resize(vec.size()+1);
+ 
+      for (unsigned int i=1; i <= vec.size(); i++)
+	giuh_ordinates_temp[i] = vec[i-1];
 
       is_giuh_ordinates_set = true;
 
       if (verbosity.compare("high") == 0) {
-	for (int i=1; i<=state->lgar_bmi_params.num_giuh_ordinates; i++)
-	  std::cerr<<"GIUH ordinates : "<<state->lgar_bmi_params.giuh_ordinates[i]<<"\n";
+	for (int i=1; i <= vec.size(); i++)
+	  std::cerr<<"GIUH ordinates (hourly) : "<<giuh_ordinates_temp[i]<<"\n";
 
 	std::cerr<<"          *****         \n";
       }
@@ -301,9 +299,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       state->lgar_bmi_params.soil_temperature_z = new double[vec.size()];
 
-      for (unsigned int i=0; i < vec.size(); i++) {
+      for (unsigned int i=0; i < vec.size(); i++)
       	state->lgar_bmi_params.soil_temperature_z[i] = vec[i];
-      }
 
       state->lgar_bmi_params.num_cells_temp = vec.size();
 
@@ -384,7 +381,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       is_timestep_set = true;
 
       if (verbosity.compare("high") == 0) {
-	std::cerr<<"Model timestep [hours,seconds]: "<<state->lgar_bmi_params.timestep_h<<" , "<<state->lgar_bmi_params.timestep_h*3600<<"\n";
+	std::cerr<<"Model timestep [hours,seconds]: "<<state->lgar_bmi_params.timestep_h<<" , "
+		 <<state->lgar_bmi_params.timestep_h*3600<<"\n";
 	std::cerr<<"          *****         \n";
       }
 
@@ -416,11 +414,11 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       state->lgar_bmi_params.forcing_resolution_h = stod(param_value);
 
       if (param_unit == "[s]" || param_unit == "[sec]" || param_unit == "") // defalut time unit is seconds
-	state->lgar_bmi_params.forcing_resolution_h /= 3600; // convert to hours
+	state->lgar_bmi_params.forcing_resolution_h /= 3600;                // convert to hours
       else if (param_unit == "[min]" || param_unit == "[minute]")
-	state->lgar_bmi_params.forcing_resolution_h /= 60; // convert to hours
+	state->lgar_bmi_params.forcing_resolution_h /= 60;                 // convert to hours
       else if (param_unit == "[h]" || param_unit == "[hr]")
-	state->lgar_bmi_params.forcing_resolution_h /= 1.0; // convert to hours
+	state->lgar_bmi_params.forcing_resolution_h /= 1.0;               // convert to hours
 
       assert (state->lgar_bmi_params.forcing_resolution_h > 0);
       is_forcing_resolution_set = true;
@@ -490,7 +488,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     state->soil_properties = new soil_properties_[state->lgar_bmi_params.num_soil_types+1];
     int num_soil_types = state->lgar_bmi_params.num_soil_types;
     double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
-    int max_num_soil_in_file = lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types, wilting_point_psi_cm, state->soil_properties);
+    int max_num_soil_in_file = lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types,
+						       wilting_point_psi_cm, state->soil_properties);
 
     // check if soil layers provided are within the range
     for (int layer=1; layer <= state->lgar_bmi_params.num_layers; layer++) {
@@ -500,8 +499,9 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
     if (verbosity.compare("high") == 0) {
       for (int layer=1; layer<=state->lgar_bmi_params.num_layers; layer++) {
-	int soil = state->lgar_bmi_params.layer_soil_type[layer];// layer_soil_type[layer];
-	std::cerr<<"Soil type/name : "<<state->lgar_bmi_params.layer_soil_type[layer]<<" "<<state->soil_properties[soil].soil_name<<"\n";
+	int soil = state->lgar_bmi_params.layer_soil_type[layer];
+	std::cerr<<"Soil type/name : "<<state->lgar_bmi_params.layer_soil_type[layer]
+		 <<" "<<state->soil_properties[soil].soil_name<<"\n";
       }
       std::cerr<<"          *****         \n";
     }
@@ -550,7 +550,29 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   }
 
 
-  if (!is_giuh_ordinates_set) {
+  if (is_giuh_ordinates_set) {
+    int factor = int(1.0/state->lgar_bmi_params.timestep_h);
+
+    state->lgar_bmi_params.num_giuh_ordinates = factor * (giuh_ordinates_temp.size() - 1);
+    state->lgar_bmi_params.giuh_ordinates = new double[state->lgar_bmi_params.num_giuh_ordinates+1];
+    
+    for (int i=0; i<giuh_ordinates_temp.size()-1; i++) {
+      for (int j=0; j<factor; j++) {
+	int index = j + i * factor + 1;
+	state->lgar_bmi_params.giuh_ordinates[index] = giuh_ordinates_temp[i+1]/double(factor);
+      }
+    }
+    
+    if (verbosity.compare("high") == 0) {
+      for (int i=1; i<=state->lgar_bmi_params.num_giuh_ordinates; i++)
+	std::cerr<<"GIUH ordinates (scaled) : "<<state->lgar_bmi_params.giuh_ordinates[i]<<"\n";
+      
+      std::cerr<<"          *****         \n";
+    }
+    
+    giuh_ordinates_temp.clear();
+  }
+  else if (!is_giuh_ordinates_set) {
     stringstream errMsg;
     errMsg << "giuh ordinates not set in the config file "<< config_file << "\n";
     throw runtime_error(errMsg.str());
