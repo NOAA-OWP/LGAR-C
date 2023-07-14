@@ -1628,6 +1628,7 @@ extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, i
       next->psi_cm = calc_h_from_Se(Se_k, vg_a, vg_m, vg_n);
       next->K_cm_per_h = calc_K_from_Se(Se_k, Ksat_cm_per_h, vg_m);
       current = listDeleteFront(current->front_num, head);
+      bottom_flux_cm += bottom_flux_cm_temp; 
       break;
     }
     
@@ -1636,7 +1637,6 @@ extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, i
       listPrint(*head);
     }
     
-    bottom_flux_cm += bottom_flux_cm_temp;
     current = current->next;
     
     if (verbosity.compare("high") == 0){
