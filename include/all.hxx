@@ -143,6 +143,7 @@ struct lgar_bmi_parameters
   double *giuh_ordinates;       // geomorphological instantaneous unit hydrograph
   int    num_giuh_ordinates;    // number of giuh ordinates
 
+   int  calib_params_flag = 0;  // flag for calibratable parameters; if true, then calibratable params are updated otherwise not
 };
 
 // Define a data structure for local (timestep) and global mass balance parameters
@@ -177,14 +178,22 @@ struct lgar_mass_balance_variables
   double volrunoff_giuh_cm;   // volume of giuh runoff
   double volQ_cm;             // total outgoing water
   double volQ_gw_cm;          // outgoing water from ground reservoir to stream channel
+  double volchange_calib_cm;  // change in the amount of water due to calibratable parameters
   double local_mass_balance;  // local (per timestep) mass balance error
 };
 
+// Define a data structure for calibratable parameters
+// the structure holds pointer bmi output variables
+struct lgar_calib_parameters
+{
+  double *theta_e;     // theta_e = smcmax
+  double *vg_alpha;    // Van Genuchton alpha
+  double *vg_m;        // Van Genuchton m
+};
 
 // nested structure of structures; main structure for the use in bmi
 struct model_state
 {
-  //  struct wetting_front wetting_front;
   struct wetting_front*               head           = NULL; // head pointer to the current state
   struct wetting_front*               state_previous = NULL; // head pointer to the previous state,
                                                              // used in computing derivatives and mass balance
@@ -193,6 +202,7 @@ struct model_state
   struct lgar_mass_balance_variables  lgar_mass_balance;
   struct unit_conversion              units;
   struct lgar_bmi_input_parameters*   lgar_bmi_input_params;
+  struct lgar_calib_parameters        lgar_calib_params;
 };
 
 

@@ -63,6 +63,11 @@ public:
     this->output_var_names[20] = "cum_infiltration";
     this->output_var_names[21] = "cum_percolation";
     */
+
+    // calibratable parameters
+    this->calib_var_names[0] = "smcmax";
+    this->calib_var_names[1] = "van_genuchton_m";
+    this->calib_var_names[2] = "van_genuchton_alpha";
   };
   
   void Initialize(std::string config_file);
@@ -118,15 +123,19 @@ public:
   void GetGridFaceNodes(const int grid, int *face_nodes);
   void GetGridNodesPerFace(const int grid, int *nodes_per_face);
   void global_mass_balance();
+  double update_calibratable_parameters();
   struct model_state* get_model();
   
 private:
   struct model_state* state;
-  static const int input_var_name_count = 3;
+  static const int input_var_name_count  = 3;
   static const int output_var_name_count = 15;
+  static const int calib_var_name_count  = 3;
   
   std::string input_var_names[input_var_name_count];
   std::string output_var_names[output_var_name_count];
+  std::string calib_var_names[calib_var_name_count];
+  
   int num_giuh_ordinates;
   double *giuh_ordinates;
   double *giuh_runoff_queue;

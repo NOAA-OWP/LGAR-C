@@ -48,7 +48,6 @@ Initialize (std::string config_file)
 
 }
 
-
 /*
   This is the main function calling lgar subroutines for creating, moving, and merging wetting fronts.
   Calls to AET and mass balance module are also happening here
@@ -64,6 +63,15 @@ Update()
   // if lasam is coupled to soil freeze-thaw, frozen fraction module is called
   if (state->lgar_bmi_params.sft_coupled)
     frozen_factor_hydraulic_conductivity(state->lgar_bmi_params);
+
+  double volchange_calib_cm = 0.0;
+
+  if(state->lgar_bmi_params.calib_params_flag) {
+    volchange_calib_cm = update_calibratable_parameters(); // change in soil water volume due to calibratable parameters
+    state->lgar_bmi_params.calib_params_flag = false;
+  }
+  
+  assert(state->lgar_bmi_params.calib_params_flag == false);
 
   double mm_to_cm = 0.1; // unit conversion
 
@@ -428,8 +436,9 @@ Update()
   state->lgar_mass_balance.volQ_cm       += volQ_timestep_cm;
   state->lgar_mass_balance.volQ_gw_cm    += volQ_gw_timestep_cm;
   state->lgar_mass_balance.volPET_cm     += PET_timestep_cm;
-  state->lgar_mass_balance.volrunoff_giuh_cm += volrunoff_giuh_timestep_cm;
-
+  state->lgar_mass_balance.volrunoff_giuh_cm  += volrunoff_giuh_timestep_cm;
+  state->lgar_mass_balance.volchange_calib_cm += volchange_calib_cm ;
+ 
   // converted values, a struct local to the BMI and has bmi output variables
   bmi_unit_conv.mass_balance_m        = state->lgar_mass_balance.local_mass_balance * state->units.cm_to_m;
   bmi_unit_conv.volprecip_timestep_m  = precip_timestep_cm * state->units.cm_to_m;
@@ -464,6 +473,57 @@ global_mass_balance()
   lgar_global_mass_balance(this->state, giuh_runoff_queue);
 }
 
+double BmiLGAR::
+update_calibratable_parameters()
+{
+  int soil, layer_num;
+  struct wetting_front *current = state->head;
+  listPrint(state->head);
+  double volstart_before = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
+
+  for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
+    layer_num  = current->layer_num;
+    soil = state->lgar_bmi_params.layer_soil_type[layer_num];
+    
+    assert (current != NULL);
+
+    if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
+      std::cerr<<"Initial values    | soil_type = "<< soil <<", layer = "<<layer_num<<", smcmax = "
+	       << state->soil_properties[soil].theta_e<<", vg_m = "
+	       << state->soil_properties[soil].vg_m <<", vg_alpha = "<< state->soil_properties[soil].vg_alpha_per_cm
+	       << ", smcmax = "<<current->theta<<"\n";
+    }
+    
+    state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e[layer_num-1];
+    state->soil_properties[soil].vg_m    = state->lgar_calib_params.vg_m[layer_num-1];
+    state->soil_properties[soil].vg_n    = 1.0/(1.0 - state->soil_properties[soil].vg_m);
+    state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha[layer_num-1];
+    
+    
+    current->theta = calc_theta_from_h(current->psi_cm, state->soil_properties[soil].vg_alpha_per_cm,
+				       state->soil_properties[soil].vg_m, state->soil_properties[soil].vg_n,
+				       state->soil_properties[soil].theta_e, state->soil_properties[soil].theta_r);
+
+    if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
+      std::cerr<<"Calibrated values | soil_type = "<< soil <<", layer = "<<layer_num<<", smcmax = "
+	       << state->soil_properties[soil].theta_e<<", vg_m = "
+	       << state->soil_properties[soil].vg_m <<", vg_alpha = "<< state->soil_properties[soil].vg_alpha_per_cm
+	       << ", smcmax = "<<current->theta<<"\n";
+    }
+    
+    current = current->next;
+  }
+
+  listPrint(state->head);
+  
+  double volstart_after = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
+
+  if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0)
+    std::cerr<<"Mass of water (before and after) = "<< volstart_before<<", "<< volstart_after <<"\n";
+  
+  return volstart_after - volstart_before;
+}
+
 void BmiLGAR::
 Finalize()
 {
@@ -486,11 +546,12 @@ GetVarGrid(std::string name)
 	   || name.compare("soil_storage") == 0) // double
     return 1;
   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
-	   || name.compare("percolation") == 0 || name.compare("groundwater_to_stream_recharge") == 0) // double
+	   || name.compare("percolation") == 0  || name.compare("groundwater_to_stream_recharge") == 0) // double
     return 1;
   else if (name.compare("mass_balance") == 0)
     return 1;
-  else if (name.compare("soil_depth_layers") == 0) // array of doubles (fixed length)
+  else if (name.compare("soil_depth_layers") == 0  || name.compare("smcmax") == 0
+	   || name.compare("van_genuchton_m") == 0 || name.compare("van_genuchton_alpha") == 0) // array of doubles (fixed length)
     return 2;
   else if (name.compare("soil_moisture_wetting_fronts") == 0 || name.compare("soil_depth_wetting_fronts") == 0) // array of doubles (dynamic length)
     return 3;
@@ -702,6 +763,12 @@ GetValuePtr (std::string name)
     return (void*)(&state->lgar_bmi_params.num_wetting_fronts);
   else if (name.compare("soil_temperature_profile") == 0)
     return (void*)this->state->lgar_bmi_params.soil_temperature;
+  else if (name.compare("smcmax") == 0)
+    return (void*)this->state->lgar_calib_params.theta_e;
+  else if (name.compare("van_genuchton_m") == 0)
+    return (void*)this->state->lgar_calib_params.vg_m;
+  else if (name.compare("van_genuchton_alpha") == 0)
+    return (void*)this->state->lgar_calib_params.vg_alpha;
   else {
     std::stringstream errMsg;
     errMsg << "variable "<< name << " does not exist";

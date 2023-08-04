@@ -61,10 +61,14 @@ IF((NOT ${NGEN}) AND (NOT ${STANDALONE}))
 ENDIF((NOT ${NGEN}) AND (NOT ${STANDALONE}))
 
 if(STANDALONE)
-  add_executable(${exe_name} ./src/bmi_main_lgar.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.h ./giuh/giuh.c)
+  add_executable(${exe_name} ./src/bmi_main_lgar.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx
+  			     ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx
+			     ./giuh/giuh.h ./giuh/giuh.c)
   target_link_libraries(${exe_name} PRIVATE m)
 elseif(UNITTEST)
-  add_executable(${exe_name} ./tests/main_unit_test_bmi.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.h ./giuh/giuh.c)
+  add_executable(${exe_name} ./tests/main_unit_test_bmi.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx
+  			     ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.h
+			     ./giuh/giuh.c)
   target_link_libraries(${exe_name} PRIVATE m)
 endif()
 
@@ -77,9 +81,11 @@ set(LASAM_LIB_DESC_CMAKE "OWP LASAM BMI Module Shared Library")
 add_compile_definitions(BMI_ACTIVE)
 
 if(WIN32)
-  add_library(lasambmi SHARED src/bmi_lgar.cxx src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.c include/all.hxx ./giuh/giuh.h)
+  add_library(lasambmi SHARED src/bmi_lgar.cxx src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx
+  		       ./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.c include/all.hxx ./giuh/giuh.h)
 else()
-   add_library(lasambmi SHARED src/bmi_lgar.cxx src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.c include/all.hxx ./giuh/giuh.h)
+   add_library(lasambmi SHARED src/bmi_lgar.cxx src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx
+   			./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.c include/all.hxx ./giuh/giuh.h)
 endif()
 
 target_include_directories(lasambmi PRIVATE include)
