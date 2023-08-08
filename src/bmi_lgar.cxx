@@ -478,7 +478,10 @@ update_calibratable_parameters()
 {
   int soil, layer_num;
   struct wetting_front *current = state->head;
-  listPrint(state->head);
+
+  if (verbosity.compare("high") == 0)
+    listPrint(state->head);
+  
   double volstart_before = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
 
   for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
@@ -488,33 +491,38 @@ update_calibratable_parameters()
     assert (current != NULL);
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::cerr<<"Initial values    | soil_type = "<< soil <<", layer = "<<layer_num<<", smcmax = "
-	       << state->soil_properties[soil].theta_e<<", vg_m = "
-	       << state->soil_properties[soil].vg_m <<", vg_alpha = "<< state->soil_properties[soil].vg_alpha_per_cm
-	       << ", smcmax = "<<current->theta<<"\n";
+      std::cerr<<"Initial values    | soil_type = "<< soil <<", layer = "<<layer_num
+	       <<", smcmax = "   << state->soil_properties[soil].theta_e
+	       <<", vg_m = "     << state->soil_properties[soil].vg_m
+	       <<", vg_alpha = " << state->soil_properties[soil].vg_alpha_per_cm
+	       <<", Ksat = "     << state->soil_properties[soil].Ksat_cm_per_h
+	       <<", theta = "   << current->theta <<"\n";
     }
     
     state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e[layer_num-1];
     state->soil_properties[soil].vg_m    = state->lgar_calib_params.vg_m[layer_num-1];
     state->soil_properties[soil].vg_n    = 1.0/(1.0 - state->soil_properties[soil].vg_m);
     state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha[layer_num-1];
-    
+    state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat[layer_num-1];
     
     current->theta = calc_theta_from_h(current->psi_cm, state->soil_properties[soil].vg_alpha_per_cm,
 				       state->soil_properties[soil].vg_m, state->soil_properties[soil].vg_n,
 				       state->soil_properties[soil].theta_e, state->soil_properties[soil].theta_r);
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::cerr<<"Calibrated values | soil_type = "<< soil <<", layer = "<<layer_num<<", smcmax = "
-	       << state->soil_properties[soil].theta_e<<", vg_m = "
-	       << state->soil_properties[soil].vg_m <<", vg_alpha = "<< state->soil_properties[soil].vg_alpha_per_cm
-	       << ", smcmax = "<<current->theta<<"\n";
+      std::cerr<<"Calibrated values | soil_type = "<< soil <<", layer = "<<layer_num
+	       <<", smcmax = "   << state->soil_properties[soil].theta_e
+	       <<", vg_m = "     << state->soil_properties[soil].vg_m
+	       <<", vg_alpha = " << state->soil_properties[soil].vg_alpha_per_cm
+	       <<", Ksat = "     << state->soil_properties[soil].Ksat_cm_per_h
+	       <<", theta = "   << current->theta <<"\n";
     }
     
     current = current->next;
   }
 
-  listPrint(state->head);
+  if (verbosity.compare("high") == 0)
+    listPrint(state->head);
   
   double volstart_after = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
 
@@ -551,7 +559,8 @@ GetVarGrid(std::string name)
   else if (name.compare("mass_balance") == 0)
     return 1;
   else if (name.compare("soil_depth_layers") == 0  || name.compare("smcmax") == 0
-	   || name.compare("van_genuchton_m") == 0 || name.compare("van_genuchton_alpha") == 0) // array of doubles (fixed length)
+	   || name.compare("van_genuchton_m") == 0 || name.compare("van_genuchton_alpha") == 0
+	   || name.compare("hydraulic_conductivity") == 0) // array of doubles (fixed length)
     return 2;
   else if (name.compare("soil_moisture_wetting_fronts") == 0 || name.compare("soil_depth_wetting_fronts") == 0) // array of doubles (dynamic length)
     return 3;
@@ -769,6 +778,8 @@ GetValuePtr (std::string name)
     return (void*)this->state->lgar_calib_params.vg_m;
   else if (name.compare("van_genuchton_alpha") == 0)
     return (void*)this->state->lgar_calib_params.vg_alpha;
+  else if (name.compare("hydraulic_conductivity") == 0)
+    return (void*)this->state->lgar_calib_params.Ksat;
   else {
     std::stringstream errMsg;
     errMsg << "variable "<< name << " does not exist";

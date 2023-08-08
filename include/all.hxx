@@ -189,6 +189,7 @@ struct lgar_calib_parameters
   double *theta_e;     // theta_e = smcmax
   double *vg_alpha;    // Van Genuchton alpha
   double *vg_m;        // Van Genuchton m
+  double *Ksat;        // Hydraulic conductivity [cm/hr]
 };
 
 // nested structure of structures; main structure for the use in bmi
