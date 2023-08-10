@@ -72,3 +72,4 @@ Example configuration files for the two examples above are provided in the [conf
 | verbosity | string | high, low, none | - | debugging | - | controls IO (screen outputs and writing to disk) |
 | sft_coupled | Boolean | true, false | - | model coupling | impacts hydraulic conductivity | couples LASAM to SFT. Coupling to SFT reduces hydraulic conducitivity, and hence infiltration, when soil is frozen|
 | soil_z | double (1D array) | - | cm | spatial resolution | - | vertical resolution of the soil column (computational domain of the SFT model) |
+| calib_params | Boolean | true, false | - | calibratable params flag | impacts soil properties | If set to true, soil `smcmax`, `vg_m`, and `vg_alpha` are calibrated. defualt is false |

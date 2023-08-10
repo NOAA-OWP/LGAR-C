@@ -72,22 +72,41 @@ using namespace std;
 // ############################################################################################
 extern void lgar_initialize(string config_file, struct model_state *state)
 {
-
+  int soil;
+  
   InitFromConfigFile(config_file, state);
   state->lgar_bmi_params.shape[0] = state->lgar_bmi_params.num_layers;
   state->lgar_bmi_params.shape[1] = state->lgar_bmi_params.num_wetting_fronts;
 
   // initial number of wetting fronts are same are number of layers
-  state->lgar_bmi_params.num_wetting_fronts = state->lgar_bmi_params.num_layers;
-  state->lgar_bmi_params.soil_depth_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
+  state->lgar_bmi_params.num_wetting_fronts           = state->lgar_bmi_params.num_layers;
+  state->lgar_bmi_params.soil_depth_wetting_fronts    = new double[state->lgar_bmi_params.num_wetting_fronts];
   state->lgar_bmi_params.soil_moisture_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
 
+  // initialize array for holding calibratable parameters
+  state->lgar_calib_params.theta_e  = new double[state->lgar_bmi_params.num_layers];
+  state->lgar_calib_params.theta_r  = new double[state->lgar_bmi_params.num_layers];
+  state->lgar_calib_params.vg_m     = new double[state->lgar_bmi_params.num_layers];
+  state->lgar_calib_params.vg_alpha = new double[state->lgar_bmi_params.num_layers];
+  state->lgar_calib_params.Ksat     = new double[state->lgar_bmi_params.num_layers];
+  
   // initialize thickness/depth and soil moisture of wetting fronts (used for model coupling)
+  // also initialize calibratable parameters
   struct wetting_front *current = state->head;
   for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
     assert (current != NULL);
+    
+    soil = state->lgar_bmi_params.layer_soil_type[i+1];
+
     state->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
-    state->lgar_bmi_params.soil_depth_wetting_fronts[i] = current->depth_cm * state->units.cm_to_m;
+    state->lgar_bmi_params.soil_depth_wetting_fronts[i]    = current->depth_cm * state->units.cm_to_m;
+
+    state->lgar_calib_params.theta_e[i]  = state->soil_properties[soil].theta_e;
+    state->lgar_calib_params.theta_r[i]  = state->soil_properties[soil].theta_r;
+    state->lgar_calib_params.vg_m[i]     = state->soil_properties[soil].vg_m;
+    state->lgar_calib_params.vg_alpha[i] = state->soil_properties[soil].vg_alpha_per_cm;
+    state->lgar_calib_params.Ksat[i]     = state->soil_properties[soil].Ksat_cm_per_h;
+    
     current = current->next;
   }
 
@@ -95,26 +114,25 @@ extern void lgar_initialize(string config_file, struct model_state *state)
   /* initialize bmi input variables to -1.0 (on purpose), this should be assigned (non-negative) and if not,
      the code will throw an error in the Update method */
   state->lgar_bmi_input_params->precipitation_mm_per_h = -1.0;
-  state->lgar_bmi_input_params->PET_mm_per_h = -1.0;
+  state->lgar_bmi_input_params->PET_mm_per_h           = -1.0;
 
   // initialize all global mass balance variables to zero
-  state->lgar_mass_balance.volprecip_cm = 0.0;
-  state->lgar_mass_balance.volin_cm = 0.0;
-  state->lgar_mass_balance.volend_cm = 0.0;
-  state->lgar_mass_balance.volAET_cm = 0.0;
-  state->lgar_mass_balance.volrech_cm = 0.0;
-  state->lgar_mass_balance.volrunoff_cm = 0.0;
-  state->lgar_mass_balance.volrunoff_giuh_cm = 0.0;
-  state->lgar_mass_balance.volQ_cm = 0.0;
-  state->lgar_mass_balance.volPET_cm = 0.0;
-  state->lgar_mass_balance.volon_cm = 0.0;
-
-  // setting volon and precip at the initial time to 0.0 as they determine the creation of surficail wetting front
-  state->lgar_mass_balance.volon_timestep_cm = 0.0;
+  state->lgar_mass_balance.volprecip_cm              = 0.0;
+  state->lgar_mass_balance.volin_cm                  = 0.0;
+  state->lgar_mass_balance.volend_cm                 = 0.0;
+  state->lgar_mass_balance.volAET_cm                 = 0.0;
+  state->lgar_mass_balance.volrech_cm                = 0.0;
+  state->lgar_mass_balance.volrunoff_cm              = 0.0;
+  state->lgar_mass_balance.volrunoff_giuh_cm         = 0.0;
+  state->lgar_mass_balance.volQ_cm                   = 0.0;
+  state->lgar_mass_balance.volPET_cm                 = 0.0;
+  state->lgar_mass_balance.volon_cm                  = 0.0;
+  state->lgar_mass_balance.volon_timestep_cm         = 0.0; /* setting volon and precip at the initial time to 0.0
+							       as they determine the creation of surficail wetting front */
   state->lgar_bmi_params.precip_previous_timestep_cm = 0.0;
-
-  // setting flux from groundwater_reservoir_to_stream to zero, will be non-zero when groundwater reservoir is added/simulated
-  state->lgar_mass_balance.volQ_gw_timestep_cm = 0.0;
+  state->lgar_mass_balance.volQ_gw_timestep_cm       = 0.0; /* setting flux from groundwater_reservoir_to_stream to zero,
+							       will be non-zero when groundwater reservoir is added/simulated */
+  state->lgar_mass_balance.volchange_calib_cm        = 0.0;
 }
 
 
@@ -455,7 +473,20 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       continue;
     }
-
+    else if (param_key == "calib_params") {
+      if (param_value == "true") {
+	state->lgar_bmi_params.calib_params_flag = 1;
+      }
+      else if (param_value == "false") {
+	state->lgar_bmi_params.calib_params_flag = 0; // false
+      }
+      else {
+	std::cerr<<"Invalid option: calib_params must be true or false. \n";
+        abort();
+      }
+      
+      continue;
+    }
   }
 
   fp.close();
@@ -587,9 +618,9 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     }
   }
   else {
-    state->lgar_bmi_params.soil_temperature = new double[1]();
+    state->lgar_bmi_params.soil_temperature   = new double[1]();
     state->lgar_bmi_params.soil_temperature_z = new double[1]();
-    state->lgar_bmi_params.num_cells_temp = 1;
+    state->lgar_bmi_params.num_cells_temp     = 1;
   }
 
   if (!is_ponded_depth_max_cm_set)
@@ -616,8 +647,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   // initial mass in the system
   state->lgar_mass_balance.volstart_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
 
-  state->lgar_bmi_params.ponded_depth_cm = 0.0; // initially we start with a dry surface (no surface ponding)
-  state->lgar_bmi_params.nint = 120; // hacked, not needed to be an input option
+  state->lgar_bmi_params.ponded_depth_cm    = 0.0; // initially we start with a dry surface (no surface ponding)
+  state->lgar_bmi_params.nint               = 120; // hacked, not needed to be an input option
   state->lgar_bmi_params.num_wetting_fronts = state->lgar_bmi_params.num_layers;
 
   assert (state->lgar_bmi_params.num_layers == listLength(state->head));
@@ -627,8 +658,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     std::cerr<<"No. of spatial intervals used in trapezoidal integration to compute G : "<<state->lgar_bmi_params.nint<<"\n";
   }
 
-  state->lgar_bmi_input_params = new lgar_bmi_input_parameters;
-  state->lgar_bmi_params.time_s = 0.0;
+  state->lgar_bmi_input_params     = new lgar_bmi_input_parameters;
+  state->lgar_bmi_params.time_s    = 0.0;
   state->lgar_bmi_params.timesteps = 0.0;
 
   if (verbosity.compare("none") != 0) {
@@ -648,7 +679,7 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
 				    double *frozen_factor, struct wetting_front** head, struct soil_properties_ *soil_properties)
 {
   int soil;
-  int front=0;
+  int front = 0;
   double Se, theta_init;
   bool bottom_flag;
   double Ksat_cm_per_h;
@@ -669,7 +700,7 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
     }
 
     // the next lines create the initial moisture profile
-    bottom_flag=true;  // all initial wetting fronts are in contact with the bottom of the layer they exist in
+    bottom_flag = true;  // all initial wetting fronts are in contact with the bottom of the layer they exist in
     // NOTE: The listInsertFront function does lots of stuff.
 
     current = listInsertFront(cum_layer_thickness_cm[layer],theta_init,front,layer,bottom_flag, head);
@@ -788,44 +819,45 @@ extern void lgar_update(struct model_state *state)
 // #########################################################################################
 extern void lgar_global_mass_balance(struct model_state *state, double *giuh_runoff_queue_cm)
 {
-  double volstart  = state->lgar_mass_balance.volstart_cm;
-  double volprecip = state->lgar_mass_balance.volprecip_cm;
-  double volrunoff = state->lgar_mass_balance.volrunoff_cm;
-  double volAET    = state->lgar_mass_balance.volAET_cm;
-  double volPET    = state->lgar_mass_balance.volPET_cm;
-  double volon     = state->lgar_mass_balance.volon_cm;
-  double volin     = state->lgar_mass_balance.volin_cm;
-  double volrech   = state->lgar_mass_balance.volrech_cm;
-  double volend    = state->lgar_mass_balance.volend_cm;
-  double volrunoff_giuh = state->lgar_mass_balance.volrunoff_giuh_cm;
-  double volend_giuh_cm = 0.0;
-  double total_Q_cm     = state->lgar_mass_balance.volQ_cm;
-
+  double volstart           = state->lgar_mass_balance.volstart_cm;
+  double volprecip          = state->lgar_mass_balance.volprecip_cm;
+  double volrunoff          = state->lgar_mass_balance.volrunoff_cm;
+  double volAET             = state->lgar_mass_balance.volAET_cm;
+  double volPET             = state->lgar_mass_balance.volPET_cm;
+  double volon              = state->lgar_mass_balance.volon_cm;
+  double volin              = state->lgar_mass_balance.volin_cm;
+  double volrech            = state->lgar_mass_balance.volrech_cm;
+  double volend             = state->lgar_mass_balance.volend_cm;
+  double volrunoff_giuh     = state->lgar_mass_balance.volrunoff_giuh_cm;
+  double volend_giuh_cm     = 0.0;
+  double total_Q_cm         = state->lgar_mass_balance.volQ_cm;
+  double volchange_calib_cm = state->lgar_mass_balance.volchange_calib_cm;
+  
   //check if the giuh queue have some water left at the end of simulaiton; needs to be included in the global mass balance
   // hold on; this is probably not needed as we have volrunoff in the balance; revist AJK
   for(int i=1; i <= state->lgar_bmi_params.num_giuh_ordinates; i++)
     volend_giuh_cm += giuh_runoff_queue_cm[i];
 
 
-  double global_error_cm = volstart + volprecip - volrunoff - volAET - volon - volrech - volend;
-
+  double global_error_cm = volstart + volprecip - volrunoff - volAET - volon - volrech - volend + volchange_calib_cm;
 
  printf("\n********************************************************* \n");
  printf("-------------------- Simulation Summary ----------------- \n");
  //printf("Time (sec)                 = %6.10f \n", elapsed);
  printf("------------------------ Mass balance ------------------- \n");
- printf("Initial water in soil    = %14.10f cm\n", volstart);
- printf("Total precipitation      = %14.10f cm\n", volprecip);
- printf("Total infiltration       = %14.10f cm\n", volin);
- printf("Final water in soil      = %14.10f cm\n", volend);
- printf("Surface ponded water     = %14.10f cm\n", volon);
- printf("Surface runoff           = %14.10f cm\n", volrunoff);
- printf("GIUH runoff              = %14.10f cm\n", volrunoff_giuh);
- printf("Total percolation        = %14.10f cm\n", volrech);
- printf("Total AET                = %14.10f cm\n", volAET);
- printf("Total PET                = %14.10f cm\n", volPET);
- printf("Total discharge (Q)      = %14.10f cm\n", total_Q_cm);
- printf("Global balance           =   %.6e cm\n", global_error_cm);
+ printf("Initial water in soil     = %14.10f cm\n", volstart);
+ printf("Total precipitation       = %14.10f cm\n", volprecip);
+ printf("Total infiltration        = %14.10f cm\n", volin);
+ printf("Final water in soil       = %14.10f cm\n", volend);
+ printf("Surface ponded water      = %14.10f cm\n", volon);
+ printf("Surface runoff            = %14.10f cm\n", volrunoff);
+ printf("GIUH runoff               = %14.10f cm\n", volrunoff_giuh);
+ printf("Total percolation         = %14.10f cm\n", volrech);
+ printf("Total AET                 = %14.10f cm\n", volAET);
+ printf("Total PET                 = %14.10f cm\n", volPET);
+ printf("Total discharge (Q)       = %14.10f cm\n", total_Q_cm);
+ printf("Vol change (calibration)  = %14.10f cm\n", volchange_calib_cm);
+ printf("Global balance            =   %.6e cm\n", global_error_cm);
 
 }
 

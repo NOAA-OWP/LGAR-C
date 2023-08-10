@@ -26,7 +26,7 @@
 
 int main(int argc, char *argv[])
 {
-  BmiLGAR model;
+  BmiLGAR model, model_calib;
 
    if (argc != 2) {
     printf("Usage: ../build/lasam_unitest configs/unittest.txt \n");
@@ -38,14 +38,15 @@ int main(int argc, char *argv[])
   std::cout<<"\n**************** BEGIN LASAM BMI UNIT TEST *******************\n";
 
   model.Initialize(argv[1]);
-
+  model_calib.Initialize(argv[1]);
+  
   // The following variables and names are benchmark values and names, any (unintended/inconsistent) change to the bmi or model will lead to test failure.
   std::cout<<"\n**************** TEST VALUES ************************************\n";
-  int num_layers = 3;               // total number of layers
+  int num_layers         = 3;       // total number of layers
   int num_wetting_fronts = 3;       // total number of wetting fronts
-  bool test_status = true;          // unit test status flag, if test fail the flag turns false
-  int num_input_vars = 3;           // total number of bmi input variables
-  int num_output_vars = 15;         // total number of bmi output variables
+  bool test_status       = true;    // unit test status flag, if test fail the flag turns false
+  int num_input_vars     = 3;       // total number of bmi input variables
+  int num_output_vars    = 15;      // total number of bmi output variables
 
   // *************************************************************************************
   // names of the bmi input/output variables and the corresponding sizes, with units of input variables
@@ -384,7 +385,8 @@ int main(int argc, char *argv[])
   std::cout<<"| All tests passed until this point: "<<passed<<"\n";
   std::cout<<"| *************************************** \n";
   std::cout<<RESET<<"\n";
-
+  
+  assert (test_status == true);
 
   // Test BMI: GET VALUE FUNCTIONS
   std::cout<<"\n\n************** TEST BMI GETTER SETTER FUNCTIONS********************************\n";
@@ -529,7 +531,7 @@ int main(int argc, char *argv[])
   
   std::cout<<GREEN<<"\n";
   std::cout<<"| *************************************** \n";
-  std::cout<<"| All BMI Tests passed: "<<passed<<"\n";
+  std::cout<<"| All BMI Tests passed: "<< passed <<"\n";
   std::cout<<"| Infiltration [mm] : (benchmark vs computed) | "<< infiltration_check_mm <<" vs "
 	   << infiltration_computed * m_to_mm <<"\n";
   std::cout<<"| PET [mm]          : (benchmark vs computed) | "<< PET_check_mm <<" vs "<< PET_computed * m_to_mm <<"\n";
@@ -537,26 +539,121 @@ int main(int argc, char *argv[])
   std::cout<<"| *************************************** \n";
   std::cout<<RESET<<"\n";
 
+  assert (test_status == true);
+  
   // to print global mass balance
   //model.Finalize();
 
   if (fabs(infiltration_check_mm - infiltration_computed * m_to_mm) > 1.E-5) {
     std::stringstream errMsg;
-    errMsg << "Error between benchmark and simulated infiltration is "<< fabs(infiltration_check_mm - infiltration_computed * m_to_cm) << " which is unexpected. \n";
+    errMsg << "Error between benchmark and simulated infiltration is "<<
+      fabs(infiltration_check_mm - infiltration_computed * m_to_cm) << " which is unexpected. \n";
     throw std::runtime_error(errMsg.str());
   }
 
   if (fabs(PET_check_mm - PET_computed * m_to_mm) > 1.E-5) {
     std::stringstream errMsg;
-    errMsg << "Error between benchmark and simulated PET is "<< fabs(PET_check_mm - PET_computed * m_to_mm) << " which is unexpected. \n";
+    errMsg << "Error between benchmark and simulated PET is "<< fabs(PET_check_mm - PET_computed * m_to_mm)
+	   << " which is unexpected. \n";
     throw std::runtime_error(errMsg.str());
   }
 
   if (fabs(AET_check_mm - AET_computed * m_to_mm) > 1.E-5) {
     std::stringstream errMsg;
-    errMsg << "Error between benchmark and simulated AET is "<< fabs(AET_check_mm - AET_computed * m_to_mm) << " which is unexpected. \n";
+    errMsg << "Error between benchmark and simulated AET is "<< fabs(AET_check_mm - AET_computed * m_to_mm)
+	   << " which is unexpected. \n";
     throw std::runtime_error(errMsg.str());
   }
 
+
+  std::cout<<GREEN<<"\n";
+  std::cout<<"| *************************************** \n";
+  std::cout<<"| LASAM Calibration test \n";
+  
+  double rain_precip = 1.2; // mm/hr
+  double evapotran   = 3.0; // mm/hr
+  
+
+  // Testing Calibratable parameters
+  double *smcmax   = new double[num_layers];
+  double *vg_m     = new double[num_layers];
+  double *vg_alpha = new double[num_layers];
+  double *Ksat     = new double[num_layers];
+
+  double smcmax_set[]   = {0.3513, 0.3773, 0.3617};
+  double vg_m_set[]     = {0.30681, 0.130177, 0.280843};
+  double vg_alpha_set[] = {0.0021297, 0.0073272, 0.0027454};
+  double Ksat_set[]     = {0.446, 0.0743, 0.415};
+ 
+  // Get the initial values set through the config file
+  model_calib.GetValue("smcmax", &smcmax[0]);
+  model_calib.GetValue("van_genuchten_m", &vg_m[0]);
+  model_calib.GetValue("van_genuchten_alpha", &vg_alpha[0]);
+  model_calib.GetValue("hydraulic_conductivity", &Ksat[0]);
+  
+  for (int i=0; i < num_layers; i++)
+    std::cout<<"| Initial values: layer = "<< i+1 <<", smcmax = "<< smcmax[i]
+	     <<", vg_m = "<< vg_m[i] <<", vg_alpha = " << vg_alpha[i]
+	     <<", Ksat = "<< Ksat[i] <<"\n";
+
+  // set the new values
+  model_calib.SetValue("smcmax", &smcmax_set[0]);
+  model_calib.SetValue("van_genuchten_m", &vg_m_set[0]);
+  model_calib.SetValue("van_genuchten_alpha", &vg_alpha_set[0]);
+  model_calib.SetValue("hydraulic_conductivity", &Ksat_set[0]);
+ 
+  // get the new/updated values
+  model_calib.GetValue("smcmax", &smcmax[0]);
+  model_calib.GetValue("van_genuchten_m", &vg_m[0]);
+  model_calib.GetValue("van_genuchten_alpha", &vg_alpha[0]);
+  model_calib.GetValue("hydraulic_conductivity", &Ksat[0]);
+ 
+  
+  for (int i=0; i < num_layers; i++) {
+    
+    if (fabs(smcmax[i]  - smcmax_set[i]) > 1.E-5) {
+      std::stringstream errMsg;
+      errMsg << "Mismatch between smcmax calibrated values set and get "<< smcmax_set[i]<<" "<< smcmax[i]
+	     << " which is unexpected. \n";
+      throw std::runtime_error(errMsg.str());
+    }
+    
+    if (fabs(vg_m[i]  - vg_m_set[i]) > 1.E-5) {
+      std::stringstream errMsg;
+      errMsg << "Mismatch between vg_m calibrated values set and get "<< vg_m_set[i]<<" "<< vg_m[i]
+	     << " which is unexpected. \n";
+      throw std::runtime_error(errMsg.str());
+    }
+    
+    if (fabs(vg_alpha[i]  - vg_alpha_set[i]) > 1.E-5) {
+      std::stringstream errMsg;
+      errMsg << "Mismatch between vg_alpha calibrated values set and get "<< vg_alpha_set[i]<<" "<< vg_alpha[i]
+	     << " which is unexpected. \n";
+      throw std::runtime_error(errMsg.str());
+    }
+    
+    if (fabs(Ksat[i]  - Ksat_set[i]) > 1.E-5) {
+      std::stringstream errMsg;
+      errMsg << "Mismatch between hydraulic conductivity calibrated values set and get "<< Ksat_set[i]<<" "<< Ksat[i]
+	     << " which is unexpected. \n";
+      throw std::runtime_error(errMsg.str());
+    }
+    
+  }
+
+  std::cout<<"|  \n";
+  for (int i=0; i < num_layers; i++)
+    std::cout<<"| Calib. values: layer = "<< i+1 <<", smcmax = "<< smcmax[i]
+	     <<", vg_m = "<< vg_m[i] <<", vg_alpha = " << vg_alpha[i]
+	     <<", Ksat = "<< Ksat[i] <<"\n";
+  std::cout<<"| *************************************** \n";
+  std::cout<<"| LASAM Calibration test = YES \n";
+  std::cout<<RESET<<"\n";
+  // set forcing data for the timestep
+  model_calib.SetValue("precipitation_rate", &rain_precip);
+  model_calib.SetValue("potential_evapotranspiration_rate", &evapotran);
+  model_calib.Update();
+  
+  model_calib.Finalize();
   return FAILURE;
 }
