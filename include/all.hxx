@@ -187,6 +187,7 @@ struct lgar_mass_balance_variables
 struct lgar_calib_parameters
 {
   double *theta_e;     // theta_e = smcmax
+  double *theta_r;     // theta_r = smcmin
   double *vg_alpha;    // Van Genuchton alpha
   double *vg_m;        // Van Genuchton m
   double *Ksat;        // Hydraulic conductivity [cm/hr]

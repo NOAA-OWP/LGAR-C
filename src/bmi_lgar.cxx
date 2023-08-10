@@ -57,7 +57,9 @@ void BmiLGAR::
 Update()
 {
   if (verbosity.compare("none") != 0) {
-    std::cerr<<"*** LASAM BMI Update... ***  \n";
+    std::cerr<<"---------------------------------------------------------\n";
+    std::cerr<<"|****************** LASAM BMI Update... ******************|\n";
+    std::cerr<<"---------------------------------------------------------\n";
   }
  
   // if lasam is coupled to soil freeze-thaw, frozen fraction module is called
@@ -70,8 +72,6 @@ Update()
     volchange_calib_cm = update_calibratable_parameters(); // change in soil water volume due to calibratable parameters
     state->lgar_bmi_params.calib_params_flag = false;
   }
-  
-  assert(state->lgar_bmi_params.calib_params_flag == false);
 
   double mm_to_cm = 0.1; // unit conversion
 
@@ -491,8 +491,10 @@ update_calibratable_parameters()
     assert (current != NULL);
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::cerr<<"Initial values    | soil_type = "<< soil <<", layer = "<<layer_num
+      std::cerr<<"----------- Calibratable parameters (initial values) ----------- \n";
+      std::cerr<<"| soil_type = "<< soil <<", layer = "<<layer_num
 	       <<", smcmax = "   << state->soil_properties[soil].theta_e
+	       <<", smcmin = "   << state->soil_properties[soil].theta_r
 	       <<", vg_m = "     << state->soil_properties[soil].vg_m
 	       <<", vg_alpha = " << state->soil_properties[soil].vg_alpha_per_cm
 	       <<", Ksat = "     << state->soil_properties[soil].Ksat_cm_per_h
@@ -500,6 +502,7 @@ update_calibratable_parameters()
     }
     
     state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e[layer_num-1];
+    state->soil_properties[soil].theta_r = state->lgar_calib_params.theta_r[layer_num-1];
     state->soil_properties[soil].vg_m    = state->lgar_calib_params.vg_m[layer_num-1];
     state->soil_properties[soil].vg_n    = 1.0/(1.0 - state->soil_properties[soil].vg_m);
     state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha[layer_num-1];
@@ -510,8 +513,10 @@ update_calibratable_parameters()
 				       state->soil_properties[soil].theta_e, state->soil_properties[soil].theta_r);
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::cerr<<"Calibrated values | soil_type = "<< soil <<", layer = "<<layer_num
+      std::cerr<<"----------- Calibratable parameters (updated values) ----------- \n";
+      std::cerr<<"| soil_type = "<< soil <<", layer = "<<layer_num
 	       <<", smcmax = "   << state->soil_properties[soil].theta_e
+	       <<", smcmin = "   << state->soil_properties[soil].theta_r
 	       <<", vg_m = "     << state->soil_properties[soil].vg_m
 	       <<", vg_alpha = " << state->soil_properties[soil].vg_alpha_per_cm
 	       <<", Ksat = "     << state->soil_properties[soil].Ksat_cm_per_h
@@ -520,7 +525,7 @@ update_calibratable_parameters()
     
     current = current->next;
   }
-
+  
   if (verbosity.compare("high") == 0)
     listPrint(state->head);
   
@@ -558,8 +563,8 @@ GetVarGrid(std::string name)
     return 1;
   else if (name.compare("mass_balance") == 0)
     return 1;
-  else if (name.compare("soil_depth_layers") == 0  || name.compare("smcmax") == 0
-	   || name.compare("van_genuchton_m") == 0 || name.compare("van_genuchton_alpha") == 0
+  else if (name.compare("soil_depth_layers") == 0  || name.compare("smcmax") == 0 || name.compare("smcmin") == 0
+	   || name.compare("van_genuchten_m") == 0 || name.compare("van_genuchten_alpha") == 0
 	   || name.compare("hydraulic_conductivity") == 0) // array of doubles (fixed length)
     return 2;
   else if (name.compare("soil_moisture_wetting_fronts") == 0 || name.compare("soil_depth_wetting_fronts") == 0) // array of doubles (dynamic length)
@@ -774,9 +779,11 @@ GetValuePtr (std::string name)
     return (void*)this->state->lgar_bmi_params.soil_temperature;
   else if (name.compare("smcmax") == 0)
     return (void*)this->state->lgar_calib_params.theta_e;
-  else if (name.compare("van_genuchton_m") == 0)
+  else if (name.compare("smcmin") == 0)
+    return (void*)this->state->lgar_calib_params.theta_r;
+  else if (name.compare("van_genuchten_m") == 0)
     return (void*)this->state->lgar_calib_params.vg_m;
-  else if (name.compare("van_genuchton_alpha") == 0)
+  else if (name.compare("van_genuchten_alpha") == 0)
     return (void*)this->state->lgar_calib_params.vg_alpha;
   else if (name.compare("hydraulic_conductivity") == 0)
     return (void*)this->state->lgar_calib_params.Ksat;

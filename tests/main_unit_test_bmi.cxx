@@ -587,8 +587,8 @@ int main(int argc, char *argv[])
  
   // Get the initial values set through the config file
   model_calib.GetValue("smcmax", &smcmax[0]);
-  model_calib.GetValue("van_genuchton_m", &vg_m[0]);
-  model_calib.GetValue("van_genuchton_alpha", &vg_alpha[0]);
+  model_calib.GetValue("van_genuchten_m", &vg_m[0]);
+  model_calib.GetValue("van_genuchten_alpha", &vg_alpha[0]);
   model_calib.GetValue("hydraulic_conductivity", &Ksat[0]);
   
   for (int i=0; i < num_layers; i++)
@@ -598,14 +598,14 @@ int main(int argc, char *argv[])
 
   // set the new values
   model_calib.SetValue("smcmax", &smcmax_set[0]);
-  model_calib.SetValue("van_genuchton_m", &vg_m_set[0]);
-  model_calib.SetValue("van_genuchton_alpha", &vg_alpha_set[0]);
+  model_calib.SetValue("van_genuchten_m", &vg_m_set[0]);
+  model_calib.SetValue("van_genuchten_alpha", &vg_alpha_set[0]);
   model_calib.SetValue("hydraulic_conductivity", &Ksat_set[0]);
  
   // get the new/updated values
   model_calib.GetValue("smcmax", &smcmax[0]);
-  model_calib.GetValue("van_genuchton_m", &vg_m[0]);
-  model_calib.GetValue("van_genuchton_alpha", &vg_alpha[0]);
+  model_calib.GetValue("van_genuchten_m", &vg_m[0]);
+  model_calib.GetValue("van_genuchten_alpha", &vg_alpha[0]);
   model_calib.GetValue("hydraulic_conductivity", &Ksat[0]);
  
   
