@@ -6,7 +6,7 @@ The LASAM simulates infiltration and runoff based on Layered Green & Ampt with r
 ### Instructions for: 
   - Installation (see [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk//doc_update/INSTALL.md))
   - Test examples
-    - simulations with synthetic forcing data, and unittest (see [tests](https://github.com/NOAA-OWP/LGAR-C/blob/doc_update/tests/README.md))
+    - simulations with synthetic forcing data and unittest (see [tests](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/tests/README.md))
     - simulations with real forcing data (see [tests](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/configs/README.md))
   - LASAM coupling to Soil Freeze Thaw (SFT) model (see [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md))
 
