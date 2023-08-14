@@ -4,17 +4,17 @@ The LASAM simulates infiltration and runoff based on Layered Green & Ampt with r
 **Published papers:** For details about the model please see our manuscript on LGAR ([weblink](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2022WR033742)).
 
 ### Instructions for: 
-  - Installation (see [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/master/INSTALL.md))
+  - Installation (see [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk//doc_update/INSTALL.md))
   - Test examples
     - simulations with synthetic forcing data, and unittest (see [tests](https://github.com/NOAA-OWP/LGAR-C/blob/doc_update/tests/README.md))
-    - simulations with real forcing data (see [tests](https://github.com/NOAA-OWP/LGAR-C/blob/doc_update/configs/README.md))
-  - LASAM coupling to Soil Freeze Thaw (SFT) model (see [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/doc_update/INSTALL.md))
+    - simulations with real forcing data (see [tests](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/configs/README.md))
+  - LASAM coupling to Soil Freeze Thaw (SFT) model (see [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md))
 
 ### Model Configuration File
-  - Detailed description of the parameters for model configuration is provided ([here](https://github.com/NOAA-OWP/LGAR-C/tree/doc_update/configs/README.md))
+  - Detailed description of the parameters for model configuration is provided ([here](https://github.com/NOAA-OWP/LGAR-C/tree/ajk/doc_update/configs/README.md))
 
 ### Nextgen Realization Files
-  - Realization files for running LASAM (coupled/uncoupled modes) in the nextgen framework are provided here ([here](https://github.com/NOAA-OWP/LGAR-C/tree/doc_update/realizations/README.md))
+  - Realization files for running LASAM (coupled/uncoupled modes) in the nextgen framework are provided here ([here](https://github.com/NOAA-OWP/LGAR-C/tree/ajk/doc_update/realizations/README.md))
   
 ### Getting help
 For questions, please contact Ahmad (ahmad.jan@noaa.gov) and/or Peter (peter.lafollette@noaa.gov), the two main developers/maintainers of the repository.
