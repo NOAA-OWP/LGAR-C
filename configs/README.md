@@ -1,5 +1,12 @@
 ## Configuration File
-A detailed description of the parameters for model configuration (i.e., initialize/setup) is provided below. The example configuration files are provided in the [configs](./configs/) directory.
+Example configuration files are provided here.
+
+#### To run the given examples
+```
+./build/lasam_standalone configs/config_lasam_Phillipsburg.txt (run from LGAR-C directory)
+```
+
+A detailed description of the parameters for model configuration (i.e., initialize/setup) is provided below. 
 
 
 | Variable | Datatype |  Limits  | Units | Role | Process | Description |
@@ -20,4 +27,4 @@ A detailed description of the parameters for model configuration (i.e., initiali
 | verbosity | string | high, low, none | - | debugging | - | controls IO (screen outputs and writing to disk) |
 | sft_coupled | Boolean | true, false | - | model coupling | impacts hydraulic conductivity | couples LASAM to SFT. Coupling to SFT reduces hydraulic conducitivity, and hence infiltration, when soil is frozen|
 | soil_z | double (1D array) | - | cm | spatial resolution | - | vertical resolution of the soil column (computational domain of the SFT model) |
-| calib_params | Boolean | true, false | - | calibratable params flag | impacts soil properties | If set to true, soil `smcmax`, `vg_m`, and `vg_alpha` are calibrated. defualt is false |
+| calib_params | Boolean | true, false | - | calibratable params flag | impacts soil properties | If set to true, soil `smcmax`, `smcmin`, `vg_m`, and `vg_alpha` are calibrated. defualt is false. vg = van Genuchten, SMC= soil moisture content |

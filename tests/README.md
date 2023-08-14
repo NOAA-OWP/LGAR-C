@@ -13,7 +13,7 @@
 #### Run:
   - cd test
   - run `./run_unittest.sh` (for unittest)
-  - run `./run_synthetic.sh OPTION` (for synthetic test; OPTION = 1 or 2 - these numbers correspond to different examples)
+  - run `./run_synthetic.sh OPTION` (for synthetic test; OPTION = 0, 1, or 2 - these numbers correspond to different examples)
 
 #### Visualization
   - Use `plot_synthetic_examples.ipynb` to plot and compare synthetic lgar examples with hydrus output
@@ -32,8 +32,6 @@
 
   $\textcolor{green}{\text{| ************************************************************} }$ \
   $\textcolor{green}{\text{| All BMI Tests passed: Yes} }$ \
-  $\textcolor{green}{\text{| Infiltration (mm) : (benchmark vs computed) | 1.896 vs 1.896} }$ \
-  $\textcolor{green}{\text{| PET (mm): (benchmark vs computed) | 0.104 vs 0.104} }$ \
-  $\textcolor{green}{\text{| AET (mm): (benchmark vs computed) | 0.0109182 vs 0.0109182} }$ \
+  $\textcolor{green}{\text{| LASAM Calibration test = YES} }$ \
   $\textcolor{green}{\text{| ************************************************************} }$
 

@@ -17,11 +17,7 @@ Here are two examples to build LASAM: 1) standalone mode and 2) ngen framework. 
  - cd LGAR-C && mkdir build && cd build
  - cmake ../ -DSTANDALONE=ON
  - make && cd ..
- 
-#### Run
-```
-./build/lasam_standalone configs/config_lasam_Phillipsburg.txt (run from LGAR-C directory)
-```
+
 
 ### LASAM Nextgen Framework Example
 - See general [instructions](https://github.com/NOAA-OWP/ngen/wiki/NGen-Tutorial#running-cfe) for building models in the ngen framework. Assuming you have a running ngen framework, follow the below instructions to build LASAM and SLoTH, and then run the example.
@@ -41,15 +37,7 @@ Here are two examples to build LASAM: 1) standalone mode and 2) ngen framework. 
    - cmake -B extern/sloth/cmake_build -S extern/sloth/
    - make -C extern/sloth/cmake_build
 
-#### Run
-```
-mkdir lasam && cd lasam
-ln -s ../extern
-ln -s ../data
-cp extern/LGAR-C/data/vG_default_params.dat data/
-../cmake_build/ngen data/catchment_data.geojson cat-27 data/nexus_data.geojson nex-26 extern/LGAR-C/configs/realization_config_lasam.json
-```
 
 ### LASAM Coupling to Soil Freeze Thaw (SFT) Model
 - Follow the instructions on [SoilFreezeThaw](https://github.com/NOAA-OWP/SoilFreezeThaw) repo to build SFT model and soil moisture profiles. Note [SoilMoistureProfiles](https://github.com/NOAA-OWP/SoilMoistureProfiles) is needed for the coupling of LASAM to SFT.
-- Realization file for LASAM-SFT coupling is provided in the [configs](./configs/) directory (realization_config_lasam_sft.json)
+- Realization file for LASAM-SFT coupling is provided in the [realizations](./realizatoins/) directory (realization_config_lasam_sft.json)

@@ -1,17 +1,20 @@
 ## Lumped Arid/Semi-arid Model (LASAM) for infiltration and surface runoff
-The LASAM simulates infiltration and runoff based on Layered Green & Ampt with redistribution (LGAR) model. LGAR is a model which partitions precipitation into infiltration and runoff, and is designed for use in arid or semi arid climates. LGAR closely mimics precipitation partitioning results simulated by the famous Richards/Richardson equation (RRE), without the inherent reliability and stability challenges the RRE poses. Therefore, this model is useful when accurate, stable precipitation partitioning simulations are desired in arid or semi arid areas. LGAR has its python version too that is available [here](https://github.com/NOAA-OWP/LGAR-Py).
+The LASAM simulates infiltration and runoff based on Layered Green & Ampt with redistribution (LGAR) model. LGAR is a model which partitions precipitation into infiltration and runoff, and is designed for use in arid or semi arid climates. LGAR closely mimics precipitation partitioning results simulated by the famous Richards/Richardson equation (RRE), without the inherent reliability and stability challenges the RRE poses. Therefore, this model is useful when accurate, stable precipitation partitioning simulations are desired in arid or semi arid areas. LGAR in python (no longer supported) is available [here](https://github.com/NOAA-OWP/LGAR-Py).
 
-**Published papers:** For details about the model please see our manuscript on LGAR [link](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2022WR033742)
+**Published papers:** For details about the model please see our manuscript on LGAR ([weblink](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2022WR033742)).
 
 ### Instructions for: 
   - Installation (see [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/master/INSTALL.md))
   - Test examples
-    - simulations with synthetic forcing data, and unittest (see [tests](https://github.com/NOAA-OWP/LGAR-C/blob/master/tests/README.md))
-    - simulations with real forcing data (see [tests](https://github.com/NOAA-OWP/LGAR-C/blob/master/INSTALL.md))
-  - LASAM coupling to Soil Freeze Thaw (SFT) model (see [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/master/INSTALL.md))
+    - simulations with synthetic forcing data, and unittest (see [tests](https://github.com/NOAA-OWP/LGAR-C/blob/doc_update/tests/README.md))
+    - simulations with real forcing data (see [tests](https://github.com/NOAA-OWP/LGAR-C/blob/doc_update/configs/README.md))
+  - LASAM coupling to Soil Freeze Thaw (SFT) model (see [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/doc_update/INSTALL.md))
 
 ### Model Configuration File
-  - Detailed description of the parameters for model configuration is provided ([here](https://github.com/NOAA-OWP/LGAR-C/tree/master/configs/README.md))
+  - Detailed description of the parameters for model configuration is provided ([here](https://github.com/NOAA-OWP/LGAR-C/tree/doc_update/configs/README.md))
+
+### Nextgen Realization Files
+  - Realization files for running LASAM (coupled/uncoupled modes) in the nextgen framework are provided here ([here](https://github.com/NOAA-OWP/LGAR-C/tree/doc_update/realizations/README.md))
   
 ### Getting help
 For questions, please contact Ahmad (ahmad.jan@noaa.gov) and/or Peter (peter.lafollette@noaa.gov), the two main developers/maintainers of the repository.
