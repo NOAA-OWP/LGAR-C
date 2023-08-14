@@ -23,4 +23,4 @@ For questions, please contact Ahmad (ahmad.jan@noaa.gov) and/or Peter (peter.laf
 LASAM is a newly developed model and we are constantly looking to improve the model and/or fix bugs as they arise. Please see the Git Issues for known issues or if you want to suggest adding a capability or found a bug, please open an issue.
 
 ### Getting involved
-See general instructions to contribute to the model development ([instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/CONTRIBUTING.md). Simply fork the respository and submit a pull request.
+See general instructions to contribute to the model development ([instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/CONTRIBUTING.md)). Simply fork the respository and submit a pull request.
