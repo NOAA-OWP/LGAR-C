@@ -4,11 +4,7 @@
 
 
 #### Build:
-  - git clone https://github.com/NOAA-OWP/LGAR-C
-  - cd LGAR-C && mkdir build && cd build
-  - cmake ../ -DUNITTEST:BOOL=ON (for unittest)
-  - cmake ../ -DSTANDALONE:BOOL=ON (for synthetic test)
-  - make && cd ..
+ See [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk//doc_update/INSTALL.md))
 
 #### Run:
   - cd test

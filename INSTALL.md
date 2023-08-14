@@ -5,13 +5,12 @@ Detailed instructions on how to build LASAM in two modes (standalone and nextgen
 ### Build (standalone mode)
  - git clone https://github.com/NOAA-OWP/LGAR-C
  - cd LGAR-C && mkdir build && cd build
- - cmake ../ -DSTANDALONE=ON
+ - cmake ../ -DUNITTEST=ON (for unittest)
+ - cmake ../ -DSTANDALONE=ON (for synthetic tests)
  - make && cd ..
-
 
 ### Build (nextgen mode)
 - See general [instructions](https://github.com/NOAA-OWP/ngen/wiki/NGen-Tutorial#running-cfe) for building models in the nextgen framework. Assuming you have a running nextgen framework, follow the below instructions to build LASAM and SLoTH, and then run the example.
-#### Build
 
 - #### LASAM
    - cd extern

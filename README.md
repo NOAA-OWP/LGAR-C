@@ -4,7 +4,7 @@ The LASAM simulates infiltration and runoff based on Layered Green & Ampt with r
 **Published papers:** For details about the model please see our manuscript on LGAR ([weblink](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2022WR033742)).
 
 ### Instructions for: 
-  - Installation (see [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk//doc_update/INSTALL.md))
+  - Installation (see [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md))
   - Test examples
     - simulations with synthetic forcing data and unittest (see [tests](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/tests/README.md))
     - simulations with real forcing data (see [tests](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/configs/README.md))
@@ -21,3 +21,6 @@ For questions, please contact Ahmad (ahmad.jan@noaa.gov) and/or Peter (peter.laf
 
 ### Known issues or raise an issue
 LASAM is a newly developed model and we are constantly looking to improve the model and/or fix bugs as they arise. Please see the Git Issues for known issues or if you want to suggest adding a capability or found a bug, please open an issue.
+
+### Getting involved
+See general instructions to contribute to the model development ([instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/CONTRIBUTING.md). Simply fork the respository and submit a pull request.
