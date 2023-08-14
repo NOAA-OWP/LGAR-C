@@ -1,10 +1,9 @@
 ## Tests
-#### - Unit test: Checks basic BMI functionality and runs model for one timestep (1 hour) to compare results against a benchmark.
-#### - Synthetic tests: There are two synthetic examples for testing and to demonstrate the usage of the model. The examples use different soil hydraulic properties and different precipitation intensities without PET to simulate precipitation partitioning into infiltration and runoff. These simulate precipitation partitionind due to a short rainfall pulse that infiltrates entirely, followed by a longer precipitation pulse that generates runoff.
+- Unit test: Checks basic BMI functionality and runs model for one timestep (1 hour) to compare results against a benchmark.
+- Synthetic tests: There are two synthetic examples for testing and to demonstrate the usage of the model. The examples use different soil hydraulic properties and different precipitation intensities without PET to simulate precipitation partitioning into infiltration and runoff. These simulate precipitation partitionind due to a short rainfall pulse that infiltrates entirely, followed by a longer precipitation pulse that generates runoff.
 
 
-#### Build:
- See [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk//doc_update/INSTALL.md))
+#### Build: See [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk//doc_update/INSTALL.md)
 
 #### Run:
   - cd test
@@ -27,7 +26,7 @@
   If everything goes well, you should see the following
 
   $\textcolor{green}{\text{| ************************************************************} }$ \
-  $\textcolor{green}{\text{| All BMI Tests passed: Yes} }$ \
+  $\textcolor{green}{\text{| All BMI Tests passed: YES} }$ \
   $\textcolor{green}{\text{| LASAM Calibration test = YES} }$ \
   $\textcolor{green}{\text{| ************************************************************} }$
 

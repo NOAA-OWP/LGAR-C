@@ -1,8 +1,5 @@
 ## Configuration File
-Example configuration files are provided here.
-
-#### To run the given example
- - See instructions ([here](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/RUN.md))
+Example configuration files are provided here. To run the given example see the instructions ([here](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/RUN.md))
 
 A detailed description of the parameters for model configuration (i.e., initialize/setup) is provided below. 
 

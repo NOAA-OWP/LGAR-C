@@ -29,4 +29,4 @@ Detailed instructions on how to build LASAM in two modes (standalone and nextgen
 
 ### LASAM Coupling to Soil Freeze Thaw (SFT) Model
 - Follow the instructions on [SoilFreezeThaw](https://github.com/NOAA-OWP/SoilFreezeThaw) repo to build SFT model and soil moisture profiles. Note [SoilMoistureProfiles](https://github.com/NOAA-OWP/SoilMoistureProfiles) is needed for the coupling of LASAM to SFT.
-- Realization file for LASAM-SFT coupling is provided in the [realizations](./realizatoins/) directory (realization_config_lasam_sft.json)
+- Realization file for LASAM-SFT coupling is provided in the [realizations](./realizations/) directory (realization_config_lasam_sft.json)
