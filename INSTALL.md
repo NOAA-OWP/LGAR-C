@@ -1,26 +1,16 @@
 # Installation instructions
 
-Detailed instructions on how to install, configure, and run LASAM simulation examples.
+Detailed instructions on how to build LASAM in two modes (standalone and nextgen framework). Building LASAM requires [GCC](https://gcc.gnu.org) and [CMAKE](https://cmake.org/) on your machine.
 
-### Build and Run LASAM
-Here are two examples to build LASAM: 1) standalone mode and 2) ngen framework. Building LASAM requires [GCC](https://gcc.gnu.org) and [CMAKE](https://cmake.org/) on your machine.
-
-**Example description:** The example provided here simulates infiltration and surface runoff for the period `2016-10-01 to 2017-08-09` using the data from a field site located in Phillipsburg, Kansas. There is also another example using data from Bushland, Texas. 
-
-**Additional examples:**
-- LASAM unit test. It is recommended to build and run the unittest before running other examples. More instructions are provided [here](https://github.com/NOAA-OWP/LGAR-C/tree/master/tests).
-- Synthetic simulation ([here](https://github.com/NOAA-OWP/LGAR-C/tree/master/tests)) for testing/educational purposes. It simulates 12 hours of rainfall, infiltration, soil saturation, surface ponding, and surface runoff.
-
-### LASAM Standalone Example
-#### Build
+### Build (standalone mode)
  - git clone https://github.com/NOAA-OWP/LGAR-C
  - cd LGAR-C && mkdir build && cd build
  - cmake ../ -DSTANDALONE=ON
  - make && cd ..
 
 
-### LASAM Nextgen Framework Example
-- See general [instructions](https://github.com/NOAA-OWP/ngen/wiki/NGen-Tutorial#running-cfe) for building models in the ngen framework. Assuming you have a running ngen framework, follow the below instructions to build LASAM and SLoTH, and then run the example.
+### Build (nextgen mode)
+- See general [instructions](https://github.com/NOAA-OWP/ngen/wiki/NGen-Tutorial#running-cfe) for building models in the nextgen framework. Assuming you have a running nextgen framework, follow the below instructions to build LASAM and SLoTH, and then run the example.
 #### Build
 
 - #### LASAM
