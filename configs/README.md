@@ -1,5 +1,5 @@
 ## Configuration File
-Example configuration files are provided here. To run the given examples see the instructions ([here](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/RUN.md)) or simply (assumes the model has already been build (see [build instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md#build-standalone-mode))
+Example configuration files are provided here. To run the given examples see the instructions ([here](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/RUN.md)) or simply (assuming the model has already been built (see [build instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md#build-standalone-mode))
 ```
 ./build/lasam_standalone configs/config_lasam_X.txt (X = Phillipsburg, Bushland; run from LGAR-C directory)
 ```
