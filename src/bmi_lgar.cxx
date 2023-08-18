@@ -203,28 +203,37 @@ Update()
 
     volstart_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
 
-
-    int soil_num = state->lgar_bmi_params.layer_soil_type[state->head->layer_num];
-    double theta_e = state->soil_properties[soil_num].theta_e;
-    bool is_top_wf_saturated = (state->head->theta+1e-12) >= theta_e ? true : false; //PTL: sometimes a machine precision error would erroneously create a new wetting front during saturated conditions. The + 1E-12 seems to prevent this.
-
     //addressed machine precision issues where volon_timestep_error could be for example -1E-17 or 1.E-20 or smaller
     volon_timestep_cm = fmax(volon_timestep_cm,0.0);
     volon_timestep_cm = volon_timestep_cm > 1.0E-12 ? volon_timestep_cm : 0.0;
 
-    bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0 && volon_timestep_cm == 0);
-
     int wf_free_drainage_demand = wetting_front_free_drainage(state->head);
 
+     /*----------------------------------------------------------------------*/
+    // Should a new wetting front be created?
+    int soil_num = state->lgar_bmi_params.layer_soil_type[state->head->layer_num];
+    double theta_e = state->soil_properties[soil_num].theta_e;
+    bool is_top_wf_saturated = (state->head->theta+1.0E-12) >= theta_e ? true : false; //sometimes a machine precision error would erroneously create a new wetting front during saturated conditions. The + 1.0E-12 seems to prevent this.
+
+    // checks on creatign a new surficial front
+    // 1. check current and previous timestep precipitation
+    bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0);
+    
+    // 2. check soil top wetting front condition (saturated/unsaturated), and surface ponded water
+    if (is_top_wf_saturated || volon_timestep_cm > 0.0)
+      create_surficial_front = false;
+
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::string flag = (create_surficial_front && !is_top_wf_saturated) == true ? "Yes" : "No";
+      std::string flag        = (create_surficial_front && !is_top_wf_saturated) == true ? "Yes" : "No";
+      std::string flag_top_wf = is_top_wf_saturated == true ? "Yes" : "No";
+      std::cerr<<"Is top wetting front saturated? "<< flag_top_wf  << "\n";
       std::cerr<<"Create superficial wetting front? "<< flag << "\n";
     }
 
     /*----------------------------------------------------------------------*/
     /* create a new wetting front if the following is true. Meaning there is no
        wetting front in the top layer to accept the water, must create one. */
-    if(create_surficial_front && !is_top_wf_saturated)  {
+    if(create_surficial_front) {
 
       double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
 
@@ -250,7 +259,6 @@ Update()
 
       if (verbosity.compare("high") == 0) {
 	std::cerr<<"New wetting front created...\n";
-	std::cerr<<" "<<"\n";
 	listPrint(state->head);
       }
     }
@@ -261,11 +269,13 @@ Update()
 
     if (ponded_depth_subtimestep_cm > 0 && !create_surficial_front) {
 
-      volrunoff_subtimestep_cm = lgar_insert_water(use_closed_form_G, nint, subtimestep_h, &ponded_depth_subtimestep_cm, &volin_subtimestep_cm,
-						   precip_subtimestep_cm_per_h, wf_free_drainage_demand, num_layers,
+      volrunoff_subtimestep_cm = lgar_insert_water(use_closed_form_G, nint, subtimestep_h, &ponded_depth_subtimestep_cm,
+						   &volin_subtimestep_cm, precip_subtimestep_cm_per_h,
+						   wf_free_drainage_demand, num_layers,
 						   ponded_depth_max_cm, state->lgar_bmi_params.layer_soil_type,
 						   state->lgar_bmi_params.cum_layer_thickness_cm,
-						   state->lgar_bmi_params.frozen_factor, state->head, state->soil_properties); 
+						   state->lgar_bmi_params.frozen_factor, state->head,
+						   state->soil_properties); 
 
       volin_timestep_cm += volin_subtimestep_cm;
       volrunoff_timestep_cm += volrunoff_subtimestep_cm;
@@ -294,7 +304,7 @@ Update()
     /* move wetting fronts if no new wetting front is created. Otherwise, movement
        of wetting fronts has already happened at the time of creating surficial front,
        so no need to move them here. */
-    if (!create_surficial_front) { 
+    if (!create_surficial_front) {
       double volin_subtimestep_cm_temp = volin_subtimestep_cm;  /* passing this for mass balance only, the method modifies it
 								   and returns percolated value, so we need to keep its original
 								   value stored to copy it back*/
@@ -328,7 +338,6 @@ Update()
 
     AET_timestep_cm += AET_subtimestep_cm;
     volon_timestep_cm = volon_subtimestep_cm; // surface ponded water at the end of the timestep 
-
 
 
     /*----------------------------------------------------------------------*/
@@ -390,7 +399,7 @@ Update()
   } // end of subcycling
 
   /*----------------------------------------------------------------------*/
-  // Everything related to lgar state is done this point, now time to update some dynamic variables
+  // Everything related to lgar state is done at this point, now time to update some dynamic variables
 
   // update number of wetting fronts
   state->lgar_bmi_params.num_wetting_fronts = listLength(state->head);
