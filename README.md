@@ -1,10 +1,10 @@
 # Lumped Arid/Semi-arid Model (LASAM) for infiltration and surface runoff
-The LASAM simulates infiltration and runoff based on Layered Green & Ampt with redistribution (LGAR) model. LGAR is a model which partitions precipitation into infiltration and runoff, and is designed for use in arid or semi arid climates. LGAR closely mimics precipitation partitioning results simulated by the famous Richards/Richardson equation (RRE), without the inherent reliability and stability challenges the RRE poses. Therefore, this model is useful when accurate, stable precipitation partitioning simulations are desired in arid or semi arid areas. LGAR in python (no longer supported) is available [here](https://github.com/NOAA-OWP/LGAR-Py).
+The LASAM simulates infiltration and runoff based on Layered Green & Ampt with redistribution (LGAR) model. LGAR is a model which partitions precipitation into infiltration and runoff, and is designed for use in arid or semi-arid climates. LGAR closely mimics precipitation partitioning results simulated by the famous Richards/Richardson equation (RRE), without the inherent reliability and stability challenges the RRE poses. Therefore, this model is useful when accurate, stable precipitation partitioning simulations are desired in arid or semi-arid areas. LGAR in Python (no longer supported) is available [here](https://github.com/NOAA-OWP/LGAR-Py).
 
 **Published papers:** For details about the model please see our manuscript on LGAR ([weblink](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2022WR033742)).
 
 ## Build and Run Instructions
-Detailed instructions on how to build and run SoilMoistureProfiels (SMP) can be found here [INSTALL](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md).
+Detailed instructions on how to build and run SoilMoistureProfiles (SMP) can be found here [INSTALL](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md).
 - Test examples highlights
   - simulations with synthetic forcing data and unittest (see [build/run](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/tests/README.md)). 
   - simulations with real forcing data (see [build/run](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md#standalone-mode-example))
