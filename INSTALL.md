@@ -3,14 +3,14 @@
 Detailed instructions on how to build and run LASAM in two modes (standalone and nextgen framework). Building LASAM requires [GCC](https://gcc.gnu.org) and [CMAKE](https://cmake.org/) on your machine.
 
 ## Standalone mode example
-The examples provided here simulates infiltration and surface runoff using the data from field sites located in Phillipsburg, Kansas and Bushland, Texas. 
+The examples provided here simulate infiltration and surface runoff using the data from field sites located in Phillipsburg, Kansas, and Bushland, Texas. 
 ### Build
  - mkdir build && cd build (inside LGAR-C directory)
  - cmake ../ -DSTANDALONE=ON
  - make && cd ..
 ### Run
 ```
-./build/lasam_standalone configs/config_lasam_Phillipsburg.txt (inside LGAR-C directory)
+./build/lasam_standalone configs/config_lasam_X.txt (X = Phillipsburg, Bushland; run from LGAR-C directory)
 ```
 
 ## Nextgen framework example
