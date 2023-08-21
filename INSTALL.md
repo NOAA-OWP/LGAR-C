@@ -1,4 +1,4 @@
-# Build and running instructions
+# Build and Run Instructions
 
 Detailed instructions on how to build and run LASAM in two modes (standalone and nextgen framework). Building LASAM requires [GCC](https://gcc.gnu.org) and [CMAKE](https://cmake.org/) on your machine.
 
