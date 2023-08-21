@@ -8,7 +8,7 @@ Detailed instructions on how to build and run SoilMoistureProfiels (SMP) can be 
 - Test examples highlights
   - simulations with synthetic forcing data and unittest (see [build/run](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/tests/README.md)). 
   - simulations with real forcing data (see [build/run](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md#standalone-mode-example))
-  - LASAM coupling to Soil Freeze Thaw (SFT) model (see [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md#lasam-coupling-to-soil-freeze-thaw-(sft)-model))
+  - LASAM coupling to Soil Freeze Thaw (SFT) model (see [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md#lasam-coupling-to-soil-freeze-thaw-sft-model))
 
 ### Model Configuration File
   - Detailed description of the parameters for model configuration is provided ([here](https://github.com/NOAA-OWP/LGAR-C/tree/ajk/doc_update/configs/README.md))
