@@ -1,14 +1,29 @@
-## Tests
+# Tests
 - Unit test: Checks basic BMI functionality and runs model for one timestep (1 hour) to compare results against a benchmark.
-- Synthetic tests: There are two synthetic examples for testing and to demonstrate the usage of the model. The examples use different soil hydraulic properties and different precipitation intensities without PET to simulate precipitation partitioning into infiltration and runoff. These simulate precipitation partitionind due to a short rainfall pulse that infiltrates entirely, followed by a longer precipitation pulse that generates runoff.
+- Synthetic tests: There are three synthetic examples for testing and to demonstrate the usage of the model. The example simulates 12 hours of rainfall, infiltration, soil saturation, surface ponding, and surface runoff. The examples use different soil hydraulic properties and different precipitation intensities without PET to simulate precipitation partitioning into infiltration and runoff. These simulate precipitation partitionind due to a short rainfall pulse that infiltrates entirely, followed by a longer precipitation pulse that generates runoff.
 
+## Unittest
+### Build
+```
+mkdir build && cd build (inside LGAR-C directory)
+cmake ../ -DUNITTEST=ON
+make && cd ../tests
+```
 
-#### Build: See [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk//doc_update/INSTALL.md)
+### Run:
+run `./run_unittest.sh`
 
-#### Run:
-  - cd test
-  - run `./run_unittest.sh` (for unittest)
-  - run `./run_synthetic.sh OPTION` (for synthetic test; OPTION = 0, 1, or 2 - these numbers correspond to different examples)
+## Synthetic tests
+### Build
+```
+mkdir build && cd build (inside LGAR-C directory; if build already exists then clean it)
+cmake ../ -DSTANDALONE=ON
+make && cd ../tests
+```
+
+### Run:
+run `./run_synthetic.sh OPTION` (for synthetic test; OPTION = 0, 1, or 2 - these numbers correspond to different examples)
+
 
 #### Visualization
   - Use `plot_synthetic_examples.ipynb` to plot and compare synthetic lgar examples with hydrus output

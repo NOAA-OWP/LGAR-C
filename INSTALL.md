@@ -1,17 +1,21 @@
-# Installation instructions
+# Build and running instructions
 
-Detailed instructions on how to build LASAM in two modes (standalone and nextgen framework). Building LASAM requires [GCC](https://gcc.gnu.org) and [CMAKE](https://cmake.org/) on your machine.
+Detailed instructions on how to build and run LASAM in two modes (standalone and nextgen framework). Building LASAM requires [GCC](https://gcc.gnu.org) and [CMAKE](https://cmake.org/) on your machine.
 
-### Build (standalone mode)
- - git clone https://github.com/NOAA-OWP/LGAR-C
- - cd LGAR-C && mkdir build && cd build
- - cmake ../ -DUNITTEST=ON (for unittest)
- - cmake ../ -DSTANDALONE=ON (for synthetic tests)
+## Standalone mode example
+The examples provided here simulates infiltration and surface runoff using the data from field sites located in Phillipsburg, Kansas and Bushland, Texas. 
+### Build
+ - mkdir build && cd build (inside LGAR-C directory)
+ - cmake ../ -DSTANDALONE=ON
  - make && cd ..
+### Run
+```
+./build/lasam_standalone configs/config_lasam_Phillipsburg.txt (inside LGAR-C directory)
+```
 
-### Build (nextgen mode)
-- See general [instructions](https://github.com/NOAA-OWP/ngen/wiki/NGen-Tutorial#running-cfe) for building models in the nextgen framework. Assuming you have a running nextgen framework, follow the below instructions to build LASAM and SLoTH, and then run the example.
-
+## Nextgen framework example
+See general [instructions](https://github.com/NOAA-OWP/ngen/wiki/NGen-Tutorial#running-cfe) for building models in the nextgen framework. Assuming you have a running nextgen framework, follow the below instructions to build LASAM and SLoTH, and then run the example.
+### Build
 - #### LASAM
    - cd extern
    - git clone https://github.com/NOAA-OWP/LGAR-C (this should be removed when LGAR-C becomes a subrepo of the framework)
@@ -26,6 +30,14 @@ Detailed instructions on how to build LASAM in two modes (standalone and nextgen
    - cmake -B extern/sloth/cmake_build -S extern/sloth/
    - make -C extern/sloth/cmake_build
 
+### Run
+```
+ mkdir lasam && cd lasam (inside nextgen directory)
+ ln -s ../extern
+ ln -s ../data
+ cp extern/LGAR-C/data/vG_default_params.dat data/
+ ../cmake_build/ngen data/catchment_data.geojson cat-27 data/nexus_data.geojson nex-26 extern/LGAR-C/realizations/realization_config_lasam.json
+```
 
 ### LASAM Coupling to Soil Freeze Thaw (SFT) Model
 - Follow the instructions on [SoilFreezeThaw](https://github.com/NOAA-OWP/SoilFreezeThaw) repo to build SFT model and soil moisture profiles. Note [SoilMoistureProfiles](https://github.com/NOAA-OWP/SoilMoistureProfiles) is needed for the coupling of LASAM to SFT.
