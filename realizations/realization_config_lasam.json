@@ -50,8 +50,8 @@
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "precipitation_rate",
 				    "variables_names_map" : {
-					"precipitation_rate" : "P(mm/h)",
-					"potential_evapotranspiration_rate" : "PET(mm/h)"
+					"precipitation_rate" : "P",
+					"potential_evapotranspiration_rate" : "PET"
 				    },
 				    "output_variables" : [
 					"precipitation",

@@ -51,12 +51,12 @@
 				"params": {
 				    "model_type_name": "bmi_smp",
 				    "library_file": "./extern/SoilMoistureProfiles/cmake_build/libsmpbmi",
-				    "init_config": "./extern/SoilMoistureProfiles/SoilMoistureProfiles/config/config_layered.txt",
+				    "init_config": "./extern/SoilMoistureProfiles/SoilMoistureProfiles/configs/config_layered.txt",
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "soil_water_table",
 				    "variables_names_map" : {
 					"soil_moisture_wetting_fronts" : "soil_moisture_wetting_fronts",
-					"soil_depth_wetting_fronts" : "soil_thickness_wetting_fronts",
+					"soil_depth_wetting_fronts" : "soil_depth_wetting_fronts",
 					"num_wetting_fronts" : "soil_num_wetting_fronts"
 				    },
 				    "uses_forcing_file": false
@@ -71,8 +71,8 @@
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "precipitation_rate",
 				    "variables_names_map" : {
-					"precipitation_rate" : "P(mm/h)",
-					"potential_evapotranspiration_rate" : "PET(mm/h)"
+					"precipitation_rate" : "P",
+					"potential_evapotranspiration_rate" : "PET"
 				    },
 				    "output_variables" : [
 					"precipitation",
