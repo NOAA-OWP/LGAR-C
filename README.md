@@ -11,16 +11,16 @@ Detailed instructions on how to build and run LASAM can be found here [INSTALL](
   - LASAM coupling to Soil Freeze Thaw (SFT) model (see [instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md#lasam-coupling-to-soil-freeze-thaw-sft-model))
 
 ## Model Configuration File
-A detailed description of the parameters for model configuration is provided ([here](https://github.com/NOAA-OWP/LGAR-C/tree/ajk/doc_update/configs/README.md))
+A detailed description of the parameters for model configuration is provided [here](https://github.com/NOAA-OWP/LGAR-C/tree/ajk/doc_update/configs/README.md).
 
 ## Nextgen Realization Files
-Realization files for running LASAM (coupled/uncoupled modes) in the nextgen framework are provided here ([here](https://github.com/NOAA-OWP/LGAR-C/tree/ajk/doc_update/realizations/README.md))
+Realization files for running LASAM (coupled/uncoupled modes) in the nextgen framework are provided [here](https://github.com/NOAA-OWP/LGAR-C/tree/ajk/doc_update/realizations/README.md).
   
 ## Getting help
 For questions, please contact Ahmad (ahmad.jan(at)noaa.gov) and/or Peter (peter.lafollette(at)noaa.gov), the two main developers/maintainers of the repository.
 
 ## Known issues or raise an issue
-LASAM is a newly developed model and we are constantly looking to improve the model and/or fix bugs as they arise. Please see the Git Issues for known issues or if you want to suggest adding a capability or found a bug, please open an issue.
+LASAM is a newly developed model and we are constantly looking to improve the model and/or fix bugs as they arise. Please see the Git Issues for known issues or if you want to suggest adding a capability or to report a bug, please open an issue.
 
 ## Getting involved
-See general instructions to contribute to the model development ([instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/CONTRIBUTING.md)). Simply fork the respository and submit a pull request.
+See general instructions to contribute to the model development ([instructions](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/CONTRIBUTING.md)) or simply fork the repository and submit a pull request.
