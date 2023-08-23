@@ -1,5 +1,5 @@
 ## Configuration File
-Example configuration files are provided here. To build and run the given examples see the instructions ([here](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md#build-standalone-mode)).
+Example configuration files are provided in this directory. To build and run the given examples see the instructions [here](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md#build-standalone-mode).
 
 A detailed description of the parameters for model configuration (i.e., initialize/setup) is provided below. 
 
