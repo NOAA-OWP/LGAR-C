@@ -531,7 +531,7 @@ int main(int argc, char *argv[])
   
   std::cout<<GREEN<<"\n";
   std::cout<<"| *************************************** \n";
-  std::cout<<"| All BMI Tests passed: "<< passed <<"\n";
+  std::cout<<"| All BMI Tests passed? "<< passed <<"\n";
   std::cout<<"| Infiltration [mm] : (benchmark vs computed) | "<< infiltration_check_mm <<" vs "
 	   << infiltration_computed * m_to_mm <<"\n";
   std::cout<<"| PET [mm]          : (benchmark vs computed) | "<< PET_check_mm <<" vs "<< PET_computed * m_to_mm <<"\n";
@@ -647,13 +647,13 @@ int main(int argc, char *argv[])
 	     <<", vg_m = "<< vg_m[i] <<", vg_alpha = " << vg_alpha[i]
 	     <<", Ksat = "<< Ksat[i] <<"\n";
   std::cout<<"| *************************************** \n";
-  std::cout<<"| LASAM Calibration test = YES \n";
+  std::cout<<"| LASAM Calibration test passed? YES \n";
   std::cout<<RESET<<"\n";
   // set forcing data for the timestep
   model_calib.SetValue("precipitation_rate", &rain_precip);
   model_calib.SetValue("potential_evapotranspiration_rate", &evapotran);
   model_calib.Update();
   
-  model_calib.Finalize();
+  //model_calib.Finalize();
   return FAILURE;
 }

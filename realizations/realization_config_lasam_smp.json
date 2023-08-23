@@ -10,7 +10,7 @@
                 {
 		    "name": "bmi_multi",
                     "params": {
-			"model_type_name": "bmi_multi_lasam",
+			"model_type_name": "bmi_multi_lasam_smp",
 			"forcing_file": "",
 			"init_config": "",
 			"allow_exceed_end_time": true,
@@ -37,10 +37,31 @@
                                     "main_output_variable": "z",
                                     "uses_forcing_file": false,
                                     "model_params": {
-					"soil_temperature_profile(1,double,K,node)" : 275.15
+					"sloth_soil_storage(1,double,m,node)" : 0.0,
+					"soil_storage_change(1,double,m,node)" : 0.0,
+					"soil_temperature_profile(1,double,K,node)" : 275.15,
+					"Qb_topmodel(1,double,1,node)": 0.0,
+					"Qv_topmodel(1,double,1,node)": 0.0,
+					"global_deficit(1,double,1,node)": 0.0
                                     }
 				}
                             },
+			    {
+				"name": "bmi_c++",
+				"params": {
+				    "model_type_name": "bmi_smp",
+				    "library_file": "./extern/SoilMoistureProfiles/cmake_build/libsmpbmi",
+				    "init_config": "./extern/SoilMoistureProfiles/SoilMoistureProfiles/configs/config_layered.txt",
+				    "allow_exceed_end_time": true,
+				    "main_output_variable": "soil_water_table",
+				    "variables_names_map" : {
+					"soil_moisture_wetting_fronts" : "soil_moisture_wetting_fronts",
+					"soil_depth_wetting_fronts" : "soil_depth_wetting_fronts",
+					"num_wetting_fronts" : "soil_num_wetting_fronts"
+				    },
+				    "uses_forcing_file": false
+				}
+			    },
 			    {
 				"name": "bmi_c++",
 				"params": {
@@ -50,8 +71,8 @@
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "precipitation_rate",
 				    "variables_names_map" : {
-					"precipitation_rate" : "P(mm/h)",
-					"potential_evapotranspiration_rate" : "PET(mm/h)"
+					"precipitation_rate" : "P",
+					"potential_evapotranspiration_rate" : "PET"
 				    },
 				    "output_variables" : [
 					"precipitation",

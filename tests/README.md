@@ -1,19 +1,29 @@
-## Tests
-#### - Unit test: Checks basic BMI functionality and runs model for one timestep (1 hour) to compare results against a benchmark.
-#### - Synthetic tests: There are two synthetic examples for testing and to demonstrate the usage of the model. The examples use different soil hydraulic properties and different precipitation intensities without PET to simulate precipitation partitioning into infiltration and runoff. These simulate precipitation partitionind due to a short rainfall pulse that infiltrates entirely, followed by a longer precipitation pulse that generates runoff.
+# Tests
+- Unit test: Checks basic BMI functionality and runs model for one timestep (1 hour) to compare results against a benchmark.
+- Synthetic tests: There are three synthetic examples for testing and to demonstrate the usage of the model. The example simulates 12 hours of rainfall, infiltration, soil saturation, surface ponding, and surface runoff. The examples use different soil hydraulic properties and different precipitation intensities without PET to simulate precipitation partitioning into infiltration and runoff. These simulate precipitation partitionind due to a short rainfall pulse that infiltrates entirely, followed by a longer precipitation pulse that generates runoff.
 
+## Unittest
+### Build
+```
+mkdir build && cd build (inside LGAR-C directory)
+cmake ../ -DUNITTEST=ON
+make && cd ../tests
+```
 
-#### Build:
-  - git clone https://github.com/NOAA-OWP/LGAR-C
-  - cd LGAR-C && mkdir build && cd build
-  - cmake ../ -DUNITTEST:BOOL=ON (for unittest)
-  - cmake ../ -DSTANDALONE:BOOL=ON (for synthetic test)
-  - make && cd ..
+### Run:
+run `./run_unittest.sh`
 
-#### Run:
-  - cd test
-  - run `./run_unittest.sh` (for unittest)
-  - run `./run_synthetic.sh OPTION` (for synthetic test; OPTION = 1 or 2 - these numbers correspond to different examples)
+## Synthetic tests
+### Build
+```
+mkdir build && cd build (inside LGAR-C directory; if build already exists then clean it)
+cmake ../ -DSTANDALONE=ON
+make && cd ../tests
+```
+
+### Run:
+run `./run_synthetic.sh OPTION` (for synthetic test; OPTION = 0, 1, or 2 - these numbers correspond to different examples)
+
 
 #### Visualization
   - Use `plot_synthetic_examples.ipynb` to plot and compare synthetic lgar examples with hydrus output
@@ -31,9 +41,7 @@
   If everything goes well, you should see the following
 
   $\textcolor{green}{\text{| ************************************************************} }$ \
-  $\textcolor{green}{\text{| All BMI Tests passed: Yes} }$ \
-  $\textcolor{green}{\text{| Infiltration (mm) : (benchmark vs computed) | 1.896 vs 1.896} }$ \
-  $\textcolor{green}{\text{| PET (mm): (benchmark vs computed) | 0.104 vs 0.104} }$ \
-  $\textcolor{green}{\text{| AET (mm): (benchmark vs computed) | 0.0109182 vs 0.0109182} }$ \
+  $\textcolor{green}{\text{| All BMI Tests passed: YES} }$ \
+  $\textcolor{green}{\text{| LASAM Calibration test = YES} }$ \
   $\textcolor{green}{\text{| ************************************************************} }$
 

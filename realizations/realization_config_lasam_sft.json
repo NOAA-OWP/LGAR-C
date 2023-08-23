@@ -39,7 +39,7 @@
                                     "model_params": {
 					"sloth_soil_storage(1,double,m,node)" : 0.0,
 					"soil_storage_change(1,double,m,node)" : 0.0,
-					"soil_temperature_profile(1,double,K,node)" : 275.15,
+					"ground_surface_temperature(1,double,K,node)" : 275.15,
 					"Qb_topmodel(1,double,1,node)": 0.0,
 					"Qv_topmodel(1,double,1,node)": 0.0,
 					"global_deficit(1,double,1,node)": 0.0
@@ -51,13 +51,27 @@
 				"params": {
 				    "model_type_name": "bmi_smp",
 				    "library_file": "./extern/SoilMoistureProfiles/cmake_build/libsmpbmi",
-				    "init_config": "./extern/SoilMoistureProfiles/SoilMoistureProfiles/config/config_layered.txt",
+				    "init_config": "./extern/SoilMoistureProfiles/SoilMoistureProfiles/configs/config_layered.txt",
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "soil_water_table",
 				    "variables_names_map" : {
 					"soil_moisture_wetting_fronts" : "soil_moisture_wetting_fronts",
-					"soil_depth_wetting_fronts" : "soil_thickness_wetting_fronts",
+					"soil_depth_wetting_fronts" : "soil_depth_wetting_fronts",
 					"num_wetting_fronts" : "soil_num_wetting_fronts"
+				    },
+				    "uses_forcing_file": false
+				}
+			    },
+			    {
+				"name": "bmi_c++",
+				"params": {
+				    "model_type_name": "bmi_sft",
+				    "library_file": "./extern/SoilFreezeThaw/cmake_build/libsftbmi",
+				    "init_config": "./extern/SoilFreezeThaw/SoilFreezeThaw/configs/laramie_config_sft.txt",
+				    "allow_exceed_end_time": true,
+				    "main_output_variable": "num_cells",
+				    "variables_names_map" : {
+					"ground_temperature" : "ground_surface_temperature"
 				    },
 				    "uses_forcing_file": false
 				}
@@ -67,12 +81,12 @@
 				"params": {
 				    "model_type_name": "bmi_lasam",
 				    "library_file": "./extern/LGAR-C/cmake_build/liblasambmi",
-				    "init_config": "./extern/LGAR-C/configs/config_lasam_Phillipsburg.txt",
+				    "init_config": "./extern/LGAR-C/configs/config_lasam_sft_ngen.txt",
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "precipitation_rate",
 				    "variables_names_map" : {
-					"precipitation_rate" : "P(mm/h)",
-					"potential_evapotranspiration_rate" : "PET(mm/h)"
+					"precipitation_rate" : "P",
+					"potential_evapotranspiration_rate" : "PET"
 				    },
 				    "output_variables" : [
 					"precipitation",
