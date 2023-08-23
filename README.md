@@ -4,7 +4,7 @@ The LASAM simulates infiltration and runoff based on Layered Green & Ampt with r
 **Published papers:** For details about the model please see our manuscript on LGAR ([weblink](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2022WR033742)).
 
 ## Build and Run Instructions
-Detailed instructions on how to build and run SoilMoistureProfiles (SMP) can be found here [INSTALL](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md).
+Detailed instructions on how to build and run LASAM can be found here [INSTALL](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md).
 - Test examples highlights
   - simulations with synthetic forcing data and unittest (see [build/run](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/tests/README.md)). 
   - simulations with real forcing data (see [build/run](https://github.com/NOAA-OWP/LGAR-C/blob/ajk/doc_update/INSTALL.md#standalone-mode-example))
