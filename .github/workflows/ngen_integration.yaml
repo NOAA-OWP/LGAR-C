@@ -138,7 +138,11 @@ jobs:
 
       - name: Move LGAR-C File Including cmake_build to Appropriate Directory
         run: |
-          rm -rf extern/LGAR-C/*
+          if [ -d "./extern/LGAR-C/" ]
+          then
+            rm -rf extern/LGAR-C
+          fi
+          mkdir extern/LGAR-C
           mv ${{runner.temp}}/lgar/* extern/LGAR-C
 
       - name: Move SFT Files Including cmake_build to Appropriate Directory
