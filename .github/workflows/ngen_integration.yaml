@@ -159,5 +159,6 @@ jobs:
         run: |
           # Run ngen with topmodel with CFE
           mv ${{ steps.ngen_id1.outputs.build-dir }} ./ngen-build/
+          cp extern/LGAR-C/data/vG_default_params.dat data/
           inputfile='extern/LGAR-C/realizations/realization_config_lasam_ngenCI.json'
           ./ngen-build/ngen ./data/catchment_data.geojson "cat-27" ./data/nexus_data.geojson "nex-26" $inputfile
