@@ -1,4 +1,4 @@
-# Test ngen-cfe integration
+# Test ngen-lgar-c integration
 
 name: Ngen Integration Tests
 
@@ -20,7 +20,7 @@ env:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # Run general unit tests in linux environment
-  test_surfacebmi_plus_cfe:
+  test_lgar-c:
     # The type of runner that the job will run on
     strategy:
       matrix:
@@ -157,8 +157,10 @@ jobs:
 
       - name: Run Ngen Test
         run: |
-          # Run ngen with topmodel with CFE
+          # Run ngen with sft, smp, and lasam
           mv ${{ steps.ngen_id1.outputs.build-dir }} ./ngen-build/
           cp extern/LGAR-C/data/vG_default_params.dat data/
           inputfile='extern/LGAR-C/realizations/realization_config_lasam_ngenCI.json'
+          ./ngen-build/ngen ./data/catchment_data.geojson "cat-27" ./data/nexus_data.geojson "nex-26" $inputfile
+          inputfile='extern/LGAR-C/realizations/realization_config_lasam_sft_ngenCI.json'
           ./ngen-build/ngen ./data/catchment_data.geojson "cat-27" ./data/nexus_data.geojson "nex-26" $inputfile
