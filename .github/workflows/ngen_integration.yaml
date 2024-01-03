@@ -45,9 +45,11 @@ jobs:
           mkdir ${{runner.temp}}/lgar
           mv ./* ${{runner.temp}}/lgar
 
-      # Checkout and build the SoilFreezeThaw
+      # Checkout and build the SoilMoistureProfiles
       - name: Checkout the commit
         uses: actions/checkout@v4
+        with:
+          repository: noaa-owp/soilmoistureprofiles
 
       - name: Build the SMP Library
         run: |
