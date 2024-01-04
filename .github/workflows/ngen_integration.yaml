@@ -85,13 +85,6 @@ jobs:
         with:
           repository: noaa-owp/ngen
 
-      - name: Build PET
-        id: submod_build_5
-        uses: ./.github/actions/ngen-submod-build
-        with:
-          mod-dir: "extern/evapotranspiration/evapotranspiration"
-          targets: "petbmi"
-
       - name: Build SLoTH
         id: submod_build_6
         uses: ./.github/actions/ngen-submod-build
@@ -129,7 +122,7 @@ jobs:
           rm -rf extern/SoilMoistureProfiles/SoilMoistureProfiles/*
           mv ${{runner.temp}}/smp/* extern/SoilMoistureProfiles/SoilMoistureProfiles
 
-      - name: Run Ngen Test
+      - name: Run Ngen Test with LASAM
         run: |
           # Run ngen with sft, smp, and lasam
           mv ${{ steps.ngen_id1.outputs.build-dir }} ./ngen-build/
