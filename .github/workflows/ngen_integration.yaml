@@ -169,3 +169,8 @@ jobs:
         run: |
           inputfile='extern/LGAR-C/realizations/realization_config_lasam_sft_ngenCI.json'
           ./ngen-build/ngen ./data/catchment_data.geojson "cat-27" ./data/nexus_data.geojson "nex-26" $inputfile
+
+      - name: Run Ngen Test with SMP
+        run: |
+          inputfile='extern/LGAR-C/realizations/realization_config_lasam_smp_ngenCI.json'
+          ./ngen-build/ngen ./data/catchment_data.geojson "cat-27" ./data/nexus_data.geojson "nex-26" $inputfile
