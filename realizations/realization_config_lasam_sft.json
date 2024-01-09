@@ -50,8 +50,8 @@
 				"name": "bmi_c++",
 				"params": {
 				    "model_type_name": "bmi_smp",
-				    "library_file": "./extern/SoilMoistureProfiles/cmake_build/libsmpbmi",
-				    "init_config": "./extern/SoilMoistureProfiles/SoilMoistureProfiles/configs/config_layered.txt",
+				    "library_file": "./extern/SoilMoistureProfiles/SoilMoistureProfiles/cmake_build/libsmpbmi",
+				    "init_config": "./extern/SoilMoistureProfiles/SoilMoistureProfiles/config/config_layered.txt",
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "soil_water_table",
 				    "variables_names_map" : {
@@ -66,8 +66,8 @@
 				"name": "bmi_c++",
 				"params": {
 				    "model_type_name": "bmi_sft",
-				    "library_file": "./extern/SoilFreezeThaw/cmake_build/libsftbmi",
-				    "init_config": "./extern/SoilFreezeThaw/SoilFreezeThaw/configs/laramie_config_sft.txt",
+				    "library_file": "./extern/SoilFreezeThaw/SoilFreezeThaw/cmake_build/libsftbmi",
+				    "init_config": "./extern/SoilFreezeThaw/SoilFreezeThaw/configs/laramie_config.txt",
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "num_cells",
 				    "variables_names_map" : {
@@ -80,8 +80,8 @@
 				"name": "bmi_c++",
 				"params": {
 				    "model_type_name": "bmi_lasam",
-				    "library_file": "./extern/LGAR-C/cmake_build/liblasambmi",
-				    "init_config": "./extern/LGAR-C/configs/config_lasam_sft_ngen.txt",
+				    "library_file": "./extern/LGAR-C/LGAR-C/cmake_build/liblasambmi",
+				    "init_config": "./extern/LGAR-C/LGAR-C/configs/config_lasam_sft_ngen.txt",
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "precipitation_rate",
 				    "variables_names_map" : {
@@ -108,7 +108,7 @@
 		}
             ],
             "forcing": {
-		"path" : "./extern/LGAR-C/forcing/forcing_data_resampled_uniform_Phillipsburg.csv"
+		"path" : "./extern/LGAR-C/LGAR-C/forcing/forcing_data_resampled_uniform_Phillipsburg.csv"
             }
         }
     }
