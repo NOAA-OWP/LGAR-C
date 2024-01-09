@@ -62,7 +62,7 @@ jobs:
           mkdir ${{runner.temp}}/smp
           mv ./* ${{runner.temp}}/smp
 
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      # Checkout and build SoilFreezeThaw
       - name: checkout actions in another repo
         uses: actions/checkout@v4
         with:
@@ -79,7 +79,7 @@ jobs:
           mkdir ${{runner.temp}}/sft
           mv ./* ${{runner.temp}}/sft
 
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      # Checkout ngen
       - name: checkout actions in another repo
         uses: actions/checkout@v4
         with:
@@ -121,9 +121,9 @@ jobs:
           rm -rf extern/SoilMoistureProfiles/SoilMoistureProfiles/*
           mv ${{runner.temp}}/smp/* extern/SoilMoistureProfiles/SoilMoistureProfiles
 
+      # Run ngen with sft, smp, and lasam
       - name: Run Ngen Test with LASAM
         run: |
-          # Run ngen with sft, smp, and lasam
           mv ${{ steps.ngen_id1.outputs.build-dir }} ./ngen-build/
           cp extern/LGAR-C/LGAR-C/data/vG_default_params.dat data/
           inputfile='extern/LGAR-C/LGAR-C/realizations/realization_config_lasam.json'
