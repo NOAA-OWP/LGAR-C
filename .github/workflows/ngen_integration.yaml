@@ -109,8 +109,8 @@ jobs:
           then
             rm -rf extern/LGAR-C
           fi
-          mkdir extern/LGAR-C
-          mv ${{runner.temp}}/lgar/* extern/LGAR-C
+          mkdir extern/LGAR-C/LGAR-C
+          mv ${{runner.temp}}/lgar/* extern/LGAR-C/LGAR-C
 
       - name: Move SFT Files Including cmake_build to Appropriate Directory
         run: |
@@ -127,15 +127,15 @@ jobs:
           # Run ngen with sft, smp, and lasam
           mv ${{ steps.ngen_id1.outputs.build-dir }} ./ngen-build/
           cp extern/LGAR-C/data/vG_default_params.dat data/
-          inputfile='extern/LGAR-C/realizations/realization_config_lasam_ngenCI.json'
+          inputfile='extern/LGAR-C/LGAR-C/realizations/realization_config_lasam.json'
           ./ngen-build/ngen ./data/catchment_data.geojson "cat-27" ./data/nexus_data.geojson "nex-26" $inputfile
 
       - name: Run Ngen Test with SFT and SMP
         run: |
-          inputfile='extern/LGAR-C/realizations/realization_config_lasam_sft_ngenCI.json'
+          inputfile='extern/LGAR-C/LGAR-C/realizations/realization_config_lasam_sft.json'
           ./ngen-build/ngen ./data/catchment_data.geojson "cat-27" ./data/nexus_data.geojson "nex-26" $inputfile
 
       - name: Run Ngen Test with SMP
         run: |
-          inputfile='extern/LGAR-C/realizations/realization_config_lasam_smp_ngenCI.json'
+          inputfile='extern/LGAR-C/LGAR-C/realizations/realization_config_lasam_smp.json'
           ./ngen-build/ngen ./data/catchment_data.geojson "cat-27" ./data/nexus_data.geojson "nex-26" $inputfile

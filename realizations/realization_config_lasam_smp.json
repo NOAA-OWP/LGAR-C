@@ -50,8 +50,8 @@
 				"name": "bmi_c++",
 				"params": {
 				    "model_type_name": "bmi_smp",
-				    "library_file": "./extern/SoilMoistureProfiles/cmake_build/libsmpbmi",
-				    "init_config": "./extern/SoilMoistureProfiles/SoilMoistureProfiles/configs/config_layered.txt",
+				    "library_file": "./extern/SoilMoistureProfiles/SoilMoistureProfiles/cmake_build/libsmpbmi",
+				    "init_config": "./extern/SoilMoistureProfiles/SoilMoistureProfiles/config/config_layered.txt",
 				    "allow_exceed_end_time": true,
 				    "main_output_variable": "soil_water_table",
 				    "variables_names_map" : {
