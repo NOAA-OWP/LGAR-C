@@ -2142,7 +2142,7 @@ extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_
   //for(soil=1;soil<=num_soil_types;soil++) {// read the num_soil_types lines with data
   while (fgets(jstr,255,in_vG_params_fptr) != NULL) {
 
-    sscanf(jstr,"%s %lf %lf %lf %lf %lf %lf",soil_name,&theta_r,&theta_e,&vg_alpha_per_cm,&vg_n,&vg_m,&Ksat_cm_per_h);
+    sscanf(jstr,"%s %lf %lf %lf %lf %lf",soil_name,&theta_r,&theta_e,&vg_alpha_per_cm,&vg_n,&Ksat_cm_per_h);
     length=strlen(soil_name);
 
     if(length>MAX_SOIL_NAME_CHARS) {
@@ -2157,7 +2157,7 @@ extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_
     soil_properties[soil].theta_e         = theta_e;
     soil_properties[soil].vg_alpha_per_cm = vg_alpha_per_cm; // cm^(-1)
     soil_properties[soil].vg_n            = vg_n;
-    soil_properties[soil].vg_m            = vg_m;
+    soil_properties[soil].vg_m            = 1-1/vg_n;
     soil_properties[soil].Ksat_cm_per_h   = Ksat_cm_per_h;
     soil_properties[soil].theta_wp = calc_theta_from_h(wilting_point_psi_cm, vg_alpha_per_cm,
 						       vg_m, vg_n, theta_e, theta_r);
