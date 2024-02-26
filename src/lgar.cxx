@@ -247,7 +247,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       param_unit = "";
 
     param_value = line.substr(loc_eq,loc_u - loc_eq);
-
+    
     if (param_key == "layer_thickness") {
       vector<double> vec = ReadVectorData(param_value);
 
@@ -282,9 +282,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       vector<double> vec = ReadVectorData(param_value);
 
       state->lgar_bmi_params.layer_soil_type = new int[vec.size()+1];
-
-      // calculate the cumulative (absolute) depth from land surface to bottom of each soil layer
-      state->lgar_bmi_params.cum_layer_thickness_cm[0] = 0;
 
       for (unsigned int layer=1; layer <= vec.size(); layer++)
       	state->lgar_bmi_params.layer_soil_type[layer] = vec[layer-1];
@@ -511,6 +508,12 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     std::cerr<<"          *****         \n";
   }
 
+  if (!is_layer_soil_type_set) {
+    stringstream errMsg;
+    errMsg << "The configuration file \'" << config_file <<"\' does not set layer_soil_type. \n";
+    throw runtime_error(errMsg.str());
+  }
+    
   if(is_soil_params_file_set) {
     //allocate memory to create an array of structures to hold the soils properties data.
     //state->soil_properties = (struct soil_properties_*) malloc((state->lgar_bmi_params.num_layers+1)*sizeof(struct soil_properties_));
@@ -537,46 +540,45 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       std::cerr<<"          *****         \n";
     }
   }
-
+  else {
+    stringstream errMsg;
+    errMsg << "The configuration file \'" << config_file <<"\' does not set soil_params_file. \n";
+    throw runtime_error(errMsg.str());
+  }
+  
   if (!is_layer_thickness_set) {
     stringstream errMsg;
-    errMsg << "layer thickness not set in the config file "<< config_file << "\n";
+    errMsg << "The configuration file \'" << config_file <<"\' does not set layer_thickness. \n";
     throw runtime_error(errMsg.str());
   }
 
   if (!is_initial_psi_set) {
     stringstream errMsg;
-    errMsg << "initial psi not set in the config file "<< config_file << "\n";
+    errMsg << "The configuration file \'" << config_file <<"\' does not set initial_psi. \n";
     throw runtime_error(errMsg.str());
   }
 
   if (!is_timestep_set) {
     stringstream errMsg;
-    errMsg << "timestep not set in the config file "<< config_file << "\n";
+    errMsg << "The configuration file \'" << config_file <<"\' does not set timestep. \n";
     throw runtime_error(errMsg.str());
   }
 
   if (!is_endtime_set) {
     stringstream errMsg;
-    errMsg << "end time not set in the config file "<< config_file << "\n";
+    errMsg << "The configuration file \'" << config_file <<"\' does not set endtime. \n";
     throw runtime_error(errMsg.str());
   }
 
   if(!is_wilting_point_psi_cm_set) {
     stringstream errMsg;
-    errMsg << "wilting point psi not set in the config file "<< config_file << "\n";
+    errMsg << "The configuration file \'" << config_file <<"\' does not set wilting_point_psi. \n";
     throw runtime_error(errMsg.str());
   }
 
   if (!is_forcing_resolution_set) {
     stringstream errMsg;
-    errMsg << "forcing resolution not set in the config file "<< config_file << "\n";
-    throw runtime_error(errMsg.str());
-  }
-
-  if (!is_layer_soil_type_set) {
-    stringstream errMsg;
-    errMsg << "layer soil type not set in the config file "<< config_file << "\n";
+    errMsg << "The configuration file \'" << config_file <<"\' does not set forcing_resolution. \n";
     throw runtime_error(errMsg.str());
   }
 
@@ -605,7 +607,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   }
   else if (!is_giuh_ordinates_set) {
     stringstream errMsg;
-    errMsg << "giuh ordinates not set in the config file "<< config_file << "\n";
+    errMsg << "The configuration file \'" << config_file <<"\' does not set giuh_ordinates. \n";
     throw runtime_error(errMsg.str());
   }
 
@@ -613,7 +615,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     state->lgar_bmi_params.soil_temperature = new double[state->lgar_bmi_params.num_cells_temp]();
     if (!is_soil_z_set) {
       stringstream errMsg;
-      errMsg << "soil_z not set in the config file "<< config_file << "\n";
+      errMsg << "The configuration file \'" << config_file <<"\' does not set soil_z. \n";
       throw runtime_error(errMsg.str());
     }
   }
@@ -645,7 +647,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   }
 
   // initial mass in the system
-  state->lgar_mass_balance.volstart_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
+  state->lgar_mass_balance.volstart_cm      = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
 
   state->lgar_bmi_params.ponded_depth_cm    = 0.0; // initially we start with a dry surface (no surface ponding)
   state->lgar_bmi_params.nint               = 120; // hacked, not needed to be an input option
@@ -1566,7 +1568,7 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
 
       current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m);
       
-      // current psi with van Gunechton properties of the next layer to get new theta
+      // current psi with van Genuchten properties of the next layer to get new theta
       double theta_new = calc_theta_from_h(current->psi_cm, next_vg_a, next_vg_m, next_vg_n, next_theta_e, next_theta_r);
 
       double mbal_correction = overshot_depth * (current_theta - next->theta);
@@ -2111,14 +2113,14 @@ double lgar_calc_mass_bal(double *cum_layer_thickness, struct wetting_front* hea
 
 // ############################################################################################
 /* The module reads the soil parameters.
-   Open file to read in the van Genuchton parameters for standard soil types*/
+   Open file to read in the van Genuchten parameters for standard soil types*/
 // ############################################################################################
 extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_types, double wilting_point_psi_cm,
 				    struct soil_properties_ *soil_properties)
 {
 
   if (verbosity.compare("high") == 0) {
-    std::cerr<<"Reading van Genuchton parameters files...\n";
+    std::cerr<<"Reading van Genuchten parameters files...\n";
   }
 
   // local vars
