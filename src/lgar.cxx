@@ -1154,7 +1154,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 	   the layer depth */
 	current->depth_cm = fmin(current->depth_cm, column_depth);
 
-  double theta_old = current->theta; 
+  double theta_old = current->theta; //might not be necessary 
 	if (current->dzdt_cm_per_h == 0.0 && current->to_bottom == FALSE) // a new front was just created, so don't update it.
 	  current->theta = current->theta;
 	else
@@ -1337,11 +1337,10 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 
 	// loop to adjust the depth for mass balance
   int iter = 0;
-  bool is_WF_deeper_than_domain = FALSE;
 	while (fabs(mass_balance_error - tolerance) > 1.E-10) {
     iter++;
     if (iter>10000000) {
-      printf("mass balance closure not possible within 10000000 iterations. case 1. Timeout \n");
+      printf("mass balance closure not possible within 10000000 iterations. Timeout \n");
       // printf("depth_new: %lf \n", depth_new);
       printf("states: \n");
       listPrint(*head);
@@ -1365,12 +1364,6 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 
 	  current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
 	  mass_balance_error = fabs(current_mass - mass_timestep);
-
-    if (depth_new > cum_layer_thickness_cm[num_layers]){
-      is_WF_deeper_than_domain = TRUE;
-      // *volin_cm = *volin_cm - mass_balance_error;
-      // break;
-    }
 
 	}
 
@@ -1401,9 +1394,10 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
      all wetting fronts, and then a new loop does lower boundary crossing for all wetting fronts. this is a thorough
      way to deal with these scenarios. */
 
-     //As of 20 March 2024, we approach wetting front merging / layer boundary crossing / lower boundary crossing in a new way. 
+     //As of 20 March 2024, we have added a new method by which wetting fronts merge or cross a layer or the model lower boundary, although it is commented out for now. 
      //we now have a while loop that detects if these scenarios are necessary and then only does them if so, instead of relying on 
-     //a fixed order of merging and crossing (which was previously merge->cross layers->merge->cross lower bdy).
+     //a fixed order of merging and crossing (which was previously merge->cross layers->merge->cross lower bdy), it can automatically be detected which mergeing / crossing events are necessary.
+     //however, thius code slowed down some simulations by orders of magnitude. Since the old version of relying on a fixed, predetermined order of merging and crossing seems to work, I'd say don't fix it. 
 
   /* Note: we check for dry over wet case before we call merge_wetting_fronts to avoid negative wetting fronts
      due to unknown corner/rare cases */
@@ -1509,7 +1503,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
   // make sure all psi values are updated
   // there is a rare error where, after a wetting front crosses a layer boundary to a soil layer with a much more sensitive soil water retention curve, and the wetting front is near but not at saturation,
   // the barely unsatruated wetting front in the new layer will update its psi value as 0. This causes unequal psi values among adjacent wetting fronts in different layers and then a mass balance error.
-  // For example, consider the following: (1.0/(pow(1.0+pow(0.001039*0.00296620706633,2.938410),0.659680))*(0.618625-0.052623)+0.052623). This expression, using specific values in calc_theta_from_h, will yield a theta of theta_e (0.618625), while having a psi value that is slightly greater than 0, which is 0.00296620706633.
+  // For example, consider the following: (1.0/(pow(1.0+pow(0.001039*0.00296620706633,2.938410),0.659680))*(0.618625-0.052623)+0.052623). This expression, using specific values in calc_theta_from_h, will yield a theta of theta_e (0.618625), while having a psi value that is slightly greater than 0, which is 0.00296620706633 in this case.
   // While that is ok for this soil layer in particular, adjacent wetting fronts above this one with a less sensitive soil water retention curve will yield a non-theta_e value for the psi value that is slightly above 0.
   // A solution is to either not run the following code, or to not run it when the wetting front is very close to saturation with a very sensitive soil water retention curve. Adding code that runs the following only for psi>1. 
 
@@ -2076,7 +2070,7 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
 
   // if ( (current_mass)/max_storage > 0.99 ){
   //   printf("warning: vadose zone is 99 percent full or greater. If you are using the model in an environment with more precipitation than PET, LGAR is not an appropriate model because its lower boundary condition is no flow. \n ");
-  // } //turning off for now 
+  // } //turning off for now; should really print like once per model run or so, not every time step 
 
   double ponded_depth_temp = *ponded_depth_cm;
 
@@ -2115,12 +2109,6 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
     // order is important here; assign zero to ponded depth once we compute volume in and runoff
     *volin_this_timestep = fmin(*ponded_depth_cm, fp_cm); //
     runoff = *ponded_depth_cm < fp_cm ? 0.0 : (*ponded_depth_cm - *volin_this_timestep);
-    // if (head->psi_cm<1e-8 && head->depth_cm==(cum_layer_thickness_cm[-1])){// ok this works for 1 layer, but generally for multilayer you want to check if the storage is saturated 
-    //replaced this code with code that reduces f_p after if's calculated if there is not enough room in the soil (currently line 1915)
-    //   runoff = *ponded_depth_cm;
-    //   *volin_this_timestep = 0;
-    //   listPrint(head);
-    // }
     *ponded_depth_cm = 0.0;
 
   }
@@ -2577,7 +2565,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
     iter++;
 
     // if (iter>10000000) {
-    //   printf("mass balance closure not possible within 10000000 iterations. case 2. Timeout \n");
+    //   printf("mass balance closure not possible within 10000000 iterations. Timeout \n");
     //   printf("psi_cm_loc: %lf \n", psi_cm_loc);
     //   listPrint(*head);
     //   abort();
@@ -2693,7 +2681,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 
 }
 
-
+//while this function may or may not be used in LASAM, it will be used in LGARTO
 extern int lgar_correction_type(int num_layers, double* cum_layer_thickness_cm, struct wetting_front* head){
   int correction_type = 0;
   struct wetting_front *current = head;
