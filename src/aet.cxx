@@ -28,8 +28,6 @@ extern double calc_aet(double PET_timestep_cm, double time_step_h, double wiltin
   struct wetting_front *current;
   
   double theta_wp;
-
-  double relative_moisture_at_which_PET_equals_AET = 0.75;
   
   double Se,theta_e,theta_r;
   double vg_a, vg_m, vg_n;
@@ -46,9 +44,12 @@ extern double calc_aet(double PET_timestep_cm, double time_step_h, double wiltin
   vg_n      = soil_properties[soil_num].vg_n;
 
   // compute theta field capacity
-  double theta_fc = (theta_e - theta_r) * relative_moisture_at_which_PET_equals_AET + theta_r;
+  double head_at_which_PET_equals_AET_cm = 340.9;//*10/33; //340.9 is 0.33 atm, expressed in water depth, which is a good field capacity for most soils.
+  //Coarser soils like sand will have a field capacity of 0.1 atm or so.
+  double theta_fc = calc_theta_from_h(head_at_which_PET_equals_AET_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
   
   double wp_head_theta = calc_theta_from_h(wilting_point_psi_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
+  
   
   theta_wp = (theta_fc - wp_head_theta)*1/2 + wp_head_theta; // theta_50 in python
 
