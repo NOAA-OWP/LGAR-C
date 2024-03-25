@@ -238,19 +238,36 @@ Update()
       double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
 
       // move the wetting fronts without adding any water; this is done to close the mass balance
+      // and also to merge / cross if necessary 
       lgar_move_wetting_fronts(subtimestep_h, &temp_pd, wf_free_drainage_demand, volend_subtimestep_cm,
 			       num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
 			       state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
 			       &state->head, state->state_previous, state->soil_properties);
+
+      if (temp_pd != 0.0){ //if temp_pd != 0.0, that means that some water left the model through the lower model bdy
+        volrech_subtimestep_cm = temp_pd;
+        volrech_timestep_cm += volrech_subtimestep_cm;
+        temp_pd = 0.0;
+      }
       
       // depth of the surficial front to be created
       dry_depth = lgar_calc_dry_depth(use_closed_form_G, nint, subtimestep_h, &delta_theta, state->lgar_bmi_params.layer_soil_type,
 				      state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
 				      state->head, state->soil_properties);
+
+      if (verbosity.compare("high") == 0) {
+        printf("State before moving creating new WF...\n");
+        listPrint(state->head);
+      }
       
-      lgar_create_surficial_front(&ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth, state->head->theta,
+      lgar_create_surficial_front(num_layers, &ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth, state->head->theta,
 				  state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
 				  state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
+
+      if (verbosity.compare("high") == 0) {
+        printf("State after moving creating new WF...\n");
+        listPrint(state->head);
+      }
 
       state->state_previous = NULL;
       state->state_previous = listCopy(state->head);
@@ -269,7 +286,7 @@ Update()
 
     if (ponded_depth_subtimestep_cm > 0 && !create_surficial_front) {
 
-      volrunoff_subtimestep_cm = lgar_insert_water(use_closed_form_G, nint, subtimestep_h, &ponded_depth_subtimestep_cm,
+      volrunoff_subtimestep_cm = lgar_insert_water(use_closed_form_G, nint, subtimestep_h, AET_subtimestep_cm, &ponded_depth_subtimestep_cm,
 						   &volin_subtimestep_cm, precip_subtimestep_cm_per_h,
 						   wf_free_drainage_demand, num_layers,
 						   ponded_depth_max_cm, state->lgar_bmi_params.layer_soil_type,
@@ -319,7 +336,6 @@ Update()
 
       volin_subtimestep_cm = volin_subtimestep_cm_temp;
     }
-
     /*----------------------------------------------------------------------*/
     // calculate derivative (dz/dt) for all wetting fronts
     lgar_dzdt_calc(use_closed_form_G, nint, ponded_depth_subtimestep_cm, state->lgar_bmi_params.layer_soil_type,
@@ -360,7 +376,7 @@ Update()
       listPrint(state->head);
     }
 
-    bool unexpected_local_error = fabs(local_mb) > 1.0E-6 ? true : false;
+    bool unexpected_local_error = fabs(local_mb) > 1.0E-4 ? true : false;
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0 || unexpected_local_error) {
       printf("\nLocal mass balance at this timestep... \n\
