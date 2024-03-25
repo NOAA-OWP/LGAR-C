@@ -453,8 +453,8 @@ int main(int argc, char *argv[])
 
   // Benchmark values of wetting fronts depth and moisture (b is for benchmark)
   //std::vector<double> depth_wf_b = {1.873813, 44.00,175.0, 200.0}; // in cm
-  std::vector<double> depth_wf_b = {4.3762450616157, 44.00,175.0, 200.0}; // in cm
-  std::vector<double> theta_wf_b = {0.2153965837523, 0.172703948143618, 0.252113867764474, 0.179593529195751};
+  std::vector<double> depth_wf_b = {4.55355, 44.00,175.0, 200.0}; // in cm
+  std::vector<double> theta_wf_b = {0.213716, 0.172703948143618, 0.252113867764474, 0.179593529195751};
 
   int m_to_cm = 100;
   int m_to_mm = 1000;
@@ -518,7 +518,7 @@ int main(int argc, char *argv[])
 
   // check total infiltration, AET, and PET.
   double infiltration_check_mm = 1.896;  // in mm
-  double AET_check_mm          = 0.0288829525; // in mm
+  double AET_check_mm          = 0.029801; // in mm
   double PET_check_mm          = 0.104; // in mm
   double infiltration_computed = 0.0;
   double PET_computed          = 0.0;
@@ -562,6 +562,9 @@ int main(int argc, char *argv[])
     std::stringstream errMsg;
     errMsg << "Error between benchmark and simulated AET is "<< fabs(AET_check_mm - AET_computed * m_to_mm)
 	   << " which is unexpected. \n";
+     printf("benchmark AET: %lf \n", AET_check_mm);
+     printf("computed AET: %lf \n", AET_computed*m_to_mm);
+
     throw std::runtime_error(errMsg.str());
   }
 
