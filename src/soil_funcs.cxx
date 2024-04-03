@@ -37,7 +37,7 @@ extern double calc_Geff(bool use_closed_form_G, double theta1, double theta2, do
 {
   double Geff;       // this is the result to be returned.
 
-  if (use_closed_form_G==false){
+  if (!use_closed_form_G){
     // local variables
     // note: units of h in cm.  units of K in cm/s
     double h_i,h_f,Se_i,Se_f;  // variables to store initial and final values
@@ -66,9 +66,8 @@ extern double calc_Geff(bool use_closed_form_G, double theta1, double theta2, do
       printf("Se_f = %8.6lf,  Se_inverse = %8.6lf\n", Se_f, Se);
     }
 
-    // nint = number of "dh" intervals to integrate over using trapezoidal rule
-    dh = -1*(h_f-h_i)/(double)nint;
-    dh = dh*0.01;
+    dh = (h_i-h_f)/(double)nint;
+    dh = dh*0.01; //factor used to make dh small to begin with; dh begins small and is adaptively changed
 
     Geff = 0.0;
 
@@ -86,14 +85,13 @@ extern double calc_Geff(bool use_closed_form_G, double theta1, double theta2, do
       Se2 = calc_Se_from_h(h2, vg_alpha, vg_m, vg_n);
       K2  = calc_K_from_Se(Se2, Ksat, vg_m);
 
+      //dh is the trapezoid width for numerical integration. dh becomes smaller if the percent difference between K1 and K2 is too large, and dh becomes bigger if K1 and K2 are sufficiently close.
+      //In the case that (K1-K2)/K2 > 0.02, K1 and K2 differ by more than 2 percent. The factor of 2 percent seemed to offer the optimal intersection of accuracy and speed. 
       if ( (K1-K2)/K2 > 0.02 ){//if K1 disagrees with K2 by more than this fraction, then dh is made smaller
         dh = dh*0.5;
       }
-      else if ( (K1-K2)/K2 < 0.03 ){//but if K1 and K2 are within a certain fraction of each other, then dh is made larger
+      else {//but if K1 and K2 are within a certain fraction of each other, then dh is made larger
         dh = dh*10.0;
-      }
-      else{
-        dh = dh*2.0; //but if K1 and K2 are within a certain fraction of each other, then dh is made larger
       }
 
       if (h2<h_i){
@@ -120,10 +118,6 @@ extern double calc_Geff(bool use_closed_form_G, double theta1, double theta2, do
     }
 
     return Geff;
-
-    //if(Geff < h_min) Geff = h_min; AJ // as per Morel-Seytoux and Khanji
-
-    //return Geff;
 
   }
    else {
