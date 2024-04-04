@@ -1112,7 +1112,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 						 delta_thetas, delta_thickness, soil_type, soil_properties);
       actual_ET_demand = *AET_demand_cm;
       
-      current->theta = fmin(theta_new, theta_e);
+      current->theta = fmax(theta_r, fmin(theta_new, theta_e));
 
       double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
       current->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
@@ -1254,7 +1254,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 						   delta_thetas, delta_thickness, soil_type, soil_properties);
   actual_ET_demand = *AET_demand_cm;
 
-	current->theta = fmin(theta_new, theta_e);
+	current->theta = fmax(theta_r, fmin(theta_new, theta_e));
 
       }
 
@@ -2545,6 +2545,8 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   if (delta_mass > tolerance){
     *AET_demand_cm = *AET_demand_cm - fabs(delta_mass - tolerance);
   }
+
+  theta = fmax(soil_properties[soil_num].theta_r, fmin(soil_properties[soil_num].theta_e, theta));
   
   return theta;
 
