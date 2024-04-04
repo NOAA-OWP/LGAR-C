@@ -2534,19 +2534,15 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 
     delta_mass_prev = delta_mass;
 
-
-    //so the above code that avoids infinite loops by breaking in certain cases works, but a fringe case must be addressed. 
-    //When theta is close to theta_r, the loop "while (delta_mass > tolerance)" will attempt to increase psi until mass balance closure occurs, but if the 
-    //AET value would be large enough to make theta less than theta_r (or if dzdt was large enough to make the WF move such that the updated theta would be less than theta_r),
-    //the loop would never be able to achieve mass balance closure, and it will break when the one of above conditions is met.
-    //So, the next few lines beginning with "if (delta_mass > tolerance)" addresses the rare case where water would not be able to be extracted without theta becoming less than theta_r anyway
   }
 
+  //There is a rare case where mass balance closure would require that theta<theta_r. 
+  //However, the above loop can never increase psi to the point where theta<theta_r, because theta must always be between theta_r and theta_r, because of the van Genuchten model (calc_theta_from_h).
+  //If we get to the case where theta<theta_r would be necessary for mass balance closure, then the above loop will break before delta_mass <= tolerance.
+  //In this rare case, the remaining mass balance error is put into AET. 
   if (delta_mass > tolerance){
     *AET_demand_cm = *AET_demand_cm - fabs(delta_mass - tolerance);
   }
-
-  theta = fmax(soil_properties[soil_num].theta_r, fmin(soil_properties[soil_num].theta_e, theta));
   
   return theta;
 
