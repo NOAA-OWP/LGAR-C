@@ -1312,13 +1312,16 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
   int iter = 0;
 	while (fabs(mass_balance_error - tolerance) > 1.E-10) {
     iter++;
-    if (iter>10000000) {
-      printf("mass balance closure not possible within 10000000 iterations. Timeout \n");
-      // printf("depth_new: %lf \n", depth_new);
-      printf("states: \n");
-      listPrint(*head);
-      abort();
+    if (iter>1e4) {
+      *AET_demand_cm = *AET_demand_cm + mass_balance_error;
+      actual_ET_demand = *AET_demand_cm;
+      break;
     }
+    ////might want to delete
+    // if (iter>1000 && iter_aug_flag==FALSE){
+    //   factor = factor*100;
+    //   iter_aug_flag = TRUE;
+    // }
 
 	  if (current_mass < mass_timestep) {
 	    depth_new += 0.01 * factor;
@@ -1629,9 +1632,11 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
 
       double mbal_correction = overshot_depth * (current_theta - next->theta);
       double mbal_Z_correction = mbal_correction / (theta_new - next_to_next->theta); // this is the new wetting front depth
+      if (isinf(mbal_Z_correction)){//in some rare cases, due to (very) different shapes of soil water rentention curves in adjacent soil layers near saturation, the WF that crossed a layer bdy can yield a theta value identical to the one below it, resulting in division by 0 and an infinite WF depth. 
+        mbal_Z_correction = cum_layer_thickness_cm[layer_num+1]/(1e3);
+      }
 
       double depth_new = cum_layer_thickness_cm[layer_num] + mbal_Z_correction; // this is the new wetting front absolute depth
-
 
       current->depth_cm = cum_layer_thickness_cm[layer_num];
       
@@ -1643,10 +1648,6 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
       current->dzdt_cm_per_h = 0;
       current->to_bottom = TRUE;
       next->to_bottom = FALSE;
-
-      if (isinf(next->depth_cm)){//in some rare cases, due to (very) different shapes of soil water rentention curves in adjacent soil layers near saturation, the WF that crossed a layer bdy can yield a theta value identical to the one below it, resulting in division by 0 and an infinite WF depth. 
-        next->depth_cm = current->depth_cm + cum_layer_thickness_cm[layer_num+1]/(1e3);
-      }
       
     }
     
@@ -2534,14 +2535,15 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
     
     // -ve pressure will return NAN, so terminate the loop if previous psi is way small and current psi is zero
     // the wetting front is almost saturated
-    if (psi_cm_loc <= 0 && psi_cm_loc_prev < 1E-50) break;
+    // if (psi_cm_loc <= 0 && psi_cm_loc_prev < 1E-50) break;
+    if (psi_cm_loc <= 0 && psi_cm_loc_prev < 0) break;
 
     delta_mass_prev = delta_mass;
 
 
     //so the above code that avoids infinite loops by breaking in certain cases works, but a fringe case must be addressed. 
     //When theta is close to theta_r, the loop "while (delta_mass > tolerance)" will attempt to increase psi until mass balance closure occurs, but if the 
-    //AET value is large enough to make theta less than theta_r (or if dzdt was large enough to make the WF move such that the updated theta would be less than theta_r),
+    //AET value would be large enough to make theta less than theta_r (or if dzdt was large enough to make the WF move such that the updated theta would be less than theta_r),
     //the loop would never be able to achieve mass balance closure, and it will break when the one of above conditions is met.
     //So, the next few lines beginning with "if (delta_mass > tolerance)" addresses the rare case where water would not be able to be extracted without theta becoming less than theta_r anyway
   }
