@@ -1317,11 +1317,6 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
       actual_ET_demand = *AET_demand_cm;
       break;
     }
-    ////might want to delete
-    // if (iter>1000 && iter_aug_flag==FALSE){
-    //   factor = factor*100;
-    //   iter_aug_flag = TRUE;
-    // }
 
 	  if (current_mass < mass_timestep) {
 	    depth_new += 0.01 * factor;
@@ -2535,7 +2530,6 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
     
     // -ve pressure will return NAN, so terminate the loop if previous psi is way small and current psi is zero
     // the wetting front is almost saturated
-    // if (psi_cm_loc <= 0 && psi_cm_loc_prev < 1E-50) break;
     if (psi_cm_loc <= 0 && psi_cm_loc_prev < 0) break;
 
     delta_mass_prev = delta_mass;
