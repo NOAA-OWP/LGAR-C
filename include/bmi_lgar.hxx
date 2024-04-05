@@ -67,9 +67,11 @@ public:
     // calibratable parameters
     this->calib_var_names[0] = "smcmax";
     this->calib_var_names[1] = "smcmin";
-    this->calib_var_names[2] = "van_genuchten_m";
+    this->calib_var_names[2] = "van_genuchten_n";
     this->calib_var_names[3] = "van_genuchten_alpha";
     this->calib_var_names[4] = "hydraulic_conductivity";
+    this->calib_var_names[5] = "field_capacity";
+    this->calib_var_names[6] = "ponded_depth_max";
   };
   
   void Initialize(std::string config_file);
@@ -132,7 +134,7 @@ private:
   struct model_state* state;
   static const int input_var_name_count  = 3;
   static const int output_var_name_count = 15;
-  static const int calib_var_name_count  = 5;
+  static const int calib_var_name_count  = 7;
   
   std::string input_var_names[input_var_name_count];
   std::string output_var_names[output_var_name_count];

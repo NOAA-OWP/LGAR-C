@@ -3,7 +3,7 @@
 #define _ALL_HXX
 
 /*
-  authors : Ahmad Jan and Fred Ogden
+  authors : Ahmad Jan and Fred Ogden and Peter La Follette
   year    : 2022
   email   : ahmad.jan@noaa.gov
   - This header file constains functions' definitions used in the lgar.cxx, bmi_lasam.cxx and in other files.
@@ -128,6 +128,7 @@ struct lgar_bmi_parameters
 					    depth from the surface in meters */
   double *frozen_factor;                 // frozen factor added to the hydraulic conductivity due to coupling to soil freeze-thaw
   double  wilting_point_psi_cm;          // wilting point (the amount of water not available for plants or not accessible by plants)
+  double  field_capacity_psi_cm;          // field capacity represented as a capillary head. Note that both wilting point and field capacity are specified for the whole model domain with single values
   bool   use_closed_form_G = false;      /* true if closed form of capillary drive calculation is desired, false if numeric integral
 					    for capillary drive calculation is desired */
   double ponded_depth_cm;                // amount of water on the surface unavailable for surface runoff
@@ -188,8 +189,8 @@ struct lgar_calib_parameters
 {
   double *theta_e;     // theta_e = smcmax
   double *theta_r;     // theta_r = smcmin
-  double *vg_alpha;    // Van Genuchton alpha
-  double *vg_m;        // Van Genuchton m
+  double *vg_alpha;    // Van Genuchten alpha
+  double *vg_m;        // Van Genuchten m
   double *Ksat;        // Hydraulic conductivity [cm/hr]
 };
 
@@ -332,7 +333,7 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
 /*Other function prototypes for doing hydrology calculations, etc.  */
 /********************************************************************/
 
-extern double calc_aet(double PET_timestep_cm, double timestep_h, double wilting_point_psi_cm, int *soil_type,
+extern double calc_aet(double PET_timestep_cm, double timestep_h, double wilting_point_psi_cm, double field_capacity_psi_cm, int *soil_type,
 		       double AET_thresh_Theta, double AET_expon, struct wetting_front* head, struct soil_properties_ *soil_props);
 
 /********************************************************************/

@@ -4,7 +4,7 @@
 #include "../include/all.hxx"
 
 //################################################################################
-/* authors : Fred Ogden and Ahmad Jan
+/* authors : Fred Ogden and Ahmad Jan and Peter La Follette
    year    : 2022
    the code computes actual evapotranspiration given PET.
    It uses an S-shaped function used in HYDRUS-1D (Simunek & Sejna, 2018).
@@ -14,7 +14,7 @@
 //################################################################################
 
 
-extern double calc_aet(double PET_timestep_cm, double time_step_h, double wilting_point_psi_cm,
+extern double calc_aet(double PET_timestep_cm, double time_step_h, double wilting_point_psi_cm, double field_capacity_psi_cm,
 		       int *soil_type, double AET_thresh_Theta, double AET_expon,
 		       struct wetting_front* head, struct soil_properties_ *soil_properties)
 {
@@ -44,8 +44,8 @@ extern double calc_aet(double PET_timestep_cm, double time_step_h, double wiltin
   vg_n      = soil_properties[soil_num].vg_n;
 
   // compute theta field capacity
-  double head_at_which_PET_equals_AET_cm = 340.9;//*10/33; //340.9 is 0.33 atm, expressed in water depth, which is a good field capacity for most soils.
-  //Coarser soils like sand will have a field capacity of 0.1 atm or so.
+  double head_at_which_PET_equals_AET_cm = field_capacity_psi_cm; //340.9 is 0.33 atm, expressed in water depth, which is a good field capacity for most soils.
+  //Coarser soils like sand will have a field capacity of 0.1 atm or so, which would be 103.3 cm.
   double theta_fc = calc_theta_from_h(head_at_which_PET_equals_AET_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
   
   double wp_head_theta = calc_theta_from_h(wilting_point_psi_cm, vg_a,vg_m, vg_n, theta_e, theta_r);

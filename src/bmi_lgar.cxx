@@ -115,6 +115,7 @@ Update()
   double subtimestep_h = state->lgar_bmi_params.timestep_h;
   int nint = state->lgar_bmi_params.nint;
   double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
+  double field_capacity_psi_cm = state->lgar_bmi_params.field_capacity_psi_cm;
   bool use_closed_form_G = state->lgar_bmi_params.use_closed_form_G; 
 
   // constant value used in the AET function
@@ -192,7 +193,7 @@ Update()
 
     // Calculate AET from PET if PET is non-zero
     if (PET_subtimestep_cm_per_h > 0.0) {
-      AET_subtimestep_cm = calc_aet(PET_subtimestep_cm_per_h, subtimestep_h, wilting_point_psi_cm,
+      AET_subtimestep_cm = calc_aet(PET_subtimestep_cm_per_h, subtimestep_h, wilting_point_psi_cm, field_capacity_psi_cm,
                                     state->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon,
                                     state->head, state->soil_properties);
     }
