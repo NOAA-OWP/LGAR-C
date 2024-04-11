@@ -808,7 +808,7 @@ GetValuePtr (std::string name)
   else if (name.compare("smcmin") == 0)
     return (void*)this->state->lgar_calib_params.theta_r;
   else if (name.compare("van_genuchten_m") == 0)
-    return (void*)this->state->lgar_calib_params.vg_m;
+    return (void*)this->state->lgar_calib_params.vg_n;
   else if (name.compare("van_genuchten_alpha") == 0)
     return (void*)this->state->lgar_calib_params.vg_alpha;
   else if (name.compare("hydraulic_conductivity") == 0)

@@ -86,7 +86,7 @@ extern void lgar_initialize(string config_file, struct model_state *state)
   // initialize array for holding calibratable parameters
   state->lgar_calib_params.theta_e  = new double[state->lgar_bmi_params.num_layers];
   state->lgar_calib_params.theta_r  = new double[state->lgar_bmi_params.num_layers];
-  state->lgar_calib_params.vg_m     = new double[state->lgar_bmi_params.num_layers];
+  state->lgar_calib_params.vg_n     = new double[state->lgar_bmi_params.num_layers];
   state->lgar_calib_params.vg_alpha = new double[state->lgar_bmi_params.num_layers];
   state->lgar_calib_params.Ksat     = new double[state->lgar_bmi_params.num_layers];
   
@@ -103,7 +103,7 @@ extern void lgar_initialize(string config_file, struct model_state *state)
 
     state->lgar_calib_params.theta_e[i]  = state->soil_properties[soil].theta_e;
     state->lgar_calib_params.theta_r[i]  = state->soil_properties[soil].theta_r;
-    state->lgar_calib_params.vg_m[i]     = state->soil_properties[soil].vg_m;
+    state->lgar_calib_params.vg_n[i]     = state->soil_properties[soil].vg_n;
     state->lgar_calib_params.vg_alpha[i] = state->soil_properties[soil].vg_alpha_per_cm;
     state->lgar_calib_params.Ksat[i]     = state->soil_properties[soil].Ksat_cm_per_h;
     
