@@ -579,35 +579,35 @@ int main(int argc, char *argv[])
 
   // Testing Calibratable parameters
   double *smcmax   = new double[num_layers];
-  double *vg_m     = new double[num_layers];
+  double *vg_n     = new double[num_layers];
   double *vg_alpha = new double[num_layers];
   double *Ksat     = new double[num_layers];
 
   double smcmax_set[]   = {0.3513, 0.3773, 0.3617};
-  double vg_m_set[]     = {0.30681, 0.130177, 0.280843};
+  double vg_n_set[]     = {1.44260592334, 1.14965918354, 1.39051695249};
   double vg_alpha_set[] = {0.0021297, 0.0073272, 0.0027454};
   double Ksat_set[]     = {0.446, 0.0743, 0.415};
  
   // Get the initial values set through the config file
   model_calib.GetValue("smcmax", &smcmax[0]);
-  model_calib.GetValue("van_genuchten_m", &vg_m[0]);
+  model_calib.GetValue("van_genuchten_n", &vg_n[0]);
   model_calib.GetValue("van_genuchten_alpha", &vg_alpha[0]);
   model_calib.GetValue("hydraulic_conductivity", &Ksat[0]);
   
   for (int i=0; i < num_layers; i++)
     std::cout<<"| Initial values: layer = "<< i+1 <<", smcmax = "<< smcmax[i]
-	     <<", vg_m = "<< vg_m[i] <<", vg_alpha = " << vg_alpha[i]
+	     <<", vg_n = "<< vg_n[i] <<", vg_alpha = " << vg_alpha[i]
 	     <<", Ksat = "<< Ksat[i] <<"\n";
 
   // set the new values
   model_calib.SetValue("smcmax", &smcmax_set[0]);
-  model_calib.SetValue("van_genuchten_m", &vg_m_set[0]);
+  model_calib.SetValue("van_genuchten_n", &vg_n_set[0]);
   model_calib.SetValue("van_genuchten_alpha", &vg_alpha_set[0]);
   model_calib.SetValue("hydraulic_conductivity", &Ksat_set[0]);
  
   // get the new/updated values
   model_calib.GetValue("smcmax", &smcmax[0]);
-  model_calib.GetValue("van_genuchten_m", &vg_m[0]);
+  model_calib.GetValue("van_genuchten_n", &vg_n[0]);
   model_calib.GetValue("van_genuchten_alpha", &vg_alpha[0]);
   model_calib.GetValue("hydraulic_conductivity", &Ksat[0]);
  
@@ -621,9 +621,9 @@ int main(int argc, char *argv[])
       throw std::runtime_error(errMsg.str());
     }
     
-    if (fabs(vg_m[i]  - vg_m_set[i]) > 1.E-5) {
+    if (fabs(vg_n[i]  - vg_n_set[i]) > 1.E-5) {
       std::stringstream errMsg;
-      errMsg << "Mismatch between vg_m calibrated values set and get "<< vg_m_set[i]<<" "<< vg_m[i]
+      errMsg << "Mismatch between vg_n calibrated values set and get "<< vg_n_set[i]<<" "<< vg_n[i]
 	     << " which is unexpected. \n";
       throw std::runtime_error(errMsg.str());
     }
@@ -647,7 +647,7 @@ int main(int argc, char *argv[])
   std::cout<<"|  \n";
   for (int i=0; i < num_layers; i++)
     std::cout<<"| Calib. values: layer = "<< i+1 <<", smcmax = "<< smcmax[i]
-	     <<", vg_m = "<< vg_m[i] <<", vg_alpha = " << vg_alpha[i]
+	     <<", vg_n = "<< vg_n[i] <<", vg_alpha = " << vg_alpha[i]
 	     <<", Ksat = "<< Ksat[i] <<"\n";
   std::cout<<"| *************************************** \n";
   std::cout<<"| LASAM Calibration test passed? YES \n";
