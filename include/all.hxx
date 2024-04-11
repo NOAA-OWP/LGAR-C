@@ -187,11 +187,14 @@ struct lgar_mass_balance_variables
 // the structure holds pointer bmi output variables
 struct lgar_calib_parameters
 {
-  double *theta_e;     // theta_e = smcmax
-  double *theta_r;     // theta_r = smcmin
-  double *vg_alpha;    // Van Genuchten alpha
-  double *vg_m;        // Van Genuchten m
-  double *Ksat;        // Hydraulic conductivity [cm/hr]
+  double *theta_e;               // theta_e = smcmax [-]
+  double *theta_r;               // theta_r = smcmin [-]
+  double *vg_n;                  // Van Genuchten n [-]
+  double *vg_alpha;              // Van Genuchten alpha [1/cm]
+  double *Ksat;                  // Hydraulic conductivity [cm/hr]
+  double *field_capacity_psi;    // field capacity in capillary head [cm]
+  double *ponded_depth_max;      // maximum ponded depth of surface water [cm]
+
 };
 
 // nested structure of structures; main structure for the use in bmi
