@@ -529,8 +529,8 @@ update_calibratable_parameters()
     
     state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e[layer_num-1];
     state->soil_properties[soil].theta_r = state->lgar_calib_params.theta_r[layer_num-1];
-    state->soil_properties[soil].vg_m    = state->lgar_calib_params.vg_m[layer_num-1];
-    state->soil_properties[soil].vg_n    = 1.0/(1.0 - state->soil_properties[soil].vg_m);
+    state->soil_properties[soil].vg_n    = state->lgar_calib_params.vg_n[layer_num-1];
+    state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
     state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha[layer_num-1];
     state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat[layer_num-1];
     
