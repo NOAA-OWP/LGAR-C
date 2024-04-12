@@ -524,6 +524,8 @@ update_calibratable_parameters()
 	       <<", vg_n = "     << state->soil_properties[soil].vg_n
 	       <<", vg_alpha = " << state->soil_properties[soil].vg_alpha_per_cm
 	       <<", Ksat = "     << state->soil_properties[soil].Ksat_cm_per_h
+         <<", field_capacity_psi = "     << state->lgar_bmi_params.field_capacity_psi_cm
+         <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm
 	       <<", theta = "   << current->theta <<"\n";
     }
     
@@ -533,6 +535,8 @@ update_calibratable_parameters()
     state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
     state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha[layer_num-1];
     state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat[layer_num-1];
+    state->lgar_bmi_params.field_capacity_psi_cm = state->lgar_calib_params.field_capacity_psi;
+    state->lgar_bmi_params.ponded_depth_max_cm   = state->lgar_calib_params.ponded_depth_max;
     
     current->theta = calc_theta_from_h(current->psi_cm, state->soil_properties[soil].vg_alpha_per_cm,
 				       state->soil_properties[soil].vg_m, state->soil_properties[soil].vg_n,
@@ -546,6 +550,8 @@ update_calibratable_parameters()
 	       <<", vg_n = "     << state->soil_properties[soil].vg_n
 	       <<", vg_alpha = " << state->soil_properties[soil].vg_alpha_per_cm
 	       <<", Ksat = "     << state->soil_properties[soil].Ksat_cm_per_h
+         <<", field_capacity_psi = "     << state->lgar_bmi_params.field_capacity_psi_cm
+         <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm
 	       <<", theta = "   << current->theta <<"\n";
     }
     
@@ -582,7 +588,7 @@ GetVarGrid(std::string name)
 	   || name.compare("actual_evapotranspiration") == 0) // double
     return 1;
   else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
-	   || name.compare("soil_storage") == 0) // double
+	   || name.compare("soil_storage") == 0 || name.compare("field_capacity") == 0 || name.compare("ponded_depth_max") == 0)// double
     return 1;
   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
 	   || name.compare("percolation") == 0  || name.compare("groundwater_to_stream_recharge") == 0) // double
@@ -813,6 +819,10 @@ GetValuePtr (std::string name)
     return (void*)this->state->lgar_calib_params.vg_alpha;
   else if (name.compare("hydraulic_conductivity") == 0)
     return (void*)this->state->lgar_calib_params.Ksat;
+  else if (name.compare("ponded_depth_max") == 0)
+    return (void*)&this->state->lgar_calib_params.field_capacity_psi;
+  else if (name.compare("field_capacity") == 0)
+    return (void*)&this->state->lgar_calib_params.ponded_depth_max;
   else {
     std::stringstream errMsg;
     errMsg << "variable "<< name << " does not exist";

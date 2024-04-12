@@ -453,8 +453,8 @@ int main(int argc, char *argv[])
 
   // Benchmark values of wetting fronts depth and moisture (b is for benchmark)
   //std::vector<double> depth_wf_b = {1.873813, 44.00,175.0, 200.0}; // in cm
-  std::vector<double> depth_wf_b = {4.55355, 44.00,175.0, 200.0}; // in cm
-  std::vector<double> theta_wf_b = {0.213716, 0.172703948143618, 0.252113867764474, 0.179593529195751};
+  std::vector<double> depth_wf_b = {4.55332255489760840, 44.00,175.0, 200.0}; // in cm
+  std::vector<double> theta_wf_b = {0.21414942004659104, 0.172703948143618, 0.252113867764474, 0.179593529195751};
 
   int m_to_cm = 100;
   int m_to_mm = 1000;
@@ -518,7 +518,7 @@ int main(int argc, char *argv[])
 
   // check total infiltration, AET, and PET.
   double infiltration_check_mm = 1.896;  // in mm
-  double AET_check_mm          = 0.029801; // in mm
+  double AET_check_mm          = 0.00922002885520525; // in mm
   double PET_check_mm          = 0.104; // in mm
   double infiltration_computed = 0.0;
   double PET_computed          = 0.0;
@@ -562,8 +562,8 @@ int main(int argc, char *argv[])
     std::stringstream errMsg;
     errMsg << "Error between benchmark and simulated AET is "<< fabs(AET_check_mm - AET_computed * m_to_mm)
 	   << " which is unexpected. \n";
-     printf("benchmark AET: %lf \n", AET_check_mm);
-     printf("computed AET: %lf \n", AET_computed*m_to_mm);
+     printf("benchmark AET: %.17lf \n", AET_check_mm);
+     printf("computed AET: %.17lf \n", AET_computed*m_to_mm);
 
     throw std::runtime_error(errMsg.str());
   }
@@ -582,36 +582,61 @@ int main(int argc, char *argv[])
   double *vg_n     = new double[num_layers];
   double *vg_alpha = new double[num_layers];
   double *Ksat     = new double[num_layers];
+  double field_capacity;
+  double ponded_depth_max;
 
   double smcmax_set[]   = {0.3513, 0.3773, 0.3617};
   double vg_n_set[]     = {1.44260592334, 1.14965918354, 1.39051695249};
   double vg_alpha_set[] = {0.0021297, 0.0073272, 0.0027454};
   double Ksat_set[]     = {0.446, 0.0743, 0.415};
+  double field_capacity_set = 340.9;
+  double ponded_depth_max_set = 0.0;
  
   // Get the initial values set through the config file
   model_calib.GetValue("smcmax", &smcmax[0]);
   model_calib.GetValue("van_genuchten_n", &vg_n[0]);
   model_calib.GetValue("van_genuchten_alpha", &vg_alpha[0]);
   model_calib.GetValue("hydraulic_conductivity", &Ksat[0]);
+  model_calib.GetValue("field_capacity", &field_capacity);
+  model_calib.GetValue("ponded_depth_max", &ponded_depth_max);
   
   for (int i=0; i < num_layers; i++)
     std::cout<<"| Initial values: layer = "<< i+1 <<", smcmax = "<< smcmax[i]
 	     <<", vg_n = "<< vg_n[i] <<", vg_alpha = " << vg_alpha[i]
 	     <<", Ksat = "<< Ksat[i] <<"\n";
+  printf("field_capacity: %lf \n", field_capacity);
+  printf("ponded_depth_max: %lf \n", ponded_depth_max);
 
   // set the new values
   model_calib.SetValue("smcmax", &smcmax_set[0]);
   model_calib.SetValue("van_genuchten_n", &vg_n_set[0]);
   model_calib.SetValue("van_genuchten_alpha", &vg_alpha_set[0]);
   model_calib.SetValue("hydraulic_conductivity", &Ksat_set[0]);
+  model_calib.SetValue("field_capacity", &field_capacity_set);
+  model_calib.SetValue("ponded_depth_max", &ponded_depth_max_set);
  
   // get the new/updated values
   model_calib.GetValue("smcmax", &smcmax[0]);
   model_calib.GetValue("van_genuchten_n", &vg_n[0]);
   model_calib.GetValue("van_genuchten_alpha", &vg_alpha[0]);
   model_calib.GetValue("hydraulic_conductivity", &Ksat[0]);
+  model_calib.GetValue("field_capacity", &field_capacity);
+  model_calib.GetValue("ponded_depth_max", &ponded_depth_max);
  
-  
+  if (fabs(ponded_depth_max  - ponded_depth_max_set) > 1.E-5) {
+    std::stringstream errMsg;
+    errMsg << "Mismatch between ponded_depth_max calibrated values set and get "<< ponded_depth_max_set<<" "<< ponded_depth_max
+      << " which is unexpected. \n";
+    throw std::runtime_error(errMsg.str());
+  }
+
+  if (fabs(field_capacity  - field_capacity_set) > 1.E-5) {
+    std::stringstream errMsg;
+    errMsg << "Mismatch between field_capacity calibrated values set and get "<< field_capacity_set<<" "<< field_capacity
+      << " which is unexpected. \n";
+    throw std::runtime_error(errMsg.str());
+  }
+
   for (int i=0; i < num_layers; i++) {
     
     if (fabs(smcmax[i]  - smcmax_set[i]) > 1.E-5) {
@@ -649,6 +674,8 @@ int main(int argc, char *argv[])
     std::cout<<"| Calib. values: layer = "<< i+1 <<", smcmax = "<< smcmax[i]
 	     <<", vg_n = "<< vg_n[i] <<", vg_alpha = " << vg_alpha[i]
 	     <<", Ksat = "<< Ksat[i] <<"\n";
+  printf("field_capacity = %lf \n", field_capacity);
+  printf("ponded_depth_max = %lf \n", ponded_depth_max);
   std::cout<<"| *************************************** \n";
   std::cout<<"| LASAM Calibration test passed? YES \n";
   std::cout<<RESET<<"\n";
