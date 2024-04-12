@@ -92,6 +92,9 @@ extern void lgar_initialize(string config_file, struct model_state *state)
   
   // initialize thickness/depth and soil moisture of wetting fronts (used for model coupling)
   // also initialize calibratable parameters
+  state->lgar_calib_params.field_capacity_psi = state->lgar_bmi_params.field_capacity_psi_cm;
+  state->lgar_calib_params.ponded_depth_max = state->lgar_bmi_params.ponded_depth_max_cm;
+
   struct wetting_front *current = state->head;
   for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
     assert (current != NULL);
