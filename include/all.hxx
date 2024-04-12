@@ -192,8 +192,8 @@ struct lgar_calib_parameters
   double *vg_n;                  // Van Genuchten n [-]
   double *vg_alpha;              // Van Genuchten alpha [1/cm]
   double *Ksat;                  // Hydraulic conductivity [cm/hr]
-  double field_capacity_psi;    // field capacity in capillary head [cm]
-  double ponded_depth_max;      // maximum ponded depth of surface water [cm]
+  double *field_capacity_psi;    // field capacity in capillary head [cm]
+  double *ponded_depth_max;      // maximum ponded depth of surface water [cm]
 
 };
 
