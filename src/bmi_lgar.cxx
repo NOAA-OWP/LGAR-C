@@ -820,9 +820,9 @@ GetValuePtr (std::string name)
   else if (name.compare("hydraulic_conductivity") == 0)
     return (void*)this->state->lgar_calib_params.Ksat;
   else if (name.compare("ponded_depth_max") == 0)
-    return (void*)(&state->lgar_bmi_params.ponded_depth_max_cm);
+    return (void*)&this->state->lgar_calib_params.ponded_depth_max;
   else if (name.compare("field_capacity") == 0)
-    return (void*)(&state->lgar_bmi_params.field_capacity_psi_cm);
+    return (void*)&this->state->lgar_calib_params.field_capacity_psi;
   else {
     std::stringstream errMsg;
     errMsg << "variable "<< name << " does not exist";
