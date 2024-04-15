@@ -510,23 +510,21 @@ update_calibratable_parameters()
   
   double volstart_before = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
 
-  for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
+  for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {//first we update the parameters that depend on soil layer, for each layer
     layer_num  = current->layer_num;
     soil = state->lgar_bmi_params.layer_soil_type[layer_num];
     
     assert (current != NULL);
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::cerr<<"----------- Calibratable parameters (initial values) ----------- \n";
+      std::cerr<<"----------- Calibratable parameters depending on soil layer (initial values) ----------- \n";
       std::cerr<<"| soil_type = "<< soil <<", layer = "<<layer_num
 	       <<", smcmax = "   << state->soil_properties[soil].theta_e
 	       <<", smcmin = "   << state->soil_properties[soil].theta_r
 	       <<", vg_n = "     << state->soil_properties[soil].vg_n
 	       <<", vg_alpha = " << state->soil_properties[soil].vg_alpha_per_cm
 	       <<", Ksat = "     << state->soil_properties[soil].Ksat_cm_per_h
-         <<", field_capacity_psi = "     << state->lgar_bmi_params.field_capacity_psi_cm
-         <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm
-	       <<", theta = "   << current->theta <<"\n";
+	       <<", theta = "    << current->theta <<"\n";
     }
     
     state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e[layer_num-1];
@@ -535,27 +533,39 @@ update_calibratable_parameters()
     state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
     state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha[layer_num-1];
     state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat[layer_num-1];
-    state->lgar_bmi_params.field_capacity_psi_cm = state->lgar_calib_params.field_capacity_psi;
-    state->lgar_bmi_params.ponded_depth_max_cm   = state->lgar_calib_params.ponded_depth_max;
     
     current->theta = calc_theta_from_h(current->psi_cm, state->soil_properties[soil].vg_alpha_per_cm,
 				       state->soil_properties[soil].vg_m, state->soil_properties[soil].vg_n,
 				       state->soil_properties[soil].theta_e, state->soil_properties[soil].theta_r);
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::cerr<<"----------- Calibratable parameters (updated values) ----------- \n";
+      std::cerr<<"----------- Calibratable parameters depending on soil layer (updated values) ----------- \n";
       std::cerr<<"| soil_type = "<< soil <<", layer = "<<layer_num
 	       <<", smcmax = "   << state->soil_properties[soil].theta_e
 	       <<", smcmin = "   << state->soil_properties[soil].theta_r
 	       <<", vg_n = "     << state->soil_properties[soil].vg_n
 	       <<", vg_alpha = " << state->soil_properties[soil].vg_alpha_per_cm
 	       <<", Ksat = "     << state->soil_properties[soil].Ksat_cm_per_h
-         <<", field_capacity_psi = "     << state->lgar_bmi_params.field_capacity_psi_cm
-         <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm
-	       <<", theta = "   << current->theta <<"\n";
+	       <<", theta = "    << current->theta <<"\n";
     }
     
     current = current->next;
+  }
+
+  //next we update the parameters that apply to the whole model domain and do not depend on soil layer
+  if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
+    std::cerr<<"----------- Calibratable parameters independent of soil layer (initial values) ----------- \n";
+    std::cerr<<"field_capacity_psi = "   << state->lgar_bmi_params.field_capacity_psi_cm
+      <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm <<"\n";
+  }
+
+  state->lgar_bmi_params.field_capacity_psi_cm = state->lgar_calib_params.field_capacity_psi;
+  state->lgar_bmi_params.ponded_depth_max_cm   = state->lgar_calib_params.ponded_depth_max;
+
+  if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
+    std::cerr<<"----------- Calibratable parameters independent of soil layer (updated values) ----------- \n";
+    std::cerr<<"field_capacity_psi = "   << state->lgar_bmi_params.field_capacity_psi_cm
+      <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm <<"\n";
   }
   
   if (verbosity.compare("high") == 0)
