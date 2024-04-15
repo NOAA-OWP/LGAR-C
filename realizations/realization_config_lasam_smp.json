@@ -103,7 +103,7 @@
 		}
             ],
             "forcing": {
-		"path" : "./extern/LGAR-C/forcing/forcing_data_resampled_uniform_Phillipsburg.csv"
+		"path" : "./extern/LGAR-C/LGAR-C/forcing/forcing_data_resampled_uniform_Phillipsburg.csv"
             }
         }
     }
