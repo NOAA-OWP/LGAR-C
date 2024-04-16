@@ -86,12 +86,15 @@ extern void lgar_initialize(string config_file, struct model_state *state)
   // initialize array for holding calibratable parameters
   state->lgar_calib_params.theta_e  = new double[state->lgar_bmi_params.num_layers];
   state->lgar_calib_params.theta_r  = new double[state->lgar_bmi_params.num_layers];
-  state->lgar_calib_params.vg_m     = new double[state->lgar_bmi_params.num_layers];
+  state->lgar_calib_params.vg_n     = new double[state->lgar_bmi_params.num_layers];
   state->lgar_calib_params.vg_alpha = new double[state->lgar_bmi_params.num_layers];
   state->lgar_calib_params.Ksat     = new double[state->lgar_bmi_params.num_layers];
   
   // initialize thickness/depth and soil moisture of wetting fronts (used for model coupling)
   // also initialize calibratable parameters
+  state->lgar_calib_params.field_capacity_psi = state->lgar_bmi_params.field_capacity_psi_cm;
+  state->lgar_calib_params.ponded_depth_max = state->lgar_bmi_params.ponded_depth_max_cm;
+
   struct wetting_front *current = state->head;
   for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
     assert (current != NULL);
@@ -103,7 +106,7 @@ extern void lgar_initialize(string config_file, struct model_state *state)
 
     state->lgar_calib_params.theta_e[i]  = state->soil_properties[soil].theta_e;
     state->lgar_calib_params.theta_r[i]  = state->soil_properties[soil].theta_r;
-    state->lgar_calib_params.vg_m[i]     = state->soil_properties[soil].vg_m;
+    state->lgar_calib_params.vg_n[i]     = state->soil_properties[soil].vg_n;
     state->lgar_calib_params.vg_alpha[i] = state->soil_properties[soil].vg_alpha_per_cm;
     state->lgar_calib_params.Ksat[i]     = state->soil_properties[soil].Ksat_cm_per_h;
     
@@ -159,6 +162,7 @@ extern void lgar_initialize(string config_file, struct model_state *state)
   @param frozen_factor          : frozen factor causing the hydraulic conductivity to decrease due to frozen soil
                                   (when coupled to soil freeze thaw model)
   @param wilting_point_psi_cm   : wilting point (the amount of water not available for plants or not accessible by plants)
+  @param field_capacity_psi_cm  : field capacity, represented with a capillary head (head above which drainage is much faster)
   @param ponded_depth_cm        : amount of water on the surface not available for surface drainage (initialized to zero)
   @param ponded_depth_max cm    : maximum amount of water on the surface not available for surface drainage (default is zero)
   @param nint                   : number of trapezoids used in integrating the Geff function (set to 120)
@@ -210,18 +214,19 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   state->lgar_bmi_params.sft_coupled       = false;
   state->lgar_bmi_params.use_closed_form_G = false;
   
-  bool is_layer_thickness_set      = false;
-  bool is_initial_psi_set          = false;
-  bool is_timestep_set             = false;
-  bool is_endtime_set              = false;
-  bool is_forcing_resolution_set   = false;
-  bool is_layer_soil_type_set      = false;
-  bool is_wilting_point_psi_cm_set = false;
-  bool is_soil_params_file_set     = false;
-  bool is_max_soil_types_set       = false;
-  bool is_giuh_ordinates_set       = false;
-  bool is_soil_z_set               = false;
-  bool is_ponded_depth_max_cm_set  = false;
+  bool is_layer_thickness_set       = false;
+  bool is_initial_psi_set           = false;
+  bool is_timestep_set              = false;
+  bool is_endtime_set               = false;
+  bool is_forcing_resolution_set    = false;
+  bool is_layer_soil_type_set       = false;
+  bool is_wilting_point_psi_cm_set  = false;
+  bool is_field_capacity_psi_cm_set = false;
+  bool is_soil_params_file_set      = false;
+  bool is_max_soil_types_set        = false;
+  bool is_giuh_ordinates_set        = false;
+  bool is_soil_z_set                = false;
+  bool is_ponded_depth_max_cm_set   = false;
 
   string soil_params_file;
 
@@ -363,6 +368,17 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       if (verbosity.compare("high") == 0) {
 	std::cerr<<"Wilting point Psi [cm] : "<<state->lgar_bmi_params.wilting_point_psi_cm<<"\n";
+	std::cerr<<"          *****         \n";
+      }
+
+      continue;
+    }
+    else if (param_key == "field_capacity_psi") {
+      state->lgar_bmi_params.field_capacity_psi_cm = stod(param_value);
+      is_field_capacity_psi_cm_set = true;
+
+      if (verbosity.compare("high") == 0) {
+	std::cerr<<"Field capacity Psi [cm] : "<<state->lgar_bmi_params.field_capacity_psi_cm<<"\n";
 	std::cerr<<"          *****         \n";
       }
 
@@ -522,6 +538,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     state->soil_properties = new soil_properties_[state->lgar_bmi_params.num_soil_types+1];
     int num_soil_types = state->lgar_bmi_params.num_soil_types;
     double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
+    double field_capacity_psi_cm = state->lgar_bmi_params.field_capacity_psi_cm;
     int max_num_soil_in_file = lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types,
 						       wilting_point_psi_cm, state->soil_properties);
 
@@ -572,7 +589,13 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
   if(!is_wilting_point_psi_cm_set) {
     stringstream errMsg;
-    errMsg << "The configuration file \'" << config_file <<"\' does not set wilting_point_psi. \n";
+    errMsg << "The configuration file \'" << config_file <<"\' does not set wilting_point_psi. \n Recommended value of 15495.0[cm], corresponding to 15 atm. \n";
+    throw runtime_error(errMsg.str());
+  }
+
+  if(!is_field_capacity_psi_cm_set) {
+    stringstream errMsg;
+    errMsg << "The configuration file \'" << config_file <<"\' does not set field_capacity_psi. \n Recommended value of 340.9[cm] for most soils, corresponding to 1/3 atm, or 103.3[cm] for sands, corresponding to 1/10 atm. \n";
     throw runtime_error(errMsg.str());
   }
 

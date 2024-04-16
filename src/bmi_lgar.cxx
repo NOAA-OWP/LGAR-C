@@ -115,6 +115,7 @@ Update()
   double subtimestep_h = state->lgar_bmi_params.timestep_h;
   int nint = state->lgar_bmi_params.nint;
   double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
+  double field_capacity_psi_cm = state->lgar_bmi_params.field_capacity_psi_cm;
   bool use_closed_form_G = state->lgar_bmi_params.use_closed_form_G; 
 
   // constant value used in the AET function
@@ -192,7 +193,7 @@ Update()
 
     // Calculate AET from PET if PET is non-zero
     if (PET_subtimestep_cm_per_h > 0.0) {
-      AET_subtimestep_cm = calc_aet(PET_subtimestep_cm_per_h, subtimestep_h, wilting_point_psi_cm,
+      AET_subtimestep_cm = calc_aet(PET_subtimestep_cm_per_h, subtimestep_h, wilting_point_psi_cm, field_capacity_psi_cm,
                                     state->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon,
                                     state->head, state->soil_properties);
     }
@@ -509,27 +510,27 @@ update_calibratable_parameters()
   
   double volstart_before = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
 
-  for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
+  for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {//first we update the parameters that depend on soil layer, for each layer
     layer_num  = current->layer_num;
     soil = state->lgar_bmi_params.layer_soil_type[layer_num];
     
     assert (current != NULL);
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::cerr<<"----------- Calibratable parameters (initial values) ----------- \n";
+      std::cerr<<"----------- Calibratable parameters depending on soil layer (initial values) ----------- \n";
       std::cerr<<"| soil_type = "<< soil <<", layer = "<<layer_num
 	       <<", smcmax = "   << state->soil_properties[soil].theta_e
 	       <<", smcmin = "   << state->soil_properties[soil].theta_r
-	       <<", vg_m = "     << state->soil_properties[soil].vg_m
+	       <<", vg_n = "     << state->soil_properties[soil].vg_n
 	       <<", vg_alpha = " << state->soil_properties[soil].vg_alpha_per_cm
 	       <<", Ksat = "     << state->soil_properties[soil].Ksat_cm_per_h
-	       <<", theta = "   << current->theta <<"\n";
+	       <<", theta = "    << current->theta <<"\n";
     }
     
     state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e[layer_num-1];
     state->soil_properties[soil].theta_r = state->lgar_calib_params.theta_r[layer_num-1];
-    state->soil_properties[soil].vg_m    = state->lgar_calib_params.vg_m[layer_num-1];
-    state->soil_properties[soil].vg_n    = 1.0/(1.0 - state->soil_properties[soil].vg_m);
+    state->soil_properties[soil].vg_n    = state->lgar_calib_params.vg_n[layer_num-1];
+    state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
     state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha[layer_num-1];
     state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat[layer_num-1];
     
@@ -538,17 +539,33 @@ update_calibratable_parameters()
 				       state->soil_properties[soil].theta_e, state->soil_properties[soil].theta_r);
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::cerr<<"----------- Calibratable parameters (updated values) ----------- \n";
+      std::cerr<<"----------- Calibratable parameters depending on soil layer (updated values) ----------- \n";
       std::cerr<<"| soil_type = "<< soil <<", layer = "<<layer_num
 	       <<", smcmax = "   << state->soil_properties[soil].theta_e
 	       <<", smcmin = "   << state->soil_properties[soil].theta_r
-	       <<", vg_m = "     << state->soil_properties[soil].vg_m
+	       <<", vg_n = "     << state->soil_properties[soil].vg_n
 	       <<", vg_alpha = " << state->soil_properties[soil].vg_alpha_per_cm
 	       <<", Ksat = "     << state->soil_properties[soil].Ksat_cm_per_h
-	       <<", theta = "   << current->theta <<"\n";
+	       <<", theta = "    << current->theta <<"\n";
     }
     
     current = current->next;
+  }
+
+  //next we update the parameters that apply to the whole model domain and do not depend on soil layer
+  if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
+    std::cerr<<"----------- Calibratable parameters independent of soil layer (initial values) ----------- \n";
+    std::cerr<<"field_capacity_psi = "   << state->lgar_bmi_params.field_capacity_psi_cm
+      <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm <<"\n";
+  }
+
+  state->lgar_bmi_params.field_capacity_psi_cm = state->lgar_calib_params.field_capacity_psi;
+  state->lgar_bmi_params.ponded_depth_max_cm   = state->lgar_calib_params.ponded_depth_max;
+
+  if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
+    std::cerr<<"----------- Calibratable parameters independent of soil layer (updated values) ----------- \n";
+    std::cerr<<"field_capacity_psi = "   << state->lgar_bmi_params.field_capacity_psi_cm
+      <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm <<"\n";
   }
   
   if (verbosity.compare("high") == 0)
@@ -581,7 +598,7 @@ GetVarGrid(std::string name)
 	   || name.compare("actual_evapotranspiration") == 0) // double
     return 1;
   else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
-	   || name.compare("soil_storage") == 0) // double
+	   || name.compare("soil_storage") == 0 || name.compare("field_capacity") == 0 || name.compare("ponded_depth_max") == 0)// double
     return 1;
   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
 	   || name.compare("percolation") == 0  || name.compare("groundwater_to_stream_recharge") == 0) // double
@@ -589,7 +606,7 @@ GetVarGrid(std::string name)
   else if (name.compare("mass_balance") == 0)
     return 1;
   else if (name.compare("soil_depth_layers") == 0  || name.compare("smcmax") == 0 || name.compare("smcmin") == 0
-	   || name.compare("van_genuchten_m") == 0 || name.compare("van_genuchten_alpha") == 0
+	   || name.compare("van_genuchten_m") == 0 || name.compare("van_genuchten_alpha") == 0 || name.compare("van_genuchten_n") == 0 
 	   || name.compare("hydraulic_conductivity") == 0) // array of doubles (fixed length)
     return 2;
   else if (name.compare("soil_moisture_wetting_fronts") == 0 || name.compare("soil_depth_wetting_fronts") == 0) // array of doubles (dynamic length)
@@ -806,12 +823,16 @@ GetValuePtr (std::string name)
     return (void*)this->state->lgar_calib_params.theta_e;
   else if (name.compare("smcmin") == 0)
     return (void*)this->state->lgar_calib_params.theta_r;
-  else if (name.compare("van_genuchten_m") == 0)
-    return (void*)this->state->lgar_calib_params.vg_m;
+  else if (name.compare("van_genuchten_n") == 0)
+    return (void*)this->state->lgar_calib_params.vg_n;
   else if (name.compare("van_genuchten_alpha") == 0)
     return (void*)this->state->lgar_calib_params.vg_alpha;
   else if (name.compare("hydraulic_conductivity") == 0)
     return (void*)this->state->lgar_calib_params.Ksat;
+  else if (name.compare("ponded_depth_max") == 0)
+    return (void*)&this->state->lgar_calib_params.ponded_depth_max;
+  else if (name.compare("field_capacity") == 0)
+    return (void*)&this->state->lgar_calib_params.field_capacity_psi;
   else {
     std::stringstream errMsg;
     errMsg << "variable "<< name << " does not exist";
