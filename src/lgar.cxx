@@ -2467,6 +2467,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   double delta_mass_prev   = delta_mass;
   int count_no_mass_change = 0;
   int break_no_mass_change = 5;
+  bool wanted_to_saturate_flag = FALSE;
   
   // check if the difference is less than the tolerance
   if (delta_mass <= tolerance) {
@@ -2501,6 +2502,10 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
       
       psi_cm_loc_prev = psi_cm_loc;
       psi_cm_loc -= 0.1 * factor;
+
+      if (psi_cm_loc<0.0){
+        wanted_to_saturate_flag = TRUE;
+      }
       
       if (psi_cm_loc < 0 && psi_cm_loc_prev != 0) {
 	/* this is for the extremely rare case when iterative psi_cm_loc calculation temporarily
@@ -2563,7 +2568,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   //However, the above loop can never increase psi to the point where theta<theta_r, because theta must always be between theta_r and theta_r, because of the van Genuchten model (calc_theta_from_h).
   //If we get to the case where theta<theta_r would be necessary for mass balance closure, then the above loop will break before delta_mass <= tolerance.
   //In this rare case, the remaining mass balance error is put into AET. 
-  if (delta_mass > tolerance){
+  if ((delta_mass > tolerance) && (!wanted_to_saturate_flag)){//the second condition is necessary because count_no_mass_change == break_no_mass_change in the loop above will trigger when the model approaches saturation; in this event the extra water should go into runoff (handled eslewhere), because the soil saturates, rather than AET
     *AET_demand_cm = *AET_demand_cm - fabs(delta_mass - tolerance);
   }
   
