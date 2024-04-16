@@ -22,7 +22,7 @@ make && cd ../tests
 ```
 
 ### Run:
-run `./run_synthetic.sh OPTION` (for synthetic test; OPTION = 0, 1, or 2 - these numbers correspond to different examples)
+run `./run_synthetic.sh OPTION` (for synthetic test; OPTION = 1 or 2 - these numbers correspond to different examples)
 
 
 #### Visualization
