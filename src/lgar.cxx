@@ -1354,6 +1354,10 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 
 	  }
 
+    if ( (wf_free_drainage->to_bottom==TRUE) && (wf_free_drainage->layer_num==num_layers) ){
+      depth_new = cum_layer_thickness_cm[num_layers];
+    }
+
 	  wf_free_drainage->depth_cm = depth_new;
 
 	  current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
@@ -2570,6 +2574,16 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   //In this rare case, the remaining mass balance error is put into AET. 
   if ((delta_mass > tolerance) && (!wanted_to_saturate_flag)){//the second condition is necessary because count_no_mass_change == break_no_mass_change in the loop above will trigger when the model approaches saturation; in this event the extra water should go into runoff (handled eslewhere), because the soil saturates, rather than AET
     *AET_demand_cm = *AET_demand_cm - fabs(delta_mass - tolerance);
+  }
+
+  if ( (theta>=soil_properties[soil_num].theta_e) && (psi_cm_loc!=0.0) ){
+    //addresses a very rare case. Sometimes when psi gets very close to 0 but is not 0, calc_theta_from_h will actually yield 0 for a very small nonzero psi value (for example psi=1e-3 or something like that).
+    //This can happen for example when the model domain is very close to saturation, and the number of WFs == the number of layers, but there is a little bit of AET so the resulting model state should have just slightly less water than complete saturation.
+    //However, layers above the current one might not have the property that this small zonzero psi value yields theta = theta_e.
+    //This leads to the case where the mass balance correctly closes, but with theta=theta_e for the current layer and not with theta = theta_e for some higher layer(s).
+    //Then, later, the psi value for the current layer is set to 0.0 because its theta value is theta_e, and then the layers above will have their psi values set to 0.0, and then theta = theta_e everywhere in the model domain, whereas it should account for the recent small AET that happened.
+    //Just setting the AET to 0 in these cases closes mass balance; another option would be to augment the recharge. Error is very rare and seems to happen once every 100k parameter sets or so, using yearlong simulations.
+    *AET_demand_cm = 0.0;
   }
   
   return theta;
