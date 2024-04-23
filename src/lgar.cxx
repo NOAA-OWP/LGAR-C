@@ -2440,6 +2440,13 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *so
 	dzdt = 0.0;
     }
 
+    if ((dzdt == 0.0) && (current->to_bottom==FALSE)){
+      //in lgar_move, we have: "if (current->dzdt_cm_per_h == 0.0 && current->to_bottom == FALSE) { // a new front was just created, so don't update it."
+      //the issue here is that when theta approaches theta_r, then dzdt can in some cases numerically evaluate to 0, even if the wetting front has to_bottom==FALSE.
+      //so, there are cases where a WF should be moving very slowly, but not being completely still. 
+      dzdt = 1e-9;
+    }
+
     current->dzdt_cm_per_h = dzdt;
 
     current = current->next;  // point to the next link
