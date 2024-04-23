@@ -2440,17 +2440,6 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *so
 	dzdt = 0.0;
     }
 
-    if ((dzdt == 0.0) && (current->to_bottom==FALSE)){
-      //in lgar_move, we have: "if (current->dzdt_cm_per_h == 0.0 && current->to_bottom == FALSE) { // a new front was just created, so don't update it."
-      //the issue here is that when theta approaches theta_r, then dzdt can in some cases numerically evaluate to 0, even if the wetting front has to_bottom==FALSE.
-      //so, there are cases where a WF should be moving very slowly, but not being completely still. 
-      dzdt = 1e-9;
-    }
-
-    if (dzdt>1e4){//insanity check
-      dzdt = 1e4;
-    }
-
     current->dzdt_cm_per_h = dzdt;
 
     current = current->next;  // point to the next link
@@ -2588,7 +2577,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   }
 
   if ( (theta>=soil_properties[soil_num].theta_e) && (psi_cm_loc!=0.0) ){
-    //addresses a very rare case. Sometimes when psi gets very close to 0 but is not 0, calc_theta_from_h will actually yield 0 for a very small nonzero psi value (for example psi=1e-3 or something like that).
+    //addresses a very rare case. Sometimes when psi gets very close to 0 but is not 0, calc_theta_from_h will actually yield theta_e for a very small nonzero psi value (for example psi=1e-3 or something like that).
     //This can happen for example when the model domain is very close to saturation, and the number of WFs == the number of layers, but there is a little bit of AET so the resulting model state should have just slightly less water than complete saturation.
     //However, layers above the current one might not have the property that this small zonzero psi value yields theta = theta_e.
     //This leads to the case where the mass balance correctly closes, but with theta=theta_e for the current layer and not with theta = theta_e for some higher layer(s).
