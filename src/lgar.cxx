@@ -1333,12 +1333,18 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 
 	// loop to adjust the depth for mass balance
   int iter = 0;
+  bool iter_aug_flag = FALSE;
 	while (fabs(mass_balance_error - tolerance) > 1.E-10) {
     iter++;
     if (iter>1e4) {
       *AET_demand_cm = *AET_demand_cm + mass_balance_error;
       actual_ET_demand = *AET_demand_cm;
       break;
+    }
+
+    if ((iter>1e3) && (!iter_aug_flag)){
+      factor = factor * 100;
+      iter_aug_flag = TRUE;
     }
 
 	  if (current_mass < mass_timestep) {
