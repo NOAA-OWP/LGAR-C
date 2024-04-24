@@ -1373,14 +1373,19 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 
 	}
 
+  //there is a general class of problem where a very small psi value that is greater than 0 (say 1e-3 or so) will for some but not all soils mathematically yield theta = theta_e, even though theta should be slightly less than theta_e.
+  //in layered soils, this can cause a mass balance error. It is fairly rare and only seems to impact cases where the model domain is entirely saturated, which shouldn't happen when LGAR is applied in the correct environment / with sufficient layer thicknesses.
   if (break_flagg) {
-    //there is a general class of problem where a very small psi value that is greater than 0 (say 1e-3 or so) will for some soils mathematically yield theta = theta_e, even though theta should be slightly less than theta_e.
-    //in layered soils, this can cause a mass balance error. It is fairly rare and only seems to impact cases where the model domain is entirely saturated, which shouldn't happen when LGAR is applied in the correct environment / with sufficient layer thicknesses.
     current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
     mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand + free_drainage_demand);
     mass_balance_error = fabs(current_mass - mass_timestep);
     if (fabs(mass_balance_error - tolerance) > 1.E-10){
-      bottom_boundary_flux_cm = bottom_boundary_flux_cm - mass_balance_error;
+      if (mass_timestep < current_mass) {
+        bottom_boundary_flux_cm = bottom_boundary_flux_cm - mass_balance_error;
+      }
+      else {
+        bottom_boundary_flux_cm = bottom_boundary_flux_cm + mass_balance_error;
+      }
     }
   }
 
