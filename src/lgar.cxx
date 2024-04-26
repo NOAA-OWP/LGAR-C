@@ -1333,12 +1333,20 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 
 	// loop to adjust the depth for mass balance
   int iter = 0;
+  bool iter_aug_flag = FALSE;
+  bool break_flag = FALSE;
 	while (fabs(mass_balance_error - tolerance) > 1.E-10) {
     iter++;
     if (iter>1e4) {
+      break_flag = TRUE;
       *AET_demand_cm = *AET_demand_cm + mass_balance_error;
       actual_ET_demand = *AET_demand_cm;
       break;
+    }
+
+    if ((iter>1e3) && (!iter_aug_flag)){
+      factor = factor * 100;
+      iter_aug_flag = TRUE;
     }
 
 	  if (current_mass < mass_timestep) {
@@ -1354,12 +1362,25 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 
 	  }
 
+    if ( (wf_free_drainage->to_bottom==TRUE) && (wf_free_drainage->layer_num==num_layers) ){
+      depth_new = cum_layer_thickness_cm[num_layers];
+    }
+
 	  wf_free_drainage->depth_cm = depth_new;
 
 	  current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
 	  mass_balance_error = fabs(current_mass - mass_timestep);
 
 	}
+
+  //there is a general class of problem where a very small psi value that is greater than 0 (say 1e-3 or so) will for some but not all soils mathematically yield theta = theta_e, even though theta should be slightly less than theta_e.
+  //in layered soils, this can cause a mass balance error. It is fairly rare and only seems to impact cases where the model domain is entirely saturated, which shouldn't happen when LGAR is applied in the correct environment / with sufficient layer thicknesses.
+  if (break_flag) {
+    current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+    mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand + free_drainage_demand);
+    mass_balance_error = mass_timestep - current_mass;
+    bottom_boundary_flux_cm += mass_balance_error;
+  }
 
       }
     }
@@ -2436,6 +2457,17 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *so
 	dzdt = 0.0;
     }
 
+    if ((dzdt == 0.0) && (current->to_bottom==FALSE)){
+      //in lgar_move, we have: "if (current->dzdt_cm_per_h == 0.0 && current->to_bottom == FALSE) { // a new front was just created, so don't update it."
+      //the issue here is that when theta approaches theta_r, then dzdt can in some cases numerically evaluate to 0, even if the wetting front has to_bottom==FALSE.
+      //so, there are cases where a WF should be moving very slowly, but not being completely still. 
+      dzdt = 1e-9;
+    }
+
+    if (dzdt>1e4){//insanity check
+      dzdt = 1e4;
+    }
+
     current->dzdt_cm_per_h = dzdt;
 
     current = current->next;  // point to the next link
@@ -2467,6 +2499,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   double delta_mass_prev   = delta_mass;
   int count_no_mass_change = 0;
   int break_no_mass_change = 5;
+  bool wanted_to_saturate_flag = FALSE;
   
   // check if the difference is less than the tolerance
   if (delta_mass <= tolerance) {
@@ -2501,6 +2534,10 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
       
       psi_cm_loc_prev = psi_cm_loc;
       psi_cm_loc -= 0.1 * factor;
+
+      if (psi_cm_loc<0.0){
+        wanted_to_saturate_flag = TRUE;
+      }
       
       if (psi_cm_loc < 0 && psi_cm_loc_prev != 0) {
 	/* this is for the extremely rare case when iterative psi_cm_loc calculation temporarily
@@ -2563,8 +2600,18 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   //However, the above loop can never increase psi to the point where theta<theta_r, because theta must always be between theta_r and theta_r, because of the van Genuchten model (calc_theta_from_h).
   //If we get to the case where theta<theta_r would be necessary for mass balance closure, then the above loop will break before delta_mass <= tolerance.
   //In this rare case, the remaining mass balance error is put into AET. 
-  if (delta_mass > tolerance){
+  if ((delta_mass > tolerance) && (!wanted_to_saturate_flag)){//the second condition is necessary because count_no_mass_change == break_no_mass_change in the loop above will trigger when the model approaches saturation; in this event the extra water should go into runoff (handled eslewhere), because the soil saturates, rather than AET
     *AET_demand_cm = *AET_demand_cm - fabs(delta_mass - tolerance);
+  }
+
+  if ( (theta>=soil_properties[soil_num].theta_e) && (psi_cm_loc!=0.0) ){
+    //addresses a very rare case. Sometimes when psi gets very close to 0 but is not 0, calc_theta_from_h will actually yield theta_e for a very small nonzero psi value (for example psi=1e-3 or something like that).
+    //This can happen for example when the model domain is very close to saturation, and the number of WFs == the number of layers, but there is a little bit of AET so the resulting model state should have just slightly less water than complete saturation.
+    //However, layers above the current one might not have the property that this small zonzero psi value yields theta = theta_e.
+    //This leads to the case where the mass balance correctly closes, but with theta=theta_e for the current layer and not with theta = theta_e for some higher layer(s).
+    //Then, later, the psi value for the current layer is set to 0.0 because its theta value is theta_e, and then the layers above will have their psi values set to 0.0, and then theta = theta_e everywhere in the model domain, whereas it should account for the recent small AET that happened.
+    //Just setting the AET to 0 in these cases closes mass balance; another option would be to augment the recharge. Error is very rare and seems to happen once every 100k parameter sets or so, using yearlong simulations.
+    *AET_demand_cm = 0.0;
   }
   
   return theta;
