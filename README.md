@@ -13,6 +13,9 @@ Detailed instructions on how to build and run LASAM can be found here [INSTALL](
 ## Model Configuration File
 A detailed description of the parameters for model configuration is provided [here](https://github.com/NOAA-OWP/LGAR-C/tree/master/configs/README.md).
 
+## Calibratable parameters
+A detailed description of calibratable parameters is provided [here](https://github.com/NOAA-OWP/LGAR-C/tree/master/data/README.md).
+
 ## Nextgen Realization Files
 Realization files for running LASAM (coupled/uncoupled modes) in the nextgen framework are provided [here](https://github.com/NOAA-OWP/LGAR-C/tree/master/realizations/README.md).
   
