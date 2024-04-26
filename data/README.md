@@ -12,3 +12,20 @@ A detailed description of the calibratable parameters is given below.
 | ponded_head_max | cm | ponded_head_max >= 0 | 0 <= ponded_head_max <= 5 | Entire model domain | This is the maximum amount of ponded water that is allowed to accumulate on the soil surface. While stability tests have only included a maximum value of 5 cm, any value greater than or equal to 0 should be acceptable. A common choice will be 0. This parameter can be set in the config file.  |
 | field_capacity_psi | cm | 0 < field_capacity_psi, <br>field_capacity_psi < wilting_point_psi | 10.3 < field_capacity_psi < 516.6 | Entire model domain | This is the wilting point of the model domain, expressed as a capillary head. Together with wilting_point_psi, the field capacity is used to determine the intensity of the reduction of PET to become AET. The numbers 10.3 cm and 516.6 cm correspond to pressures of 1/100 atm and 1/2 atm of water. Note that the model generally uses absolute values of capillary head; in this case, these limits are absolute values of negative numbers and physically represent unsaturated soil. While field capacity will vary per soil type, we use a single value for the entire model domain, following the method for PET->AET correction used by HYDRUS. This parameter can be set in the config file. |
 
+Below is a table that contains parameters for 12 soil classes, taken from the HYDRUS-1D soils catalog, which in turn are based on the paper: Carsel, R.F., and Parrish, R. S., Developing joint probability distributions of soil water retention characteristics, Water Resour. Res, 24, 755-769, 1988.
+
+| Textural Class      | θr    | θs  | α     | n    | Ks          |
+|---------------------|-------|-----|-------|------|-------------|
+| Sand                | 0.045 | 0.43 | 0.145 | 2.68 | 29.7        |
+| Loamy Sand          | 0.057 | 0.41 | 0.124 | 2.28 | 14.59166667 |
+| Sandy Loam          | 0.065 | 0.41 | 0.075 | 1.89 | 4.420833333 |
+| Loam                | 0.078 | 0.43 | 0.036 | 1.56 | 1.04        |
+| Silt                | 0.034 | 0.46 | 0.016 | 1.37 | 0.25        |
+| Silty Loam          | 0.067 | 0.45 | 0.02  | 1.41 | 0.45        |
+| Sandy Clay Loam     | 0.1   | 0.39 | 0.059 | 1.48 | 1.31        |
+| Clay Loam           | 0.095 | 0.41 | 0.019 | 1.31 | 0.26        |
+| Silty Clay Loam     | 0.089 | 0.43 | 0.01  | 1.23 | 0.07        |
+| Sandy Clay          | 0.1   | 0.38 | 0.027 | 1.23 | 0.12        |
+| Silty Clay          | 0.07  | 0.36 | 0.005 | 1.09 | 0.02        |
+| Clay                | 0.068 | 0.38 | 0.008 | 1.09 | 0.2         |
+
