@@ -20,8 +20,8 @@ We recommend that practical parameter values for calibration efforts of real soi
 
 Below is a table of parameters for soils from the HYDRUS soils catalog, which can give insights to likely parameter values per soil class. It contains example parameters for 12 soil classes, taken from the HYDRUS-1D soils catalog, which in turn are based on the paper: Carsel, R.F., and Parrish, R. S., Developing joint probability distributions of soil water retention characteristics, Water Resour. Res, 24, 755-769, 1988. θr, θs, and n are unitless, α has units of 1/cm, and Ks has units of cm/h.
 
-| Textural Class      | θr    | θs  | α     | n    | Ks          |
-|---------------------|-------|-----|-------|------|-------------|
+| Textural Class      | θr [-] | θs [-] | α [1/cm] | n [-] | Ks [cm/h]   |
+|---------------------|--------|--------|----------|-------|-------------|
 | Sand                | 0.045 | 0.43 | 0.145 | 2.68 | 29.7        |
 | Loamy Sand          | 0.057 | 0.41 | 0.124 | 2.28 | 14.59166667 |
 | Sandy Loam          | 0.065 | 0.41 | 0.075 | 1.89 | 4.420833333 |
