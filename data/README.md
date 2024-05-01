@@ -18,7 +18,7 @@ Stability testing efforts have included varying initial conditions, where the in
 
 We recommend that practical parameter values for calibration efforts of real soils use ranges that are for some parameters somewhat more restricted than the ones used in stability testing. For example, while it was desirable to test theta_e values up to 0.8, we do not expect to often see theta_e values of this magnitude in nature. Further, randomly sampling parameter values within even restricted ranges to build parameter sets could theoretically yield unrealistic soils (for example, a parameter set could have a K_s value of 0.01 cm/h, indicative of clay, and an n value of 2.5, indicative of sand). 
 
-Below is a table of parameters for soils from the HYDRUS soils catalog, which can give insights to likely parameter values per soil class. It contains example parameters for 12 soil classes, taken from the HYDRUS-1D soils catalog, which in turn are based on the paper: Carsel, R.F., and Parrish, R. S., Developing joint probability distributions of soil water retention characteristics, Water Resour. Res, 24, 755-769, 1988. θr, θs, and n are unitless, α has units of 1/cm, and Ks has units of cm/h.
+Below is a table of parameters for soils from the HYDRUS soils catalog, which can give insights to likely parameter values per soil class. It contains example parameters for 12 soil classes, taken from the HYDRUS-1D soils catalog, which in turn are based on the paper: Carsel, R.F., and Parrish, R. S., Developing joint probability distributions of soil water retention characteristics, Water Resour. Res, 24, 755-769, 1988.
 
 | Textural Class      | θr [-] | θs [-] | α [1/cm] | n [-] | Ks [cm/h]   |
 |---------------------|--------|--------|----------|-------|-------------|
