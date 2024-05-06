@@ -622,7 +622,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
 
   if (is_giuh_ordinates_set) {
-    int factor = int(1.0/state->lgar_bmi_params.timestep_h);
+    // int factor = int(1.0/state->lgar_bmi_params.timestep_h);
+    int factor = int(12.0);
 
     state->lgar_bmi_params.num_giuh_ordinates = factor * (giuh_ordinates_temp.size() - 1);
     state->lgar_bmi_params.giuh_ordinates = new double[state->lgar_bmi_params.num_giuh_ordinates+1];
