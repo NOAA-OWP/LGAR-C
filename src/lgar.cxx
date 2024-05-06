@@ -213,6 +213,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   // setting these options to false (defualt) 
   state->lgar_bmi_params.sft_coupled       = false;
   state->lgar_bmi_params.use_closed_form_G = false;
+  state->lgar_bmi_params.adaptive_timestep = false;
   
   bool is_layer_thickness_set       = false;
   bool is_initial_psi_set           = false;
@@ -393,6 +394,20 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       }
       else {
 	std::cerr<<"Invalid option: use_closed_form_G must be true or false. \n";
+        abort();
+      }
+
+      continue;
+    }
+    else if (param_key == "adaptive_timestep") { 
+      if (param_value == "false") {
+        state->lgar_bmi_params.adaptive_timestep = false;
+      }
+      else if (param_value == "true") {
+        state->lgar_bmi_params.adaptive_timestep = true;
+      }
+      else {
+	std::cerr<<"Invalid option: adaptive_timestep must be true or false. \n";
         abort();
       }
 

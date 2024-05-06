@@ -33,7 +33,6 @@ Initialize (std::string config_file)
 
   num_giuh_ordinates = state->lgar_bmi_params.num_giuh_ordinates;
 
-
   /* giuh ordinates are static and read in the lgar.cxx, and we need to have a copy of it to pass to
      giuh.cxx, so allocating/copying here*/
   
@@ -76,7 +75,7 @@ Update()
   double mm_to_cm = 0.1; // unit conversion
 
   // local variables for readibility
-  int subcycles = state->lgar_bmi_params.forcing_interval;
+  int subcycles;
   int num_layers = state->lgar_bmi_params.num_layers;
 
   // local variables for a full timestep (i.e., timestep of the forcing data)
@@ -117,6 +116,7 @@ Update()
   double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
   double field_capacity_psi_cm = state->lgar_bmi_params.field_capacity_psi_cm;
   bool use_closed_form_G = state->lgar_bmi_params.use_closed_form_G; 
+  bool adaptive_timestep = state->lgar_bmi_params.adaptive_timestep;
 
   // constant value used in the AET function
   double AET_thresh_Theta = 0.85;    // scaled soil moisture (0-1) above which AET=PET (fix later!)
@@ -131,6 +131,32 @@ Update()
 
   assert (state->lgar_bmi_input_params->precipitation_mm_per_h >= 0.0);
   assert(state->lgar_bmi_input_params->PET_mm_per_h >=0.0);
+
+  // adaptive time step is set 
+  if (adaptive_timestep){
+    if ( (state->lgar_bmi_input_params->precipitation_mm_per_h > 0.0) || (state->lgar_mass_balance.volon_timestep_cm > 0.0) ){
+      if (state->lgar_bmi_input_params->precipitation_mm_per_h > 10.0 || (state->lgar_mass_balance.volon_timestep_cm > 0.0) ){
+        subtimestep_h = 1.0/12.0;//case where precip > 1 cm/h, or there is any ponded head from the last time step
+        state->lgar_bmi_params.timestep_h = 1.0/12.0;
+      }
+      else {
+        subtimestep_h = 1.0/6.0;//case where there is precip > 0, but it is less than 1 cm/h, and there is no ponded head from the last time step
+        state->lgar_bmi_params.timestep_h = 1.0/6.0;
+      }
+    }
+    else {//case where the precip = 0 and there is no ponded head from the last time step 
+      subtimestep_h = 1.0;
+      state->lgar_bmi_params.timestep_h = 1.0;
+    }
+  }
+
+
+  state->lgar_bmi_params.forcing_interval = int(state->lgar_bmi_params.forcing_resolution_h/state->lgar_bmi_params.timestep_h+1.0e-08); // add 1.0e-08 to prevent truncation error
+  subcycles = state->lgar_bmi_params.forcing_interval;
+
+  if (verbosity.compare("high") == 0) {//and adaptive time step is engaged? 
+    printf("time step size in hours: %lf \n", state->lgar_bmi_params.timestep_h);
+  }
   
   // subcycling loop (loop over model's timestep)
   for (int cycle=1; cycle <= subcycles; cycle++) {
@@ -360,7 +386,7 @@ Update()
     /*----------------------------------------------------------------------*/
     // compute giuh runoff for the subtimestep
     surface_runoff_subtimestep_cm = volrunoff_subtimestep_cm;
-    volrunoff_giuh_subtimestep_cm = giuh_convolution_integral(volrunoff_subtimestep_cm, num_giuh_ordinates, giuh_ordinates, giuh_runoff_queue);
+    volrunoff_giuh_subtimestep_cm = giuh_convolution_integral(adaptive_timestep, subtimestep_h, volrunoff_subtimestep_cm, num_giuh_ordinates, giuh_ordinates, giuh_runoff_queue);
 
     surface_runoff_timestep_cm += surface_runoff_subtimestep_cm ;
     volrunoff_giuh_timestep_cm += volrunoff_giuh_subtimestep_cm;
@@ -414,6 +440,15 @@ Update()
       break;
 
   } // end of subcycling
+
+  /*----------------------------------------------------------------------*/
+  // compute giuh runoff for the timestep
+  // volrunoff_giuh_timestep_cm = giuh_convolution_integral(volrunoff_timestep_cm, num_giuh_ordinates, giuh_ordinates, giuh_runoff_queue);
+
+  // // total mass of water leaving the system, at this time it is the giuh-only, but later will add groundwater component as well.
+
+  // volQ_timestep_cm += volrunoff_giuh_timestep_cm;
+
 
   /*----------------------------------------------------------------------*/
   // Everything related to lgar state is done at this point, now time to update some dynamic variables
