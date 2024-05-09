@@ -2503,7 +2503,7 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *so
 // ############################################################################################
 extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm, double new_mass,
 				      double prior_mass, double *AET_demand_cm, double *delta_theta, double *delta_thickness,
-				      int *soil_type, struct soil_properties_ *soil_properties)//TODO: remove head as an argument, was just used for debugging purposes
+				      int *soil_type, struct soil_properties_ *soil_properties)
 {
 
   double psi_cm_loc = psi_cm; // location psi
@@ -2599,7 +2599,8 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
     
     if (fabs(psi_cm_loc - psi_cm_loc_prev) < 1E-15 && factor < 1E-13) break;
 
-    if (fabs(delta_mass - delta_mass_prev) < 1e-15)
+    // another condition to avoid infinite loop when the error does not improve
+    if (fabs(delta_mass - delta_mass_prev) < 1E-15)
       count_no_mass_change++;
     else
       count_no_mass_change = 0;
