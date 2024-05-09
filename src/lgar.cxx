@@ -627,7 +627,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       factor = int(1.0/state->lgar_bmi_params.timestep_h);
     }
     else {
-      factor = int(12.0);
+      factor = 12;
     }
 
     state->lgar_bmi_params.num_giuh_ordinates = factor * (giuh_ordinates_temp.size() - 1);
@@ -1293,7 +1293,6 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 	if (wf_free_drainage_demand == wf)
 	  prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
   // theta mass balance computes new theta that conserves the mass; new theta is assigned to the current wetting front
-
 	double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass, AET_demand_cm,
 						   delta_thetas, delta_thickness, soil_type, soil_properties);
   actual_ET_demand = *AET_demand_cm;
@@ -2504,7 +2503,7 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *so
 // ############################################################################################
 extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm, double new_mass,
 				      double prior_mass, double *AET_demand_cm, double *delta_theta, double *delta_thickness,
-				      int *soil_type, struct soil_properties_ *soil_properties)
+				      int *soil_type, struct soil_properties_ *soil_properties)//TODO: remove head as an argument, was just used for debugging purposes
 {
 
   double psi_cm_loc = psi_cm; // location psi
@@ -2594,13 +2593,13 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 
     // stop the loop if the error between the current and previous psi is less than 10^-15
     // 1. enough accuracy, 2. the algorithm can't improve the error further,
-    // 3. avoid infinite loop, 4. handles a corner case when prior mass is tiny (e.g., <1.E-5)
+    // 3. avoid infinite loop, 4. handles case where theta is very close to theta_r and convergence might be possible but would be extremely slow
+    // 5. handles a corner case when prior mass is tiny (e.g., <1.E-5)
     // printf("A1 = %.20f, %.18f %.18f %.18f %.18f \n ",fabs(psi_cm_loc - psi_cm_loc_prev) , psi_cm_loc, psi_cm_loc_prev, factor, delta_mass);
     
     if (fabs(psi_cm_loc - psi_cm_loc_prev) < 1E-15 && factor < 1E-13) break;
 
-    // another condition to avoid infinite loop when the error does not improve
-    if (fabs(delta_mass - delta_mass_prev) < 1E-15)
+    if (fabs(delta_mass - delta_mass_prev) < 1e-15)
       count_no_mass_change++;
     else
       count_no_mass_change = 0;
@@ -2609,6 +2608,11 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
     if (count_no_mass_change == break_no_mass_change)
       break;
     
+    if (psi_cm_loc > 1e7){//there are rare cases where theta is very close to theta_r, and delta_mass - delta_mass_prev will change extremely slowly. Convergence might be possible but the model will take hours to converge rather than seconds. 
+    //an alternative solution was to change the threshold in if (fabs(delta_mass - delta_mass_prev) < 1e-15) to 1e-11, but that solution is somewhat slow. 
+      break;
+    }
+
     // -ve pressure will return NAN, so terminate the loop if previous psi is way small and current psi is zero
     // the wetting front is almost saturated
     if (psi_cm_loc <= 0 && psi_cm_loc_prev < 0) break;

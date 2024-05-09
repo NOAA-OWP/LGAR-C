@@ -136,11 +136,11 @@ Update()
   if (adaptive_timestep){
     if ( (state->lgar_bmi_input_params->precipitation_mm_per_h > 0.0) || (state->lgar_mass_balance.volon_timestep_cm > 0.0) ){
       if (state->lgar_bmi_input_params->precipitation_mm_per_h > 10.0 || (state->lgar_mass_balance.volon_timestep_cm > 0.0) ){
-        subtimestep_h = 1.0/12.0;//case where precip > 1 cm/h, or there is any ponded head from the last time step
+        subtimestep_h = 1.0/12.0;//case where precip > 1 cm/h, or there is ponded head from the last time step
         state->lgar_bmi_params.timestep_h = 1.0/12.0;
       }
       else {
-        subtimestep_h = 1.0/6.0;//case where there is precip > 0, but it is less than 1 cm/h, and there is no ponded head from the last time step
+        subtimestep_h = 1.0/6.0;//case where there is either nonzero precip or ponded head, but both are less than the threshold that requires the smallest internal time step 
         state->lgar_bmi_params.timestep_h = 1.0/6.0;
       }
     }
@@ -440,14 +440,6 @@ Update()
       break;
 
   } // end of subcycling
-
-  /*----------------------------------------------------------------------*/
-  // compute giuh runoff for the timestep
-  // volrunoff_giuh_timestep_cm = giuh_convolution_integral(volrunoff_timestep_cm, num_giuh_ordinates, giuh_ordinates, giuh_runoff_queue);
-
-  // // total mass of water leaving the system, at this time it is the giuh-only, but later will add groundwater component as well.
-
-  // volQ_timestep_cm += volrunoff_giuh_timestep_cm;
 
 
   /*----------------------------------------------------------------------*/
