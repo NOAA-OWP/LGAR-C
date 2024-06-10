@@ -622,22 +622,13 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
 
   if (is_giuh_ordinates_set) {
-    int factor;
-    if (!state->lgar_bmi_params.adaptive_timestep){
-      factor = int(1.0/state->lgar_bmi_params.timestep_h);
-    }
-    else {
-      factor = 12;
-    }
 
-    state->lgar_bmi_params.num_giuh_ordinates = factor * (giuh_ordinates_temp.size() - 1);
+    state->lgar_bmi_params.num_giuh_ordinates = (giuh_ordinates_temp.size() - 1);
     state->lgar_bmi_params.giuh_ordinates = new double[state->lgar_bmi_params.num_giuh_ordinates+1];
     
     for (int i=0; i<giuh_ordinates_temp.size()-1; i++) {
-      for (int j=0; j<factor; j++) {
-	int index = j + i * factor + 1;
-	state->lgar_bmi_params.giuh_ordinates[index] = giuh_ordinates_temp[i+1]/double(factor);
-      }
+      int index = i + 1;
+      state->lgar_bmi_params.giuh_ordinates[index] = giuh_ordinates_temp[i+1];
     }
     
     if (verbosity.compare("high") == 0) {

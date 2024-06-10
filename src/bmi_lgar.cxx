@@ -35,15 +35,17 @@ Initialize (std::string config_file)
 
   /* giuh ordinates are static and read in the lgar.cxx, and we need to have a copy of it to pass to
      giuh.cxx, so allocating/copying here*/
-  
+
   giuh_ordinates = new double[num_giuh_ordinates];
   giuh_runoff_queue = new double[num_giuh_ordinates+1];
 
-  for (int i=0; i<num_giuh_ordinates;i++)
+  for (int i=0; i<num_giuh_ordinates;i++){
     giuh_ordinates[i] = state->lgar_bmi_params.giuh_ordinates[i+1]; // note lgar uses 1-indexing
+  }
 
-  for (int i=0; i<=num_giuh_ordinates;i++)
+  for (int i=0; i<=num_giuh_ordinates;i++){
     giuh_runoff_queue[i] = 0.0;
+  }
 
 }
 
@@ -108,7 +110,6 @@ Update()
   double volrech_subtimestep_cm;
   double surface_runoff_subtimestep_cm; // direct surface runoff
   double precip_previous_subtimestep_cm;
-  double volrunoff_giuh_subtimestep_cm;
   double volQ_gw_subtimestep_cm = 0.0; // fix it for non-zero values after adding groundwater reservoir
   
   double subtimestep_h = state->lgar_bmi_params.timestep_h;
@@ -384,16 +385,9 @@ Update()
 
 
     /*----------------------------------------------------------------------*/
-    // compute giuh runoff for the subtimestep
+    // increment runoff for the subtimestep
     surface_runoff_subtimestep_cm = volrunoff_subtimestep_cm;
-    volrunoff_giuh_subtimestep_cm = giuh_convolution_integral(adaptive_timestep, subtimestep_h, volrunoff_subtimestep_cm, num_giuh_ordinates, giuh_ordinates, giuh_runoff_queue);
-
     surface_runoff_timestep_cm += surface_runoff_subtimestep_cm ;
-    volrunoff_giuh_timestep_cm += volrunoff_giuh_subtimestep_cm;
-
-    // total mass of water leaving the system, at this time it is the giuh-only, but later will add groundwater component as well.
-
-    volQ_timestep_cm += volrunoff_giuh_subtimestep_cm;
 
     // adding groundwater flux to stream channel (note: this will be updated/corrected after adding the groundwater reservoir)
     volQ_gw_timestep_cm += volQ_gw_subtimestep_cm;
@@ -441,6 +435,12 @@ Update()
 
   } // end of subcycling
 
+  //update giuh at the time step level (was previously updated at the sub time step level)
+  volrunoff_giuh_timestep_cm = giuh_convolution_integral(volrunoff_timestep_cm, num_giuh_ordinates, giuh_ordinates, giuh_runoff_queue);
+
+  // total mass of water leaving the system, at this time it is the giuh-only, but later will add groundwater component as well.
+  // when groundwater component is added, it should probably happen inside of the subcycling loop.
+  volQ_timestep_cm = volrunoff_giuh_timestep_cm;
 
   /*----------------------------------------------------------------------*/
   // Everything related to lgar state is done at this point, now time to update some dynamic variables
