@@ -149,7 +149,7 @@ Update()
   state->lgar_bmi_params.forcing_interval = int(state->lgar_bmi_params.forcing_resolution_h/state->lgar_bmi_params.timestep_h+1.0e-08); // add 1.0e-08 to prevent truncation error
   subcycles = state->lgar_bmi_params.forcing_interval;
 
-  if (verbosity.compare("high") == 0) {//and adaptive time step is engaged? 
+  if (verbosity.compare("high") == 0) {
     printf("time step size in hours: %lf \n", state->lgar_bmi_params.timestep_h);
   }
   
