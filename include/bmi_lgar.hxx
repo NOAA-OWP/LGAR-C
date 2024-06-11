@@ -27,7 +27,7 @@ class NotImplemented : public std::logic_error {
 
 }
 
-class BmiLGAR : public bmixx::Bmi {
+class BmiLGAR : public bmi::Bmi {
 public:
   BmiLGAR() {
     this->input_var_names[0] = "precipitation_rate";
