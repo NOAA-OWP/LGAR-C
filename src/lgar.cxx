@@ -400,10 +400,10 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       continue;
     }
     else if (param_key == "adaptive_timestep") { 
-      if (param_value == "false") {
+      if ((param_value == "false") || (param_value == "0")) {
         state->lgar_bmi_params.adaptive_timestep = false;
       }
-      else if (param_value == "true") {
+      else if ( (param_value == "true") || (param_value == "1")) {
         state->lgar_bmi_params.adaptive_timestep = true;
       }
       else {
@@ -425,6 +425,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       assert (state->lgar_bmi_params.timestep_h > 0);
       is_timestep_set = true;
+
+      state->lgar_bmi_params.minimum_timestep_h = state->lgar_bmi_params.timestep_h;
 
       if (verbosity.compare("high") == 0) {
 	std::cerr<<"Model timestep [hours,seconds]: "<<state->lgar_bmi_params.timestep_h<<" , "

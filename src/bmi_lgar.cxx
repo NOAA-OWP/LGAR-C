@@ -134,23 +134,19 @@ Update()
   assert(state->lgar_bmi_input_params->PET_mm_per_h >=0.0);
 
   // adaptive time step is set 
-  if (adaptive_timestep){
-    if ( (state->lgar_bmi_input_params->precipitation_mm_per_h > 0.0) || (state->lgar_mass_balance.volon_timestep_cm > 0.0) ){
-      if (state->lgar_bmi_input_params->precipitation_mm_per_h > 10.0 || (state->lgar_mass_balance.volon_timestep_cm > 0.0) ){
-        subtimestep_h = 1.0/12.0;//case where precip > 1 cm/h, or there is ponded head from the last time step
-        state->lgar_bmi_params.timestep_h = 1.0/12.0;
-      }
-      else {
-        subtimestep_h = 1.0/6.0;//case where there is either nonzero precip or ponded head, but both are less than the threshold that requires the smallest internal time step 
-        state->lgar_bmi_params.timestep_h = 1.0/6.0;
-      }
+  if (adaptive_timestep) {
+    subtimestep_h = state->lgar_bmi_params.forcing_resolution_h;
+    if (state->lgar_bmi_input_params->precipitation_mm_per_h > 10.0 || volon_timestep_cm > 0.0 ) {
+      subtimestep_h = state->lgar_bmi_params.minimum_timestep_h;  //case where precip > 1 cm/h, or there is ponded head from the last time step
     }
-    else {//case where the precip = 0 and there is no ponded head from the last time step 
-      subtimestep_h = 1.0;
-      state->lgar_bmi_params.timestep_h = 1.0;
+    else if (state->lgar_bmi_input_params->precipitation_mm_per_h > 0.0) {
+      subtimestep_h = state->lgar_bmi_params.minimum_timestep_h * 2.0;  //case where precip is less than 1 cm/h but greater than 0, and there is no ponded head 
     }
+    if (subtimestep_h>state->lgar_bmi_params.forcing_resolution_h){//just in case the user has specified a minimum time step that would make the subtimestep_h greater than the forcing resolution 
+      subtimestep_h = state->lgar_bmi_params.forcing_resolution_h;
+    }
+    state->lgar_bmi_params.timestep_h = subtimestep_h;
   }
-
 
   state->lgar_bmi_params.forcing_interval = int(state->lgar_bmi_params.forcing_resolution_h/state->lgar_bmi_params.timestep_h+1.0e-08); // add 1.0e-08 to prevent truncation error
   subcycles = state->lgar_bmi_params.forcing_interval;
