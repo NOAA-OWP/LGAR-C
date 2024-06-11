@@ -142,9 +142,7 @@ Update()
     else if (state->lgar_bmi_input_params->precipitation_mm_per_h > 0.0) {
       subtimestep_h = state->lgar_bmi_params.minimum_timestep_h * 2.0;  //case where precip is less than 1 cm/h but greater than 0, and there is no ponded head 
     }
-    if (subtimestep_h>state->lgar_bmi_params.forcing_resolution_h){//just in case the user has specified a minimum time step that would make the subtimestep_h greater than the forcing resolution 
-      subtimestep_h = state->lgar_bmi_params.forcing_resolution_h;
-    }
+    subtimestep_h = fmin(subtimestep_h, state->lgar_bmi_params.forcing_resolution_h);  //just in case the user has specified a minimum time step that would make the subtimestep_h greater than the forcing resolution 
     state->lgar_bmi_params.timestep_h = subtimestep_h;
   }
 

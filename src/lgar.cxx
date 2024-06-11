@@ -623,25 +623,47 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   }
 
 
-  if (is_giuh_ordinates_set) {
+  // if (is_giuh_ordinates_set) {
 
-    state->lgar_bmi_params.num_giuh_ordinates = (giuh_ordinates_temp.size() - 1);
+  //   state->lgar_bmi_params.num_giuh_ordinates = (giuh_ordinates_temp.size() - 1);
+  //   state->lgar_bmi_params.giuh_ordinates = new double[state->lgar_bmi_params.num_giuh_ordinates+1];
+    
+  //   for (int i=0; i<giuh_ordinates_temp.size()-1; i++) {
+  //     int index = i + 1;
+  //     state->lgar_bmi_params.giuh_ordinates[index] = giuh_ordinates_temp[i+1];
+  //   }
+    
+  //   if (verbosity.compare("high") == 0) {
+  //     for (int i=1; i<=state->lgar_bmi_params.num_giuh_ordinates; i++)
+	// std::cerr<<"GIUH ordinates (scaled) : "<<state->lgar_bmi_params.giuh_ordinates[i]<<"\n";
+      
+  //     std::cerr<<"          *****         \n";
+  //   }
+    
+  //   giuh_ordinates_temp.clear();
+  // }
+  if (is_giuh_ordinates_set) {
+    int factor = int(1.0/state->lgar_bmi_params.forcing_resolution_h);
+
+    state->lgar_bmi_params.num_giuh_ordinates = factor * (giuh_ordinates_temp.size() - 1);
     state->lgar_bmi_params.giuh_ordinates = new double[state->lgar_bmi_params.num_giuh_ordinates+1];
     
     for (int i=0; i<giuh_ordinates_temp.size()-1; i++) {
-      int index = i + 1;
-      state->lgar_bmi_params.giuh_ordinates[index] = giuh_ordinates_temp[i+1];
+      for (int j=0; j<factor; j++) {
+        int index = j + i * factor + 1;
+        state->lgar_bmi_params.giuh_ordinates[index] = giuh_ordinates_temp[i+1]/double(factor);
+      }
     }
     
     if (verbosity.compare("high") == 0) {
       for (int i=1; i<=state->lgar_bmi_params.num_giuh_ordinates; i++)
-	std::cerr<<"GIUH ordinates (scaled) : "<<state->lgar_bmi_params.giuh_ordinates[i]<<"\n";
+	      std::cerr<<"GIUH ordinates (scaled) : "<<state->lgar_bmi_params.giuh_ordinates[i]<<"\n";
       
       std::cerr<<"          *****         \n";
     }
-    
     giuh_ordinates_temp.clear();
   }
+
   else if (!is_giuh_ordinates_set) {
     stringstream errMsg;
     errMsg << "The configuration file \'" << config_file <<"\' does not set giuh_ordinates. \n";
