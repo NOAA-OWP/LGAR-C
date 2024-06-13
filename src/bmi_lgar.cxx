@@ -17,6 +17,14 @@
 // default verbosity is set to 'none' other option 'high' or 'low' needs to be specified in the config file
 string verbosity="none";
 
+/**
+ * @brief Delete dynamic arrays allocated in Initialize() and held by this object
+ * 
+ */
+BmiLGAR::~BmiLGAR(){
+  if( giuh_ordinates != nullptr ) delete [] giuh_ordinates;
+  if( giuh_runoff_queue != nullptr ) delete [] giuh_runoff_queue;
+}
 
 /* The `head` pointer stores the address in memory of the first member of the linked list containing
    all the wetting fronts. The contents of struct wetting_front are defined in "all.h" */
