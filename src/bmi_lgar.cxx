@@ -610,6 +610,30 @@ void BmiLGAR::
 Finalize()
 {
   global_mass_balance();
+  if( state->head != NULL ) listDelete(state->head);
+  if( state->state_previous != NULL ) listDelete(state->state_previous);
+
+  if( state->soil_properties != nullptr ) delete [] state->soil_properties;
+
+  if( state->lgar_bmi_params.soil_depth_wetting_fronts != nullptr ) delete [] state->lgar_bmi_params.soil_depth_wetting_fronts;
+  if( state->lgar_bmi_params.soil_moisture_wetting_fronts != nullptr) delete [] state->lgar_bmi_params.soil_moisture_wetting_fronts;
+
+  if( state->lgar_bmi_params.soil_temperature != nullptr ) delete [] state->lgar_bmi_params.soil_temperature;
+  if( state->lgar_bmi_params.soil_temperature_z != nullptr)  delete [] state->lgar_bmi_params.soil_temperature_z;
+  if( state->lgar_bmi_params.layer_soil_type != nullptr ) delete [] state->lgar_bmi_params.layer_soil_type;
+
+  if( state->lgar_calib_params.theta_e != nullptr ) delete [] state->lgar_calib_params.theta_e;
+  if( state->lgar_calib_params.theta_r != nullptr ) delete [] state->lgar_calib_params.theta_r;
+  if( state->lgar_calib_params.vg_n != nullptr ) delete [] state->lgar_calib_params.vg_n;
+  if( state->lgar_calib_params.vg_alpha != nullptr ) delete [] state->lgar_calib_params.vg_alpha;
+  if( state->lgar_calib_params.Ksat != nullptr ) delete [] state->lgar_calib_params.Ksat;
+
+  if( state->lgar_bmi_params.layer_thickness_cm != nullptr ) delete [] state->lgar_bmi_params.layer_thickness_cm;
+  if( state->lgar_bmi_params.cum_layer_thickness_cm != nullptr ) delete [] state->lgar_bmi_params.cum_layer_thickness_cm;
+  if( state->lgar_bmi_params.giuh_ordinates != nullptr ) delete [] state->lgar_bmi_params.giuh_ordinates;
+  if( state->lgar_bmi_params.frozen_factor != nullptr ) delete [] state->lgar_bmi_params.frozen_factor;
+  if( state->lgar_bmi_input_params != nullptr ) delete state->lgar_bmi_input_params;
+  if( state != nullptr ) delete state;
 }
 
 
