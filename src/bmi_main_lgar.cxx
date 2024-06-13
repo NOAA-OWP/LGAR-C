@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
 
   // do final mass balance
   model_state.global_mass_balance();
-
+  model_state.Finalize();
   if (outdata_fptr) {
     fclose(outdata_fptr);
     fclose(outlayer_fptr);
