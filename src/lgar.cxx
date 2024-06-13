@@ -643,6 +643,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     }
   }
   else {
+    //NJF FIXME these arrays should be allocated based on num_cells_temp...
     state->lgar_bmi_params.soil_temperature   = new double[1]();
     state->lgar_bmi_params.soil_temperature_z = new double[1]();
     state->lgar_bmi_params.num_cells_temp     = 1;
@@ -1117,6 +1118,8 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 	double theta_below = 0.0;
 
 	new_mass += layer_thickness * (theta - theta_below);
+  //NJF theta_below is always 0, so all delta_thetas are always 0...
+  //does this really need a dynamic array in this case???
 	delta_thetas[k] = theta_below;
 	delta_thickness[k] = layer_thickness;
       }
