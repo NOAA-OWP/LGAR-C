@@ -30,7 +30,7 @@ class NotImplemented : public std::logic_error {
 class BmiLGAR : public bmi::Bmi {
 public:
   ~BmiLGAR();
-  BmiLGAR() {
+  BmiLGAR():giuh_ordinates(nullptr), giuh_runoff_queue(nullptr) {
     this->input_var_names[0] = "precipitation_rate";
     this->input_var_names[1] = "potential_evapotranspiration_rate";
     this->input_var_names[2] = "soil_temperature_profile";
