@@ -239,7 +239,7 @@ extern void                     listReverseOrder(struct wetting_front** head_ref
 extern bool                     listFindLayer(struct wetting_front* link, int num_layers, double *cum_layer_thickness_cm,
 					      int *lives_in_layer, bool *extends_to_bottom_flag);
 extern struct wetting_front*    listCopy(struct wetting_front* current, struct wetting_front* state_previous=NULL);
-
+extern void listDelete(struct wetting_front* head);
 
 
 

@@ -26,6 +26,20 @@
 //___________________________________________________________
 
 
+/*###########################################################*/
+/* listDelete() - deletes memory allocated to a linked list  */
+/* This function must be called on any list to deallocate    */
+/* the dynamic memory used in creating and manipultating the */
+/* list. (added by NJF)                                                     */
+/*###########################################################*/
+extern void listDelete(struct wetting_front* head)
+{
+  if( head != NULL ){
+    struct wetting_front *next = head->next;
+    free( head );
+    listDelete(next);
+  }
+}
 
 /*#########################################################*/
 /* listPrint() - prints a linked list to screen             */
