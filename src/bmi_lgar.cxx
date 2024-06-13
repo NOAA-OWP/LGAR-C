@@ -164,7 +164,10 @@ Update()
       std::cerr<<"BMI Update |Timesteps = "<< state->lgar_bmi_params.timesteps<<", Time [h] = "<<this->state->lgar_bmi_params.time_s / 3600.<<", Subcycle = "<< cycle <<" of "<<subcycles<<std::endl;
     }
 
-    state->state_previous = NULL;
+    if( state->state_previous != NULL ){
+      listDelete(state->state_previous);
+      state->state_previous = NULL;
+    }
     state->state_previous = listCopy(state->head);
 
     // ensure precip and PET are non-negative
@@ -291,7 +294,10 @@ Update()
         listPrint(state->head);
       }
 
-      state->state_previous = NULL;
+      if(state->state_previous != NULL ){
+        listDelete(state->state_previous);
+        state->state_previous = NULL;
+      }
       state->state_previous = listCopy(state->head);
 
       volin_timestep_cm += volin_subtimestep_cm;
