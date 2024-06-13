@@ -56,6 +56,20 @@ Initialize (std::string config_file)
 
 }
 
+/**
+ * @brief Allocate (or reallocate) storage for soil parameters
+ * 
+ */
+void BmiLGAR::realloc_soil(){
+  if(state->lgar_bmi_params.soil_depth_wetting_fronts != nullptr)
+    delete [] state->lgar_bmi_params.soil_depth_wetting_fronts;
+  if(state->lgar_bmi_params.soil_moisture_wetting_fronts != nullptr)
+    delete [] state->lgar_bmi_params.soil_moisture_wetting_fronts;
+
+  state->lgar_bmi_params.soil_depth_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
+  state->lgar_bmi_params.soil_moisture_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
+}
+
 /*
   This is the main function calling lgar subroutines for creating, moving, and merging wetting fronts.
   Calls to AET and mass balance module are also happening here
@@ -436,8 +450,7 @@ Update()
   state->lgar_bmi_params.num_wetting_fronts = listLength(state->head);
 
   // allocate new memory based on updated wetting fronts; we could make it conditional i.e. create only if no. of wf are changed
-  state->lgar_bmi_params.soil_depth_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
-  state->lgar_bmi_params.soil_moisture_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
+  realloc_soil();
 
   // update thickness/depth and soil moisture of wetting fronts (used for state coupling)
   struct wetting_front *current = state->head;

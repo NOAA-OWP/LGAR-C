@@ -132,6 +132,7 @@ public:
   struct model_state* get_model();
   
 private:
+  void realloc_soil();
   struct model_state* state;
   static const int input_var_name_count  = 3;
   static const int output_var_name_count = 15;
