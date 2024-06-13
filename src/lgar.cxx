@@ -1134,7 +1134,9 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
       double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass, AET_demand_cm,
 						 delta_thetas, delta_thickness, soil_type, soil_properties);
       actual_ET_demand = *AET_demand_cm;
-      
+      //done with delta_thetas and delta_thickness, cleanup memory
+      delete delta_thetas;
+      delete delta_thickness;
       current->theta = fmax(theta_r, fmin(theta_new, theta_e));
 
       double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
