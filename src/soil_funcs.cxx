@@ -154,7 +154,7 @@ double calc_theta_from_h(double h,double alpha, double m, double n, double theta
 /***********************************/
 double calc_Se_from_h(double h,double alpha, double m, double n)
 {
-  if(is_epsilon_less_than(h,1.0e-01)) return 1.0;  // this function doesn't work well ffor tiny h
+  if(is_epsilon_less_than(h,1.0e-10)) return 1.0;  // this function doesn't work well ffor tiny h
   else return(1.0/(pow(1.0+pow(alpha*h,n),m)));
 }
 

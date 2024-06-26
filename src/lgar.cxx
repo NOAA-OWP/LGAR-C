@@ -213,6 +213,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   // setting these options to false (defualt) 
   state->lgar_bmi_params.sft_coupled       = false;
   state->lgar_bmi_params.use_closed_form_G = false;
+  state->lgar_bmi_params.adaptive_timestep = false;
   
   bool is_layer_thickness_set       = false;
   bool is_initial_psi_set           = false;
@@ -398,6 +399,20 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       continue;
     }
+    else if (param_key == "adaptive_timestep") { 
+      if ((param_value == "false") || (param_value == "0")) {
+        state->lgar_bmi_params.adaptive_timestep = false;
+      }
+      else if ( (param_value == "true") || (param_value == "1")) {
+        state->lgar_bmi_params.adaptive_timestep = true;
+      }
+      else {
+	std::cerr<<"Invalid option: adaptive_timestep must be true or false. \n";
+        abort();
+      }
+
+      continue;
+    }
     else if (param_key == "timestep") {
       state->lgar_bmi_params.timestep_h = stod(param_value);
 
@@ -410,6 +425,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       assert (state->lgar_bmi_params.timestep_h > 0);
       is_timestep_set = true;
+
+      state->lgar_bmi_params.minimum_timestep_h = state->lgar_bmi_params.timestep_h;
 
       if (verbosity.compare("high") == 0) {
 	std::cerr<<"Model timestep [hours,seconds]: "<<state->lgar_bmi_params.timestep_h<<" , "
@@ -605,29 +622,28 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     throw runtime_error(errMsg.str());
   }
 
-
   if (is_giuh_ordinates_set) {
-    int factor = int(1.0/state->lgar_bmi_params.timestep_h);
+    int factor = int(1.0/state->lgar_bmi_params.forcing_resolution_h);
 
     state->lgar_bmi_params.num_giuh_ordinates = factor * (giuh_ordinates_temp.size() - 1);
     state->lgar_bmi_params.giuh_ordinates = new double[state->lgar_bmi_params.num_giuh_ordinates+1];
     
     for (int i=0; i<giuh_ordinates_temp.size()-1; i++) {
       for (int j=0; j<factor; j++) {
-	int index = j + i * factor + 1;
-	state->lgar_bmi_params.giuh_ordinates[index] = giuh_ordinates_temp[i+1]/double(factor);
+        int index = j + i * factor + 1;
+        state->lgar_bmi_params.giuh_ordinates[index] = giuh_ordinates_temp[i+1]/double(factor);
       }
     }
     
     if (verbosity.compare("high") == 0) {
       for (int i=1; i<=state->lgar_bmi_params.num_giuh_ordinates; i++)
-	std::cerr<<"GIUH ordinates (scaled) : "<<state->lgar_bmi_params.giuh_ordinates[i]<<"\n";
+	      std::cerr<<"GIUH ordinates (scaled) : "<<state->lgar_bmi_params.giuh_ordinates[i]<<"\n";
       
       std::cerr<<"          *****         \n";
     }
-    
     giuh_ordinates_temp.clear();
   }
+
   else if (!is_giuh_ordinates_set) {
     stringstream errMsg;
     errMsg << "The configuration file \'" << config_file <<"\' does not set giuh_ordinates. \n";
@@ -1272,7 +1288,6 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 	if (wf_free_drainage_demand == wf)
 	  prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
   // theta mass balance computes new theta that conserves the mass; new theta is assigned to the current wetting front
-
 	double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass, AET_demand_cm,
 						   delta_thetas, delta_thickness, soil_type, soil_properties);
   actual_ET_demand = *AET_demand_cm;
@@ -2573,7 +2588,8 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 
     // stop the loop if the error between the current and previous psi is less than 10^-15
     // 1. enough accuracy, 2. the algorithm can't improve the error further,
-    // 3. avoid infinite loop, 4. handles a corner case when prior mass is tiny (e.g., <1.E-5)
+    // 3. avoid infinite loop, 4. handles case where theta is very close to theta_r and convergence might be possible but would be extremely slow
+    // 5. handles a corner case when prior mass is tiny (e.g., <1.E-5)
     // printf("A1 = %.20f, %.18f %.18f %.18f %.18f \n ",fabs(psi_cm_loc - psi_cm_loc_prev) , psi_cm_loc, psi_cm_loc_prev, factor, delta_mass);
     
     if (fabs(psi_cm_loc - psi_cm_loc_prev) < 1E-15 && factor < 1E-13) break;
@@ -2588,6 +2604,11 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
     if (count_no_mass_change == break_no_mass_change)
       break;
     
+    if (psi_cm_loc > 1e7){//there are rare cases where theta is very close to theta_r, and delta_mass - delta_mass_prev will change extremely slowly. Convergence might be possible but the model will take hours to converge rather than seconds. 
+    //an alternative solution was to change the threshold in if (fabs(delta_mass - delta_mass_prev) < 1e-15) to 1e-11, but that solution is somewhat slow. 
+      break;
+    }
+
     // -ve pressure will return NAN, so terminate the loop if previous psi is way small and current psi is zero
     // the wetting front is almost saturated
     if (psi_cm_loc <= 0 && psi_cm_loc_prev < 0) break;
