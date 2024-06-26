@@ -17,6 +17,14 @@
 // default verbosity is set to 'none' other option 'high' or 'low' needs to be specified in the config file
 string verbosity="none";
 
+/**
+ * @brief Delete dynamic arrays allocated in Initialize() and held by this object
+ * 
+ */
+BmiLGAR::~BmiLGAR(){
+  if( giuh_ordinates != nullptr ) delete [] giuh_ordinates;
+  if( giuh_runoff_queue != nullptr ) delete [] giuh_runoff_queue;
+}
 
 /* The `head` pointer stores the address in memory of the first member of the linked list containing
    all the wetting fronts. The contents of struct wetting_front are defined in "all.h" */
@@ -47,6 +55,20 @@ Initialize (std::string config_file)
     giuh_runoff_queue[i] = 0.0;
   }
 
+}
+
+/**
+ * @brief Allocate (or reallocate) storage for soil parameters
+ * 
+ */
+void BmiLGAR::realloc_soil(){
+  if(state->lgar_bmi_params.soil_depth_wetting_fronts != nullptr)
+    delete [] state->lgar_bmi_params.soil_depth_wetting_fronts;
+  if(state->lgar_bmi_params.soil_moisture_wetting_fronts != nullptr)
+    delete [] state->lgar_bmi_params.soil_moisture_wetting_fronts;
+
+  state->lgar_bmi_params.soil_depth_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
+  state->lgar_bmi_params.soil_moisture_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
 }
 
 /*
@@ -164,7 +186,10 @@ Update()
       std::cerr<<"BMI Update |Timesteps = "<< state->lgar_bmi_params.timesteps<<", Time [h] = "<<this->state->lgar_bmi_params.time_s / 3600.<<", Subcycle = "<< cycle <<" of "<<subcycles<<std::endl;
     }
 
-    state->state_previous = NULL;
+    if( state->state_previous != NULL ){
+      listDelete(state->state_previous);
+      state->state_previous = NULL;
+    }
     state->state_previous = listCopy(state->head);
 
     // ensure precip and PET are non-negative
@@ -291,7 +316,10 @@ Update()
         listPrint(state->head);
       }
 
-      state->state_previous = NULL;
+      if(state->state_previous != NULL ){
+        listDelete(state->state_previous);
+        state->state_previous = NULL;
+      }
       state->state_previous = listCopy(state->head);
 
       volin_timestep_cm += volin_subtimestep_cm;
@@ -443,8 +471,7 @@ Update()
   state->lgar_bmi_params.num_wetting_fronts = listLength(state->head);
 
   // allocate new memory based on updated wetting fronts; we could make it conditional i.e. create only if no. of wf are changed
-  state->lgar_bmi_params.soil_depth_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
-  state->lgar_bmi_params.soil_moisture_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
+  realloc_soil();
 
   // update thickness/depth and soil moisture of wetting fronts (used for state coupling)
   struct wetting_front *current = state->head;
@@ -604,6 +631,30 @@ void BmiLGAR::
 Finalize()
 {
   global_mass_balance();
+  if( state->head != NULL ) listDelete(state->head);
+  if( state->state_previous != NULL ) listDelete(state->state_previous);
+
+  if( state->soil_properties != nullptr ) delete [] state->soil_properties;
+
+  if( state->lgar_bmi_params.soil_depth_wetting_fronts != nullptr ) delete [] state->lgar_bmi_params.soil_depth_wetting_fronts;
+  if( state->lgar_bmi_params.soil_moisture_wetting_fronts != nullptr) delete [] state->lgar_bmi_params.soil_moisture_wetting_fronts;
+
+  if( state->lgar_bmi_params.soil_temperature != nullptr ) delete [] state->lgar_bmi_params.soil_temperature;
+  if( state->lgar_bmi_params.soil_temperature_z != nullptr)  delete [] state->lgar_bmi_params.soil_temperature_z;
+  if( state->lgar_bmi_params.layer_soil_type != nullptr ) delete [] state->lgar_bmi_params.layer_soil_type;
+
+  if( state->lgar_calib_params.theta_e != nullptr ) delete [] state->lgar_calib_params.theta_e;
+  if( state->lgar_calib_params.theta_r != nullptr ) delete [] state->lgar_calib_params.theta_r;
+  if( state->lgar_calib_params.vg_n != nullptr ) delete [] state->lgar_calib_params.vg_n;
+  if( state->lgar_calib_params.vg_alpha != nullptr ) delete [] state->lgar_calib_params.vg_alpha;
+  if( state->lgar_calib_params.Ksat != nullptr ) delete [] state->lgar_calib_params.Ksat;
+
+  if( state->lgar_bmi_params.layer_thickness_cm != nullptr ) delete [] state->lgar_bmi_params.layer_thickness_cm;
+  if( state->lgar_bmi_params.cum_layer_thickness_cm != nullptr ) delete [] state->lgar_bmi_params.cum_layer_thickness_cm;
+  if( state->lgar_bmi_params.giuh_ordinates != nullptr ) delete [] state->lgar_bmi_params.giuh_ordinates;
+  if( state->lgar_bmi_params.frozen_factor != nullptr ) delete [] state->lgar_bmi_params.frozen_factor;
+  if( state->lgar_bmi_input_params != nullptr ) delete state->lgar_bmi_input_params;
+  if( state != nullptr ) delete state;
 }
 
 

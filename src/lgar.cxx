@@ -659,6 +659,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     }
   }
   else {
+    //NJF FIXME these arrays should be allocated based on num_cells_temp...
     state->lgar_bmi_params.soil_temperature   = new double[1]();
     state->lgar_bmi_params.soil_temperature_z = new double[1]();
     state->lgar_bmi_params.num_cells_temp     = 1;
@@ -1133,6 +1134,8 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 	double theta_below = 0.0;
 
 	new_mass += layer_thickness * (theta - theta_below);
+  //NJF theta_below is always 0, so all delta_thetas are always 0...
+  //does this really need a dynamic array in this case???
 	delta_thetas[k] = theta_below;
 	delta_thickness[k] = layer_thickness;
       }
@@ -1150,7 +1153,9 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
       double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass, AET_demand_cm,
 						 delta_thetas, delta_thickness, soil_type, soil_properties);
       actual_ET_demand = *AET_demand_cm;
-      
+      //done with delta_thetas and delta_thickness, cleanup memory
+      free(delta_thetas);
+      free(delta_thickness);
       current->theta = fmax(theta_r, fmin(theta_new, theta_e));
 
       double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
@@ -1291,7 +1296,9 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 	double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass, AET_demand_cm,
 						   delta_thetas, delta_thickness, soil_type, soil_properties);
   actual_ET_demand = *AET_demand_cm;
-
+  //done with delta_thetas and delta_thickness, cleanup memory
+  free(delta_thetas);
+  free(delta_thickness);
 	current->theta = fmax(theta_r, fmin(theta_new, theta_e));
 
       }
