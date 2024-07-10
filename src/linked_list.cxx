@@ -34,10 +34,10 @@
 /*###########################################################*/
 extern void listDelete(struct wetting_front* head)
 {
-  if( head != NULL ){
+  while (head != NULL) {
     struct wetting_front *next = head->next;
     free( head );
-    listDelete(next);
+    head = next;
   }
 }
 
