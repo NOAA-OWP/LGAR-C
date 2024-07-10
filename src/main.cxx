@@ -435,8 +435,7 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
       printf(" ************ time step %d ******** \n",time_step_num);
     }
     
-    if( state_previous != NULL ) listDelete(state_previous);
-    state_previous = NULL;
+    listDelete(state_previous);
     state_previous = listCopy(head);
     
     if(debug_flag) {
