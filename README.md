@@ -1,3 +1,4 @@
+# LGARTO is currently still undergoing stability testing and is not ready for merging with main
 # Lumped Arid/Semi-arid Model (LASAM) for infiltration and surface runoff
 The LASAM simulates infiltration and runoff based on Layered Green & Ampt with redistribution (LGAR) model. LGAR is a model which partitions precipitation into infiltration and runoff, and is designed for use in arid or semi-arid climates. LGAR closely mimics precipitation partitioning results simulated by the famous Richards/Richardson equation (RRE), without the inherent reliability and stability challenges the RRE poses. Therefore, this model is useful when accurate, stable precipitation partitioning simulations are desired in arid or semi-arid areas. LGAR in Python (no longer supported) is available [here](https://github.com/NOAA-OWP/LGAR-Py).
 
