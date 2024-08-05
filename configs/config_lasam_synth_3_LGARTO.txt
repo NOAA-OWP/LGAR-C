@@ -1,0 +1,17 @@
+verbosity=high
+forcing_file=./forcing/forcing_data_synth_3_LGARTO.txt
+soil_params_file=./data/vG_default_params_HYDRUS.dat
+layer_thickness=10.0,45.0,45.0[cm]
+initial_psi=100.0[cm]
+timestep=300[sec]
+endtime=72[hr]
+forcing_resolution=300[sec]
+layer_soil_type=6,8,10
+max_soil_types=25
+wilting_point_psi=15495.0[cm]
+field_capacity_psi=340.9[cm]
+root_zone_depth=50.0[cm]
+giuh_ordinates=0.0,0.0,0.0,0.0,0.0
+adaptive_timestep=false
+TO_enabled=true
+

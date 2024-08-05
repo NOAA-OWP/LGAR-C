@@ -1,11 +1,11 @@
 #include "../include/all.hxx"
 
 //#####################################################################################
-/* authors : Fred Ogden and Ahmad Jan
+/* authors : Fred Ogden and Ahmad Jan and Peter La Follette
    year    : 2022
    email   : ahmad.jan@noaa.gov
    - The file constains linked list functionality for the wetting front
-   - Originally written by Fred Ogden (most of it), and modified/extended by Ahmad Jan */
+   - Originally written by Fred Ogden (most of it), and modified/extended by Ahmad Jan and Peter La Follette*/
 //#####################################################################################
 
 /*#########################################################*/
@@ -38,11 +38,11 @@ extern void listPrint(struct wetting_front* head)
   //start from the beginning
   while(current != NULL) {
     if (current->next == NULL)
-      printf("(%lf,%6.14f,%d,%d,%d, %e, %lf %6.14f) ] \n",current->depth_cm, current->theta, current->layer_num,
-	     current->front_num, current->to_bottom, current->dzdt_cm_per_h, current->K_cm_per_h, current->psi_cm);
+      printf("(%lf,%6.14f,%d,%d,%d, %e, %lf, %6.14f, %d) ] \n",current->depth_cm, current->theta, current->layer_num,
+	     current->front_num, current->to_bottom, current->dzdt_cm_per_h, current->K_cm_per_h, current->psi_cm, current->is_WF_GW);
     else
-      printf("(%lf,%6.14f,%d,%d,%d, %e, %lf %6.14f)\n",current->depth_cm, current->theta, current->layer_num,
-	     current->front_num, current->to_bottom, current->dzdt_cm_per_h, current->K_cm_per_h, current->psi_cm);
+      printf("(%lf,%6.14f,%d,%d,%d, %e, %lf, %6.14f, %d)\n",current->depth_cm, current->theta, current->layer_num,
+	     current->front_num, current->to_bottom, current->dzdt_cm_per_h, current->K_cm_per_h, current->psi_cm, current->is_WF_GW);
     current = current->next;
   }
 
@@ -68,6 +68,7 @@ extern struct wetting_front* listCopy(struct wetting_front* current, struct wett
     wf->front_num = current->front_num;
     wf->to_bottom = current->to_bottom;
     wf->dzdt_cm_per_h = current->dzdt_cm_per_h;
+    wf->is_WF_GW = current->is_WF_GW;
     wf->next = listCopy(current->next, NULL);
 
     if (state_previous == NULL)
@@ -80,7 +81,7 @@ extern struct wetting_front* listCopy(struct wetting_front* current, struct wett
 /*#######################################################*/
 /* listInsertFirst - adds a list entry to start of list  */
 /*#######################################################*/
-extern void listInsertFirst(double depth, double theta, int front_num, int layer_num, bool bottom_flag, struct wetting_front** head)
+extern void listInsertFirst(double depth, double theta, int front_num, int layer_num, bool bottom_flag, struct wetting_front** head, bool is_WF_GW)
 {
 
   //create a link
@@ -92,6 +93,7 @@ extern void listInsertFirst(double depth, double theta, int front_num, int layer
   link->layer_num = layer_num;
   link->to_bottom = bottom_flag;
   link->dzdt_cm_per_h = (double)0.0;
+  link->is_WF_GW = is_WF_GW; 
   
   //point it to old first wetting_front
   link->next = *head;
@@ -149,6 +151,72 @@ int listLength(struct wetting_front* head)
     listLength++;
   }
 
+  return listLength;
+}
+
+/*#######################################################*/
+/* listLength_surface - counts how many surface WFs are in the list    */
+/*#######################################################*/
+int listLength_surface(struct wetting_front* head)
+{
+  int listLength = 0;
+  struct wetting_front *current;
+
+  for(current = head; current != NULL; current = current->next) {
+    if (!(current->is_WF_GW)){
+      listLength++;
+      }
+  }
+  return listLength;
+}
+
+/*#######################################################*/
+/* listLength_TO_WFs_above_surface_WFs - counts how many TO WFs are above surface WFs    */
+/*#######################################################*/
+int listLength_TO_WFs_above_surface_WFs(struct wetting_front* head)
+{
+  int listLength = 0;
+  struct wetting_front *current;
+
+  if (listLength_surface(head)==0){
+    listLength = 0;
+  }
+  else{
+    for(current = head; current != NULL; current = current->next) {
+      if (current->is_WF_GW){
+        listLength++;
+        }
+      else{
+        break;
+      }
+    }
+  }
+  return listLength;
+}
+
+int listLength_TO_WFs_in_rz(double rzd, struct wetting_front* head)
+{
+  int listLength = 0;
+  struct wetting_front *current;
+
+  for(current = head; current != NULL; current = current->next) {
+    if ( (current->is_WF_GW) && (current->to_bottom==0) && (current->depth_cm<rzd) ){
+      listLength++;
+      }
+  }
+  return listLength;
+}
+
+int listLength_TO_WFs_in_rz_nonzero_depth(double rzd, struct wetting_front* head)
+{
+  int listLength = 0;
+  struct wetting_front *current;
+
+  for(current = head; current != NULL; current = current->next) {
+    if ( (current->is_WF_GW) && (current->to_bottom==0) && (current->depth_cm!=0.0) && (current->depth_cm<rzd) ){
+      listLength++;
+      }
+  }
   return listLength;
 }
 
@@ -258,7 +326,7 @@ extern struct wetting_front* listDeleteFront(int front_num, struct wetting_front
 /* new front number by 1.                                             */
 /*####################################################################*/
 extern struct wetting_front* listInsertFront(double depth, double theta, int new_front_num,
-                                             int layer_num, bool bottom_flag, struct wetting_front** head)
+                                             int layer_num, bool bottom_flag, struct wetting_front** head, bool is_WF_GW)
 {
   //start from the first link
   struct wetting_front* current = NULL;
@@ -276,6 +344,7 @@ extern struct wetting_front* listInsertFront(double depth, double theta, int new
       link->layer_num = layer_num;
       link->to_bottom = bottom_flag;
       link->dzdt_cm_per_h = (double)(0.0);
+      link->is_WF_GW = is_WF_GW;
       link->next = NULL;
       *head=link;
       return link;
@@ -298,14 +367,20 @@ extern struct wetting_front* listInsertFront(double depth, double theta, int new
       link->layer_num = layer_num;
       link->to_bottom = bottom_flag;
       link->dzdt_cm_per_h = (double)(0.0);
+      link->is_WF_GW = is_WF_GW;
       link->next = previous->next ;
       previous->next = link;
 
-      while(link->next != NULL) { // increment all front numbers
-	current = link->next;
-	current->front_num++;
-	previous = current;
-	current = current->next;
+  //     while(link->next != NULL) { // increment all front numbers
+	// current = link->next;
+	// current->front_num++;
+	// previous = current;
+	// current = current->next;
+  //     }
+      current = *head;
+      for (int wf = 1; wf != (listLength(*head)+1); wf++){
+        current->front_num = wf;
+        current = current->next;
       }
 
       return link;
@@ -323,7 +398,7 @@ extern struct wetting_front* listInsertFront(double depth, double theta, int new
 /* determine if the new front is at the bottom of the layer                   */
 /*############################################################################*/
 extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_layer_thickness,
-                                                    double depth, double theta, struct wetting_front* head)
+                                                    double depth, double theta, struct wetting_front* head, bool is_WF_GW)//this fxn has not been completely updated to work with LGARTO but is no longer used in LGAR.cxx
 {
   int el_layer=0;
   bool extends_to_bottom_flag = FALSE;
@@ -353,6 +428,7 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
     link->layer_num = el_layer;
     link->to_bottom = extends_to_bottom_flag;
     link->dzdt_cm_per_h = (double)(-1.0);
+    link->is_WF_GW = is_WF_GW;
     link->next = NULL;   // because this is the first link.
     head = link;  // don't forget this.  Must keep head current with the beginning of the list.
     return link;
@@ -378,6 +454,7 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
       link->layer_num = el_layer;
       link->to_bottom = extends_to_bottom_flag;
       link->dzdt_cm_per_h = (double)(-1.0);
+      link->is_WF_GW = is_WF_GW;
       link->next = head;   // point to the old first list entry
       head=link;  // don't forget this.  Must keep head point to the beginning of the list
       return link;
@@ -408,6 +485,7 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
 	  link->layer_num = el_layer;
 	  link->to_bottom = extends_to_bottom_flag;
 	  link->dzdt_cm_per_h = (double)(-1.0);
+    link->is_WF_GW = is_WF_GW;
 	  link->front_num = current->front_num;
 	  link->next = current;   // point to one replaced
 	  previous->next = link;  // make the previous one point to this new one
@@ -498,9 +576,30 @@ extern void listSortFrontsByDepth(struct wetting_front *head)
 	current->layer_num = next->layer_num;
 	next->layer_num = tempKey;
 
-	tempKey = current->front_num;
-	current->front_num = next->front_num;
-	next->front_num = tempKey;
+  tempKey = current->to_bottom;
+	current->to_bottom = next->to_bottom;
+	next->to_bottom = tempKey;
+
+	// tempKey = current->front_num;
+	// current->front_num = next->front_num;
+	// next->front_num = tempKey;
+
+  tempData = current->psi_cm;
+	current->psi_cm = next->psi_cm;
+	next->psi_cm = tempData;
+
+  tempData = current->K_cm_per_h;
+	current->K_cm_per_h = next->K_cm_per_h;
+	next->K_cm_per_h = tempData;
+
+  tempData = current->dzdt_cm_per_h;
+	current->dzdt_cm_per_h = next->dzdt_cm_per_h;
+	next->dzdt_cm_per_h = tempData;
+
+  tempKey = current->is_WF_GW;
+	current->is_WF_GW = next->is_WF_GW;
+	next->is_WF_GW = tempKey;
+
       }
 
       current = current->next;
@@ -510,6 +609,147 @@ extern void listSortFrontsByDepth(struct wetting_front *head)
 
 }
 
+/*#################################################################################################*/
+/* listSortFrontsByDepth -if fronts get out of order in terms of capillary head, this routine sorts them back into order by depth */
+/*#################################################################################################*/
+extern void listSortFrontsByPsi(struct wetting_front *head)
+{
+  int i, j, k, tempKey;
+  double tempData;
+  struct wetting_front *current;
+  struct wetting_front *next;
+
+  int size = listLength(head);
+  k = size ;
+
+  for ( i = 0 ; i < size - 1 ; i++, k-- ) {
+    current = head;
+    next = head->next;
+
+    for ( j = 1 ; j < k ; j++ ) {
+      if ( current->depth_cm < next->depth_cm && listLength_surface(head)==1) {
+	tempData = current->depth_cm;
+	current->depth_cm = next->depth_cm;
+	next->depth_cm = tempData;
+
+	tempData = current->theta;
+	current->theta = next->theta;
+	next->theta = tempData;
+
+	tempKey = current->layer_num;
+	current->layer_num = next->layer_num;
+	next->layer_num = tempKey;
+
+  tempKey = current->to_bottom;
+	current->to_bottom = next->to_bottom;
+	next->to_bottom = tempKey;
+
+	// tempKey = current->front_num;
+	// current->front_num = next->front_num;
+	// next->front_num = tempKey;
+
+  tempData = current->psi_cm;
+	current->psi_cm = next->psi_cm;
+	next->psi_cm = tempData;
+
+  tempData = current->K_cm_per_h;
+	current->K_cm_per_h = next->K_cm_per_h;
+	next->K_cm_per_h = tempData;
+
+  tempData = current->dzdt_cm_per_h;
+	current->dzdt_cm_per_h = next->dzdt_cm_per_h;
+	next->dzdt_cm_per_h = tempData;
+
+  tempKey = current->is_WF_GW;
+	current->is_WF_GW = next->is_WF_GW;
+	next->is_WF_GW = tempKey;
+
+      }
+
+      current = current->next;
+      next = next->next;
+    }
+  }
+
+}
+
+
+/*#################################################################################################*/
+/* listSendToTop - Sometimes TO wetting fronts will have their depth set to 0. This function moves all of these wetting fronts to the top of the list. */
+/*#################################################################################################*/
+extern void listSendToTop(struct wetting_front *head)
+{
+  int i, j, k, tempKey;
+  double tempData;
+  struct wetting_front *current;
+  struct wetting_front *next;
+
+  int size = listLength(head);
+  k = size ;
+
+  for ( i = 0 ; i < size - 1 ; i++, k-- ) {
+    current = head;
+    next = head->next;
+
+    for ( j = 1 ; j < k ; j++ ) {
+      if ( (current->depth_cm > next->depth_cm) && (next->depth_cm == 0) ) {
+	tempData = current->depth_cm;
+	current->depth_cm = next->depth_cm;
+	next->depth_cm = tempData;
+
+	tempData = current->theta;
+	current->theta = next->theta;
+	next->theta = tempData;
+
+	tempKey = current->layer_num;
+	current->layer_num = next->layer_num;
+	next->layer_num = tempKey;
+
+  tempKey = current->to_bottom;
+	current->to_bottom = next->to_bottom;
+	next->to_bottom = tempKey;
+
+  tempData = current->psi_cm;
+	current->psi_cm = next->psi_cm;
+	next->psi_cm = tempData;
+
+  tempData = current->K_cm_per_h;
+	current->K_cm_per_h = next->K_cm_per_h;
+	next->K_cm_per_h = tempData;
+
+  tempData = current->dzdt_cm_per_h;
+	current->dzdt_cm_per_h = next->dzdt_cm_per_h;
+	next->dzdt_cm_per_h = tempData;
+
+  tempKey = current->is_WF_GW;
+	current->is_WF_GW = next->is_WF_GW;
+	next->is_WF_GW = tempKey; 
+      }
+
+      current = current->next;
+      next = next->next;
+    }
+  }
+
+}
+
+
+extern int lgarto_count_fronts_for_excessive_calc(double* cum_layer_thickness_cm, struct wetting_front **head){
+  int listLength = 0;
+  struct wetting_front *current;
+
+  for(current = *head; current != NULL; current = current->next) {
+    if (current->is_WF_GW==0){
+      break;
+    }
+    if (current->depth_cm>(cum_layer_thickness_cm[1]*0.1)){
+      break;
+    }
+    listLength++;
+  }
+
+  return listLength;
+}
 
 
 /*####################################################################*/
