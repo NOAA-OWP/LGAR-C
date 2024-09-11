@@ -89,17 +89,17 @@ Update()
   if (state->lgar_bmi_params.is_invalid_soil_type) {
     // add to mass balance accumulated variables
     state->lgar_mass_balance.volprecip_cm  += state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
-    state->lgar_mass_balance.volin_cm      += 0.0;
+    state->lgar_mass_balance.volin_cm       = 0.0;
     state->lgar_mass_balance.volon_cm       = 0.0;
     state->lgar_mass_balance.volend_cm      = state->lgar_mass_balance.volstart_cm;
-    state->lgar_mass_balance.volAET_cm     += 0.0;
-    state->lgar_mass_balance.volrech_cm    += 0.0;
+    state->lgar_mass_balance.volAET_cm      = 0.0;
+    state->lgar_mass_balance.volrech_cm     = 0.0;
     state->lgar_mass_balance.volrunoff_cm  += state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
     state->lgar_mass_balance.volQ_cm       += state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
-    state->lgar_mass_balance.volQ_gw_cm    += 0.0;
-    state->lgar_mass_balance.volPET_cm     += 0.0;
-    state->lgar_mass_balance.volrunoff_giuh_cm  += 0.0;
-    state->lgar_mass_balance.volchange_calib_cm += 0.0;
+    state->lgar_mass_balance.volQ_gw_cm     = 0.0;
+    state->lgar_mass_balance.volPET_cm      = 0.0;
+    state->lgar_mass_balance.volrunoff_giuh_cm  = 0.0;
+    state->lgar_mass_balance.volchange_calib_cm = 0.0;
 
     // converted values, a struct local to the BMI and has bmi output variables
     bmi_unit_conv.mass_balance_m        = state->lgar_mass_balance.local_mass_balance * state->units.cm_to_m;

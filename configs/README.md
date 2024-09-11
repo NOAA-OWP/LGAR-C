@@ -15,7 +15,7 @@ A detailed description of the parameters for model configuration (i.e., initiali
 | forcing_resolution | double (scalar)| - | sec/min/hr | temporal resolution | - | timestep of the forcing data. Recommended value of 3600 seconds. |
 | endtime | double (scalar)| >0 | sec, min, hr, d | simulation duration | - | time at which model simulation ends |
 | layer_soil_type | int (1D array) | - | - | state variable | - | layer soil type (read from the database file soil_params_file) |
-| max_valid_soil_types | int | >1 | - | - | - | maximum number of valid soil types read from the file soil_params_file (default is set to 12; model not valid for soil_type = waterbody, lava, glacier, etc.) |
+| max_valid_soil_types | int | >= 1 and <= 25 | - | - | - | maximum number of valid soil types read from the file soil_params_file (default is set to 12; model not valid for soil_type = waterbody, lava, glacier, etc.) |
 | wilting_point_psi | double (scalar) | - | cm | state variable | - | wilting point (the amount of water not available for plants) used in computing AET. Suggested value is 15495.0 cm, corresponding to 15 atm. |
 | field_capacity_psi | double (scalar) | - | cm | state variable | - | capillary head corresponding to volumetric water content at which gravity drainage becomes slower, used in computing AET. Suggested value is 340.9 cm for most soils, corresponding to 1/3 atm, and 103.3 cm for sands, corresponding to 1/10 atm. |
 | use_closed_form_G | bool | true or false | - | - | - | determines whether the numeric integral or closed form for G is used; a value of true will use the closed form. This defaults to false. |
