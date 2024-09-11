@@ -351,7 +351,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       continue;
     }
     else if (param_key == "max_valid_soil_types") {
-      state->lgar_bmi_params.num_soil_types = stod(param_value);
+      state->lgar_bmi_params.num_soil_types = fmax(stod(param_value), 25.0);
       is_max_valid_soil_types_set = true;
       continue;
     }
