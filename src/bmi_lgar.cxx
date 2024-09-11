@@ -91,7 +91,7 @@ Update()
     state->lgar_mass_balance.volprecip_cm  += state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
     state->lgar_mass_balance.volin_cm      += 0.0;
     state->lgar_mass_balance.volon_cm       = 0.0;
-    state->lgar_mass_balance.volend_cm      = state->lgar_mass_balance.volstart_cm;;
+    state->lgar_mass_balance.volend_cm      = state->lgar_mass_balance.volstart_cm;
     state->lgar_mass_balance.volAET_cm     += 0.0;
     state->lgar_mass_balance.volrech_cm    += 0.0;
     state->lgar_mass_balance.volrunoff_cm  += state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
