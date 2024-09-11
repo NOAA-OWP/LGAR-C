@@ -227,7 +227,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   bool is_wilting_point_psi_cm_set  = false;
   bool is_field_capacity_psi_cm_set = false;
   bool is_soil_params_file_set      = false;
-  bool is_max_soil_types_set        = false;
+  bool is_max_valid_soil_types_set  = false;
   bool is_giuh_ordinates_set        = false;
   bool is_soil_z_set                = false;
   bool is_ponded_depth_max_cm_set   = false;
@@ -352,7 +352,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     }
     else if (param_key == "max_valid_soil_types") {
       state->lgar_bmi_params.num_soil_types = stod(param_value);
-      is_max_soil_types_set = true;
+      is_max_valid_soil_types_set = true;
       continue;
     }
     else if (param_key == "soil_params_file") {
@@ -536,7 +536,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     std::cerr<<"          *****         \n";
   }
   
-  if(!is_max_soil_types_set)
+  if(!is_max_valid_soil_types_set)
      state->lgar_bmi_params.num_soil_types = 12;          // maximum number of soil types defaults to 12
 
   if (verbosity.compare("high") == 0) {
