@@ -347,7 +347,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       continue;
     }
-    else if (param_key == "max_soil_types") {
+    else if (param_key == "max_valid_soil_types") {
       state->lgar_bmi_params.num_soil_types = stod(param_value);
       is_max_soil_types_set = true;
       continue;
@@ -534,7 +534,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   }
   
   if(!is_max_soil_types_set)
-     state->lgar_bmi_params.num_soil_types = 15;          // maximum number of soil types defaults to 15
+     state->lgar_bmi_params.num_soil_types = 12;          // maximum number of soil types defaults to 12
 
   if (verbosity.compare("high") == 0) {
     std::cerr<<"Maximum number of soil types: "<<state->lgar_bmi_params.num_soil_types<<"\n";
@@ -560,9 +560,17 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 						       wilting_point_psi_cm, state->soil_properties);
 
     // check if soil layers provided are within the range
+    state->lgar_bmi_params.is_invalid_soil_type = false; // model not valid for soil types = waterbody, glacier, lava, etc.
     for (int layer=1; layer <= state->lgar_bmi_params.num_layers; layer++) {
-      assert (state->lgar_bmi_params.layer_soil_type[layer] <= state->lgar_bmi_params.num_soil_types);
-      assert (state->lgar_bmi_params.layer_soil_type[layer] <= max_num_soil_in_file);
+      //assert (state->lgar_bmi_params.layer_soil_type[layer] <= state->lgar_bmi_params.num_soil_types);
+      //assert (state->lgar_bmi_params.layer_soil_type[layer] <= max_num_soil_in_file);
+      if (state->lgar_bmi_params.layer_soil_type[layer] > state->lgar_bmi_params.num_soil_types) {
+	state->lgar_bmi_params.is_invalid_soil_type = true;
+	std::cerr << "Invalid soil type: "
+		  << state->lgar_bmi_params.layer_soil_type[layer]
+		  <<". Model returns input_precip = ouput_Qout. \n";
+	break;
+      }
     }
 
     if (verbosity.compare("high") == 0) {

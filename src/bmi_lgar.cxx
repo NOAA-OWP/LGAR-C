@@ -83,7 +83,40 @@ Update()
     std::cerr<<"|****************** LASAM BMI Update... ******************|\n";
     std::cerr<<"---------------------------------------------------------\n";
   }
- 
+
+  double mm_to_cm = 0.1; // unit conversion
+
+  if (state->lgar_bmi_params.is_invalid_soil_type) {
+    // add to mass balance accumulated variables
+    state->lgar_mass_balance.volprecip_cm  += state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
+    state->lgar_mass_balance.volin_cm      += 0.0;
+    state->lgar_mass_balance.volon_cm       = 0.0;
+    state->lgar_mass_balance.volend_cm      = state->lgar_mass_balance.volstart_cm;;
+    state->lgar_mass_balance.volAET_cm     += 0.0;
+    state->lgar_mass_balance.volrech_cm    += 0.0;
+    state->lgar_mass_balance.volrunoff_cm  += state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
+    state->lgar_mass_balance.volQ_cm       += state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
+    state->lgar_mass_balance.volQ_gw_cm    += 0.0;
+    state->lgar_mass_balance.volPET_cm     += 0.0;
+    state->lgar_mass_balance.volrunoff_giuh_cm  += 0.0;
+    state->lgar_mass_balance.volchange_calib_cm += 0.0;
+
+    // converted values, a struct local to the BMI and has bmi output variables
+    bmi_unit_conv.mass_balance_m        = state->lgar_mass_balance.local_mass_balance * state->units.cm_to_m;
+    bmi_unit_conv.volprecip_timestep_m  = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
+    bmi_unit_conv.volin_timestep_m      = 0.0;
+    bmi_unit_conv.volend_timestep_m     = 0.0;
+    bmi_unit_conv.volAET_timestep_m     = 0.0;
+    bmi_unit_conv.volrech_timestep_m    = 0.0;
+    bmi_unit_conv.volrunoff_timestep_m  = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
+    bmi_unit_conv.volQ_timestep_m       = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
+    bmi_unit_conv.volQ_gw_timestep_m    = 0.0;
+    bmi_unit_conv.volPET_timestep_m     = 0.0;
+    bmi_unit_conv.volrunoff_giuh_timestep_m = 0.0;
+
+    return;
+  }
+  
   // if lasam is coupled to soil freeze-thaw, frozen fraction module is called
   if (state->lgar_bmi_params.sft_coupled)
     frozen_factor_hydraulic_conductivity(state->lgar_bmi_params);
@@ -95,7 +128,6 @@ Update()
     state->lgar_bmi_params.calib_params_flag = false;
   }
 
-  double mm_to_cm = 0.1; // unit conversion
 
   // local variables for readibility
   int subcycles;

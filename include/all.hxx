@@ -146,7 +146,8 @@ struct lgar_bmi_parameters
   double *giuh_ordinates;       // geomorphological instantaneous unit hydrograph
   int    num_giuh_ordinates;    // number of giuh ordinates
 
-   int  calib_params_flag = 0;  // flag for calibratable parameters; if true, then calibratable params are updated otherwise not
+  int  calib_params_flag = 0;  // flag for calibratable parameters; if true, then calibratable params are updated otherwise not
+  bool is_invalid_soil_type  = true;  // checks if the provided soil type is valid for the model, if not then return Q_out = precip
 };
 
 // Define a data structure for local (timestep) and global mass balance parameters
