@@ -85,7 +85,8 @@ Update()
   }
 
   double mm_to_cm = 0.1; // unit conversion
-
+  double mm_to_m = 0.001;
+  
   if (state->lgar_bmi_params.is_invalid_soil_type) {
     // add to mass balance accumulated variables
     state->lgar_mass_balance.volprecip_cm  += state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
@@ -102,14 +103,14 @@ Update()
     state->lgar_mass_balance.volchange_calib_cm = 0.0;
 
     // converted values, a struct local to the BMI and has bmi output variables
-    bmi_unit_conv.mass_balance_m        = state->lgar_mass_balance.local_mass_balance * state->units.cm_to_m;
-    bmi_unit_conv.volprecip_timestep_m  = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
+    bmi_unit_conv.mass_balance_m        = 0.0;
+    bmi_unit_conv.volprecip_timestep_m  = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_m;
     bmi_unit_conv.volin_timestep_m      = 0.0;
     bmi_unit_conv.volend_timestep_m     = 0.0;
     bmi_unit_conv.volAET_timestep_m     = 0.0;
     bmi_unit_conv.volrech_timestep_m    = 0.0;
-    bmi_unit_conv.volrunoff_timestep_m  = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
-    bmi_unit_conv.volQ_timestep_m       = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
+    bmi_unit_conv.volrunoff_timestep_m  = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_m;
+    bmi_unit_conv.volQ_timestep_m       = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_m;
     bmi_unit_conv.volQ_gw_timestep_m    = 0.0;
     bmi_unit_conv.volPET_timestep_m     = 0.0;
     bmi_unit_conv.volrunoff_giuh_timestep_m = 0.0;
