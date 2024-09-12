@@ -351,7 +351,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       continue;
     }
     else if (param_key == "max_valid_soil_types") {
-      state->lgar_bmi_params.num_soil_types = stoi(param_value);
+      state->lgar_bmi_params.num_soil_types = std::min(stoi(param_value), MAX_NUM_SOIL_TYPES);
       is_max_valid_soil_types_set = true;
       continue;
     }
@@ -537,7 +537,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   }
   
   if(!is_max_valid_soil_types_set)
-     state->lgar_bmi_params.num_soil_types = 12;          // maximum number of soil types defaults to 12
+     state->lgar_bmi_params.num_soil_types = MAX_NUM_SOIL_TYPES;     // maximum number of valid soil types defaults to 15
 
   if (verbosity.compare("high") == 0) {
     std::cerr<<"Maximum number of soil types: "<<state->lgar_bmi_params.num_soil_types<<"\n";
