@@ -348,7 +348,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       continue;
     }
     else if (param_key == "max_valid_soil_types") {
-      state->lgar_bmi_params.num_soil_types = fmax(stod(param_value), 25.0);
+      state->lgar_bmi_params.num_soil_types = stoi(param_value);
       is_max_valid_soil_types_set = true;
       continue;
     }
@@ -566,9 +566,11 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       //assert (state->lgar_bmi_params.layer_soil_type[layer] <= max_num_soil_in_file);
       if (state->lgar_bmi_params.layer_soil_type[layer] > state->lgar_bmi_params.num_soil_types) {
 	state->lgar_bmi_params.is_invalid_soil_type = true;
-	std::cerr << "Invalid soil type: "
-		  << state->lgar_bmi_params.layer_soil_type[layer]
-		  <<". Model returns input_precip = ouput_Qout. \n";
+	if (verbosity.compare("high") == 0) {
+	  std::cerr << "Invalid soil type: "
+		    << state->lgar_bmi_params.layer_soil_type[layer]
+		    <<". Model returns input_precip = ouput_Qout. \n";
+	}
 	break;
       }
     }
