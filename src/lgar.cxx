@@ -206,6 +206,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   }
 
   // seek to beginning of input after searching for 'verbosity'
+  fp.clear();
   fp.seekg(0, fp.beg);
 
   if (verbosity.compare("none") != 0) {
