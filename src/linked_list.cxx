@@ -26,6 +26,20 @@
 //___________________________________________________________
 
 
+/*###########################################################*/
+/* listDelete() - deletes memory allocated to a linked list  */
+/* This function must be called on any list to deallocate    */
+/* the dynamic memory used in creating and manipultating the */
+/* list. (added by NJF)                                                     */
+/*###########################################################*/
+extern void listDelete(struct wetting_front* head)
+{
+  while (head != NULL) {
+    struct wetting_front *next = head->next;
+    free( head );
+    head = next;
+  }
+}
 
 /*#########################################################*/
 /* listPrint() - prints a linked list to screen             */
@@ -259,7 +273,7 @@ extern struct wetting_front* listFindFront(int key, struct wetting_front* head, 
 /*##############################################################*/
 /* listDeleteFront -delete the front with a particular front number */
 /*##############################################################*/
-extern struct wetting_front* listDeleteFront(int front_num, struct wetting_front** head)
+extern struct wetting_front* listDeleteFront(int front_num, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties)
 {
   //start from the first link
   struct wetting_front* current = *head;
@@ -315,6 +329,29 @@ extern struct wetting_front* listDeleteFront(int front_num, struct wetting_front
     previous->front_num--;
     previous = previous->next;
   }
+
+  int front_num_return = current->front_num;
+
+  if (front_num!=1){
+    for (int wf = listLength(*head)-1; wf != 0; wf--) {
+      struct wetting_front *current_temp = listFindFront(wf, *head, NULL);
+      struct wetting_front *next_temp = current_temp->next;
+      if ( (current_temp->to_bottom==TRUE) ){
+        current_temp->is_WF_GW = next_temp->is_WF_GW;
+        current_temp->psi_cm = next_temp->psi_cm;
+
+        int soil_num_k1 = soil_type[current_temp->layer_num]; 
+        double theta_e_k   = soil_properties[soil_num_k1].theta_e;
+        double theta_r_k   = soil_properties[soil_num_k1].theta_r;
+        double vg_a_k      = soil_properties[soil_num_k1].vg_alpha_per_cm;
+        double vg_m_k      = soil_properties[soil_num_k1].vg_m;
+        double vg_n_k      = soil_properties[soil_num_k1].vg_n;
+        current_temp->theta = calc_theta_from_h(current_temp->psi_cm, vg_a_k, vg_m_k, vg_n_k,theta_e_k,theta_r_k);
+      }
+    }
+  }
+
+  current = listFindFront(front_num_return, *head, NULL);
 
   return current;
 }
@@ -733,8 +770,7 @@ extern void listSendToTop(struct wetting_front *head)
 
 }
 
-
-extern int lgarto_count_fronts_for_excessive_calc(double* cum_layer_thickness_cm, struct wetting_front **head){
+extern int lgarto_count_fronts_for_excessive_calc(struct wetting_front **head){
   int listLength = 0;
   struct wetting_front *current;
 
@@ -742,7 +778,7 @@ extern int lgarto_count_fronts_for_excessive_calc(double* cum_layer_thickness_cm
     if (current->is_WF_GW==0){
       break;
     }
-    if (current->depth_cm>(cum_layer_thickness_cm[1]*0.1)){
+    if (current->depth_cm!=0.0){
       break;
     }
     listLength++;
@@ -771,4 +807,30 @@ extern void listReverseOrder(struct wetting_front** head_ref)
   }
 
   *head_ref = prev;
+}
+
+/*#################################################################################################*/
+/* GW_fronts_among_surf_WFs - Sometimes surface or TO WFs move in such a way that a TO WFs is in between surface WFs, which is not technically possible.
+This function returns true if this is the case so it can be corrected. */
+/*#################################################################################################*/
+extern bool GW_fronts_among_surf_WFs(struct wetting_front *head){
+  struct wetting_front *current;
+  current = listFindFront(listLength_TO_WFs_above_surface_WFs(head) + 1, head, NULL);
+  int surf_count = 0;
+  bool surface_WFs_deeper_than_top_mobile_TO_WF = false;
+  for (int wf = 1; wf != (listLength(head)); wf++){
+    if (current->is_WF_GW==FALSE){
+      surf_count = surf_count + 1;
+    }
+    else{
+      if (surf_count!=listLength_surface(head)){
+        surface_WFs_deeper_than_top_mobile_TO_WF = true;
+        break;
+      }
+    }
+    current = current->next;
+    if (current==NULL) {break;}
+  }
+
+  return(surface_WFs_deeper_than_top_mobile_TO_WF);
 }

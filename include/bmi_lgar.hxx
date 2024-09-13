@@ -29,7 +29,8 @@ class NotImplemented : public std::logic_error {
 
 class BmiLGAR : public bmixx::Bmi {
 public:
-  BmiLGAR() {
+  ~BmiLGAR();
+  BmiLGAR():giuh_ordinates(nullptr), giuh_runoff_queue(nullptr) {
     this->input_var_names[0] = "precipitation_rate";
     this->input_var_names[1] = "potential_evapotranspiration_rate";
     this->input_var_names[2] = "soil_temperature_profile";
@@ -131,6 +132,7 @@ public:
   struct model_state* get_model();
   
 private:
+  void realloc_soil();
   struct model_state* state;
   static const int input_var_name_count  = 3;
   static const int output_var_name_count = 15;

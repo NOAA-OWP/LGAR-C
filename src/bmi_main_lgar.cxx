@@ -155,12 +155,14 @@ int main(int argc, char *argv[])
       // write layers data to file
       fprintf(outlayer_fptr,"# Timestep = %d, %s \n", i, time[i].c_str());
       write_state(outlayer_fptr, model_state.get_model()->head);
+      delete [] soil_moisture_wetting_front;
+      delete [] soil_thickness_wetting_front;
     }
 
   }
 
-  // do final mass balance
-  model_state.global_mass_balance();
+  // do final mass balance ( inside Finalize() ) and finish the simulation
+  model_state.Finalize();
 
   if (outdata_fptr) {
     fclose(outdata_fptr);

@@ -36,7 +36,7 @@ extern string verbosity;
 #define use_bmi_flag FALSE       // TODO set to TRUE to run in BMI environment
 
 #define MAX_NUM_SOIL_LAYERS 4
-#define MAX_NUM_SOIL_TYPES 16
+#define MAX_NUM_SOIL_TYPES 15
 #define MAX_SOIL_NAME_CHARS 25
 #define MAX_NUM_WETTING_FRONTS 300
 
@@ -115,6 +115,7 @@ struct lgar_bmi_parameters
   double initial_psi_cm;           // model initial (psi) condition
   double timestep_h;               // model timestep in hours
   double forcing_resolution_h;     // forcing resolution in hours
+  double minimum_timestep_h;       // minimum time step in hours, only used if adaptive_timestep is true
   int    forcing_interval;         // = forcing_resolution_h/timestep_h
   int    num_soil_types;           // number of soil types; must be less than or equal to MAX_NUM_SOIL_TYPES
   double AET_cm;                   // actual evapotranspiration in cm
@@ -133,8 +134,9 @@ struct lgar_bmi_parameters
   double root_zone_depth_cm;             // maximum depth from which roots extract water
   bool   use_closed_form_G = false;      /* true if closed form of capillary drive calculation is desired, false if numeric integral
 					    for capillary drive calculation is desired */
-  bool   adaptive_timestep = false;      // if set to true, model uses adaptive timestep 
+  bool   adaptive_timestep = false;      // if set to true, model uses adaptive timestep. In this case, the minimum timestep is the timestep specified in the config file. The maximum time step will be equal to the forcing resolution
   bool   TO_enabled = false;             // if set to true, model uses multilayer TO model for recharge 
+  double mbal_tol;                       // if a substep's mass balance error is larger than this number, the model will abort. By default it is set to a large value (10 cm).
   double ponded_depth_cm;                // amount of water on the surface unavailable for surface runoff
   double ponded_depth_max_cm;            // maximum amount of water on the surface unavailable for surface runoff
   double precip_previous_timestep_cm;    // amount of rainfall (previous time step)
@@ -148,7 +150,8 @@ struct lgar_bmi_parameters
   double *giuh_ordinates;       // geomorphological instantaneous unit hydrograph
   int    num_giuh_ordinates;    // number of giuh ordinates
 
-   int  calib_params_flag = 0;  // flag for calibratable parameters; if true, then calibratable params are updated otherwise not
+  int  calib_params_flag = 0;  // flag for calibratable parameters; if true, then calibratable params are updated otherwise not
+  bool is_invalid_soil_type  = true;  // checks if the provided soil type is valid for the model, if not then return Q_out = precip
 };
 
 // Define a data structure for local (timestep) and global mass balance parameters
@@ -238,7 +241,7 @@ extern int                      listLength_TO_WFs_in_rz_nonzero_depth(double rzd
 extern bool                     listIsEmpty();
 extern struct wetting_front*    listDeleteFirst(struct wetting_front** head);
 extern struct wetting_front*    listFindFront(int i, struct wetting_front* head, struct wetting_front* head_old);
-extern struct wetting_front*    listDeleteFront(int i, struct wetting_front** head);
+extern struct wetting_front*    listDeleteFront(int front_num, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
 extern void                     listSortFrontsByDepth(struct wetting_front *head);
 extern void                     listSortFrontsByPsi(struct wetting_front *head);
 extern void                     listSendToTop(struct wetting_front *head);
@@ -249,6 +252,8 @@ extern void                     listReverseOrder(struct wetting_front** head_ref
 extern bool                     listFindLayer(struct wetting_front* link, int num_layers, double *cum_layer_thickness_cm,
 					      int *lives_in_layer, bool *extends_to_bottom_flag);
 extern struct wetting_front*    listCopy(struct wetting_front* current, struct wetting_front* state_previous=NULL);
+extern void                     listDelete(struct wetting_front* head);
+extern bool                     GW_fronts_among_surf_WFs(struct wetting_front *head);
 
 
 
@@ -272,9 +277,11 @@ extern double calc_Geff(bool use_closed_form_G, double theta1, double theta2, do
 // computed mass balance
 extern double lgar_calc_mass_bal(double *cum_layer_thickness, struct wetting_front* head);
 
-extern double adjust_new_theta(double new_wf_theta, double target_mass, double *cum_layer_thickness, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
+extern double adjust_new_theta(int new_wf_num, double target_mass, double *cum_layer_thickness, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
-extern void lgar_clean_redundant_fronts(struct wetting_front** head);
+extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
+
+extern bool correct_close_psis(int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
 // computes derivatives; called derivs() in Python code
 extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double timestep_h, double h_p, int *soil_type, double *cum_layer_thickness_cm,
@@ -332,14 +339,14 @@ extern bool lgar_merge_surface_and_TO_wetting_fronts(bool merged_in_non_top_laye
 extern void lgarto_cleanup_after_surface_TO_merging_in_layer_below_top(bool merged_in_non_top_layer, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
 //subroutine allows TO WFs to cross layer boundaries
-extern void lgar_TO_wetting_fronts_cross_layer_boundary(int num_layers, double *cum_layer_thickness_cm, int *soil_type, double *frozen_factor, struct soil_properties_ *soil_properties, struct wetting_front** head);
+extern void lgar_TO_wetting_fronts_cross_layer_boundary(int *front_num_with_negative_depth, int num_layers, double *cum_layer_thickness_cm, int *soil_type, double *frozen_factor, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
 //subroutine allows TO WFs to merge with other TO WFs when a higher TO WF gets too deep
-extern double lgarto_TO_WFs_merge_via_depth(double initial_mass, double column_depth, double* cum_layer_thickness_cm, struct wetting_front** head);
+extern double lgarto_TO_WFs_merge_via_depth(double initial_mass, double column_depth, double* cum_layer_thickness_cm, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
 
 //subroutine allows TO WFs to merge with other TO WFs when a lower TO WF gets too dry. 
 //in the rare case that merging based on theta is necessary but the wetting front that would be deleted has to_bottom == TRUE, then instead the mass difference is moved to the GW flux.
-extern double lgarto_TO_WFs_merge_via_theta(int num_layers, double initial_mass, double column_depth, double* cum_layer_thickness_cm, struct wetting_front** head);
+extern double lgarto_TO_WFs_merge_via_theta(int num_layers, double initial_mass, double column_depth, double* cum_layer_thickness_cm, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
 
 // subroutine to handle wet over dry wetting fronts condtions
 extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
@@ -351,21 +358,20 @@ extern void lgar_global_psi_update(int *soil_type, struct soil_properties_ *soil
 //sometimes psi is updated, and after that theta must be updated accordingly
 extern void lgar_global_theta_update(double bottom_boundary_flux_above_surface_WFs_cm, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
-extern void lgarto_correct_theta_after_domain_boundary_cross(int num_layers, double* cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
+// extern void lgarto_correct_theta_after_domain_boundary_cross(int num_layers, double* cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
 //if surface WFs are present, then they must provide the water necesary for the GW fluxes for the TO WFs that are in contact with the surface 
-extern double lgarto_extract_TO_GW_flux_from_surface_WFs(double bottom_boundary_flux_above_surface_WFs_cm, double bottom_boundary_flux_cm, double *AET_demand_cm,
+extern double lgarto_extract_TO_GW_flux_from_surface_WFs(double *bottom_boundary_flux_above_surface_WFs_cm, double bottom_boundary_flux_cm, double *AET_demand_cm,
                                                          double* cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
 // the subroutine addresses the rare case where, in LGARTO, a TO WF ends up between two surface WFs after surface WFs move; called from lgar_move_wetting_fronts
-extern void lgarto_resolve_TO_WF_between_surf_WFs(int *soil_type,
-					double *frozen_factor, struct soil_properties_ *soil_properties, struct wetting_front** head);
+extern void lgarto_resolve_TO_WF_between_surf_WFs(int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
 // sometimes, when LGARTO mode is on, a large number of wetting fronts will be generated. This keeps the total number low. 
-extern void lgarto_consolidate_excessive_fronts(double* cum_layer_thickness_cm, struct wetting_front** head);
+extern void lgarto_consolidate_excessive_fronts(double* cum_layer_thickness_cm, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
 
 // this function is used in lgarto_consolidate_excessive_fronts()
-extern int lgarto_count_fronts_for_excessive_calc(double* cum_layer_thickness_cm, struct wetting_front** head);
+extern int lgarto_count_fronts_for_excessive_calc(struct wetting_front** head);
 
 //corrects negative wetting front depths in LGARTO mode 
 extern bool lgarto_correct_negative_depths(struct wetting_front** head);
@@ -380,7 +386,7 @@ extern int wetting_front_free_drainage(struct wetting_front* head);
 extern double lgarto_calc_largest_mag_TO_dzdt(struct wetting_front* head);
 
 // computes updated theta (soil moisture content) after moving down a wetting front; called for each wetting front to ensure mass is conserved
-extern double lgar_theta_mass_balance(bool surf_present, int layer_num, int soil_num, double psi_cm, double new_mass,
+extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm, double new_mass,
 				      double prior_mass, double *AET_demand_cm, double *delta_theta, double *layer_thickness_cm,
 				      int *soil_type, struct soil_properties_ *soil_properties);
 
@@ -411,7 +417,8 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
 extern void lgarto_ensure_rooting_zone_population(double rzd, double PET_timestep_cm, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
 
-extern int lgarto_correction_type(int num_layers, double* cum_layer_thickness_cm, struct wetting_front** head);//returns an integer that describes which type of layer boundary crossing or WF merging is necessary 
+extern int lgarto_correction_type(int num_layers, double* cum_layer_thickness_cm, struct wetting_front** head);//returns an integer that describes which type of layer boundary crossing or WF merging is necessary, for all WFs
+extern int lgarto_correction_type_surf(int num_layers, double* cum_layer_thickness_cm, struct wetting_front** head);//returns an integer that describes which type of layer boundary crossing or WF merging is necessary, but only for surface WFs
 
 /********************************************************************/
 /* Input/Output functions, etc.  */
@@ -439,6 +446,7 @@ extern void dtwo_alloc(double ***ptr, int x, int y);
 extern void d_alloc(double **var,int size);
 extern void i_alloc(int **var,int size);
 extern void f_alloc(float **var,int size);
+
 
 
 /*###############################*/

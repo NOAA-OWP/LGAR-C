@@ -435,7 +435,7 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
       printf(" ************ time step %d ******** \n",time_step_num);
     }
     
-    state_previous = NULL;
+    listDelete(state_previous);
     state_previous = listCopy(head);
     
     if(debug_flag) {
@@ -542,6 +542,7 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
 	lgar_create_surfacial_front(&ponded_depth_cm, &volin_timestep_cm, dry_depth, theta1, soil_type_by_layer, soil_properties, cum_layer_thickness_cm, nint, time_step_h);
 	
 	//listPrint();
+  if( state_previous != NULL ) listDelete(state_previous);
 	state_previous = NULL;
 	state_previous = listCopy(head);
 	

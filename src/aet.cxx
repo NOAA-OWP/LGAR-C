@@ -13,7 +13,7 @@
    h_50 is the capillary head at which AET = 0.5 * PET. */
 //################################################################################
 
-bool correct_AET_out_of_root_zone_via_surf_WFs = TRUE;
+bool correct_AET_out_of_root_zone_via_surf_WFs = FALSE;
 
 extern void calc_aet(bool TO_enabled, double PET_timestep_cm, double time_step_h, double wilting_point_psi_cm, double field_capacity_psi_cm, double root_zone_depth_cm, double *surf_frac_rz, 
                        int *soil_type, double AET_thresh_Theta, double AET_expon, struct wetting_front* head,
@@ -83,7 +83,7 @@ extern void calc_aet(bool TO_enabled, double PET_timestep_cm, double time_step_h
 
     if (listLength_surface(head)==0){
       actual_ET_demand = 0.0;
-      printf("listLength_surface(head)==0 \n");
+      // printf("listLength_surface(head)==0 \n");
     }
     else{
 
@@ -96,13 +96,13 @@ extern void calc_aet(bool TO_enabled, double PET_timestep_cm, double time_step_h
       double vector_sum = 0.0;
       double frac_of_rz_occupied_by_surf_WFs = 0.0;
       double frac_of_rz_occupied_by_top_surf_WF = 0.0;
-      printf("loop to calc AET for surf WFs starts at: listLength_TO_WFs_above_surface_WFs(head) + 1: %d \n", listLength_TO_WFs_above_surface_WFs(head) + 1);
-      printf("loop ends at: %d \n", (listLength(head)));
+      // printf("loop to calc AET for surf WFs starts at: listLength_TO_WFs_above_surface_WFs(head) + 1: %d \n", listLength_TO_WFs_above_surface_WFs(head) + 1);
+      // printf("loop ends at: %d \n", (listLength(head)));
       for (int wf = listLength_TO_WFs_above_surface_WFs(head) + 1; wf != (listLength(head)); wf++){
-        printf("in loop that does surf_thicknesses_vec and surf AET stuff. On WF number: %d \n", wf);
+        // printf("in loop that does surf_thicknesses_vec and surf AET stuff. On WF number: %d \n", wf);
         int listLength_TO_WFs_above_surface_WFs_temp = listLength_TO_WFs_above_surface_WFs(head);
         if (current->is_WF_GW==TRUE){
-          printf("breaking because current->is_WF_GW==TRUE \n");
+          // printf("breaking because current->is_WF_GW==TRUE \n");
           break;
         }
 
@@ -115,17 +115,11 @@ extern void calc_aet(bool TO_enabled, double PET_timestep_cm, double time_step_h
         }
 
         // if (soil_properties[soil_type[1]].Ksat_cm_per_h>0.5){
-
-        double frac_rz_TO_below_lowest_eligible_TO_wf = 0.0;
         struct wetting_front *lowest_eligible_TO_wf;
 
         lowest_eligible_TO_wf = listFindFront(listLength_surface(head), head, NULL);
-        int lowest_eligible_TO_wf_front_num = lowest_eligible_TO_wf->front_num;
 
         while (lowest_eligible_TO_wf->next!=NULL){
-          if (lowest_eligible_TO_wf->is_WF_GW==TRUE && lowest_eligible_TO_wf->to_bottom==FALSE){
-            lowest_eligible_TO_wf_front_num = lowest_eligible_TO_wf->front_num;
-          }
 
           lowest_eligible_TO_wf = lowest_eligible_TO_wf->next;
 
@@ -134,16 +128,13 @@ extern void calc_aet(bool TO_enabled, double PET_timestep_cm, double time_step_h
           }
         }
 
-        frac_rz_TO_below_lowest_eligible_TO_wf = (root_zone_depth_cm - listFindFront(lowest_eligible_TO_wf_front_num, head, NULL)->depth_cm)/root_zone_depth_cm;
-
-        printf("lowest_eligible_TO_wf_front_num: %d \n", lowest_eligible_TO_wf_front_num);
 
 
 
 
 
         if (correct_AET_out_of_root_zone_via_surf_WFs && listLength_surface(head)>0){
-          printf("listLength_surface(head): %d \n", listLength_surface(head));
+          // printf("listLength_surface(head): %d \n", listLength_surface(head));
           // if ((listLength_TO_WFs_in_rz_nonzero_depth(root_zone_depth_cm, head)==0) && (wf==(listLength_TO_WFs_above_surface_WFs(head) + listLength_surface(head)))){
           if ((listLength_TO_WFs_in_rz_nonzero_depth(root_zone_depth_cm, head)==0) && (wf==(listLength_TO_WFs_above_surface_WFs(head) + listLength_surface(head)))){
               // maybe if AET from surf WFs>0? or perhaps this condition in the other code that extracts from below RZ? just checking if surf_frac > 0 in the other code might not work when a new surf WF was created that has no AET component. And in fact, that already might make that calc a bit off ... 
@@ -156,7 +147,7 @@ extern void calc_aet(bool TO_enabled, double PET_timestep_cm, double time_step_h
             }
             surf_thicknesses_vec[wf - listLength_TO_WFs_above_surface_WFs_temp] = root_zone_depth_cm - sum;
             // surf_thicknesses_vec[wetting_front_free_drainage(head)] = root_zone_depth_cm - sum;
-            printf("surf_thicknesses_vec[wf - listLength_TO_WFs_above_surface_WFs_temp]: %lf \n", surf_thicknesses_vec[wf - listLength_TO_WFs_above_surface_WFs_temp]);
+            // printf("surf_thicknesses_vec[wf - listLength_TO_WFs_above_surface_WFs_temp]: %lf \n", surf_thicknesses_vec[wf - listLength_TO_WFs_above_surface_WFs_temp]);
           }//makes it so that if there are surface WFs that do not span the entire RZ but there are no eligible TO WFs in the RZ, the deepest surface WF takes the remainder of the rz
         // } 
 
@@ -199,7 +190,7 @@ extern void calc_aet(bool TO_enabled, double PET_timestep_cm, double time_step_h
             count ++;
             current = current->next;
             if (current->next==NULL){
-              printf("breaking because current->next==NULL \n");
+              // printf("breaking because current->next==NULL \n");
               break;
             }
           }
@@ -250,8 +241,8 @@ extern void calc_aet(bool TO_enabled, double PET_timestep_cm, double time_step_h
         double h_ratio = 1.0 + pow(current->psi_cm/psi_wp_cm, 3.0);
 
         frac_of_rz_occupied_by_surf_WFs += fmin(1, surf_thicknesses_vec[wf - listLength_TO_WFs_above_surface_WFs_temp] / root_zone_depth_cm);
-        printf("frac_of_rz_occupied_by_surf_WFs: %lf \n", frac_of_rz_occupied_by_surf_WFs);
-        printf("surf_thicknesses_vec[wf - listLength_TO_WFs_above_surface_WFs_temp]: %lf \n", surf_thicknesses_vec[wf - listLength_TO_WFs_above_surface_WFs_temp]);
+        // printf("frac_of_rz_occupied_by_surf_WFs: %lf \n", frac_of_rz_occupied_by_surf_WFs);
+        // printf("surf_thicknesses_vec[wf - listLength_TO_WFs_above_surface_WFs_temp]: %lf \n", surf_thicknesses_vec[wf - listLength_TO_WFs_above_surface_WFs_temp]);
         
         double frac_of_rz_occupied_by_this_WF = fmin(1, surf_thicknesses_vec[wf - listLength_TO_WFs_above_surface_WFs_temp] / root_zone_depth_cm);
 
@@ -270,12 +261,12 @@ extern void calc_aet(bool TO_enabled, double PET_timestep_cm, double time_step_h
         }
 
         surf_AET_vec[wf] = actual_ET_demand;
-        printf("\n");
-        printf("actual_ET_demand as computed in calc_aet: %.17lf \actual_ET_demand", actual_ET_demand);
-        printf("\n");
+        // printf("\n");
+        // printf("actual_ET_demand as computed in calc_aet: %.17lf \actual_ET_demand", actual_ET_demand);
+        // printf("\n");
 
-        printf("wf: %d \n", wf);
-        printf("associated actual_ET_demand: %.17lf \n", actual_ET_demand);
+        // printf("wf: %d \n", wf);
+        // printf("associated actual_ET_demand: %.17lf \n", actual_ET_demand);
 
         if (verbosity.compare("high") == 0) {
           printf("\n ");
@@ -288,13 +279,13 @@ extern void calc_aet(bool TO_enabled, double PET_timestep_cm, double time_step_h
         
         double front_num_deepest_surface_WF = listLength_surface(head) + listLength_TO_WFs_above_surface_WFs(head);
         if ( front_num_deepest_surface_WF==current->front_num ){
-          printf("breaking because front_num_deepest_surface_WF==current->front_num \n");
-          printf("should probably break here for front_num_deepest_surface_WF>=current->front_num instead \n");
+          // printf("breaking because front_num_deepest_surface_WF==current->front_num \n");
+          // printf("should probably break here for front_num_deepest_surface_WF>=current->front_num instead \n");
           break;
         }
 
         if ((current->depth_cm > root_zone_depth_cm) && (current->to_bottom==FALSE)){
-          printf("breaking because current->depth_cm > root_zone_depth_cm \n");
+          // printf("breaking because current->depth_cm > root_zone_depth_cm \n");
           break;
         }
 
@@ -379,13 +370,13 @@ extern double calc_aet_for_individual_TO_WFs(int WF_num, double WF_thickness_cm,
   // }
   // double h_ratio = 1.0 + pow(psi_to_use/psi_wp_cm, 3.0);
 
-  printf("psi_wp_cm: %lf \n", psi_wp_cm);
+  // printf("psi_wp_cm: %lf \n", psi_wp_cm);
 
   actual_ET_demand = PET_timestep_cm * (1/h_ratio) * time_step_h;
 
-  printf("PET_timestep_cm =  %14.17f \n", PET_timestep_cm);
-  printf("1/h_ratio =  %14.17f \n", 1/h_ratio);
-  printf("time_step_h =  %14.17f \n", time_step_h);
+  // printf("PET_timestep_cm =  %14.17f \n", PET_timestep_cm);
+  // printf("1/h_ratio =  %14.17f \n", 1/h_ratio);
+  // printf("time_step_h =  %14.17f \n", time_step_h);
 
   if (actual_ET_demand<0.0){
     actual_ET_demand=0.0;
@@ -393,7 +384,7 @@ extern double calc_aet_for_individual_TO_WFs(int WF_num, double WF_thickness_cm,
   else if (actual_ET_demand>(PET_timestep_cm*time_step_h))
     actual_ET_demand = PET_timestep_cm*time_step_h;
 
-  printf("frac =  %14.17f \n", frac);
+  // printf("frac =  %14.17f \n", frac);
   
   actual_ET_demand = actual_ET_demand * frac;
 
@@ -426,9 +417,12 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
   next = current->next;
   for (int wf = 1; wf != (listLength(*head)-1); wf++){
     if (current->to_bottom==FALSE && next->is_WF_GW==TRUE && current->is_WF_GW==TRUE && fabs(current->psi_cm - next->psi_cm)<1.e-3){
-      listDeleteFront(current->front_num, head);
+      listDeleteFront(current->front_num, head, soil_type, soil_properties);
     }
     current = next;
+    if (current==NULL){
+      break;
+    }
     next = current->next;
   }                                          
 
@@ -437,8 +431,8 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
     listPrint(*head);
   }
 
-  printf("surf_frac_rz before aug: %lf \n", surf_frac_rz);
-  printf("deepest_surf_depth_at_start: %lf \n", deepest_surf_depth_at_start);
+  // printf("surf_frac_rz before aug: %lf \n", surf_frac_rz);
+  // printf("deepest_surf_depth_at_start: %lf \n", deepest_surf_depth_at_start);
 
   if (surf_frac_rz >= 1.0){
     return 0;
@@ -459,7 +453,7 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
     printf("surf_frac_rz: %lf \n", surf_frac_rz);
   }
 
-  printf("surf_frac_rz after aug: %lf \n", surf_frac_rz);
+  // printf("surf_frac_rz after aug: %lf \n", surf_frac_rz);
 
   double already_computed_TO_RZ_frac = 0.0;
 
@@ -468,7 +462,7 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
   struct wetting_front *temp_WF = *head;
 
   while (temp_WF->to_bottom==TRUE || temp_WF->is_WF_GW==FALSE || temp_WF->depth_cm==0.0 || (temp_WF->to_bottom==FALSE && temp_WF->is_WF_GW==TRUE && temp_WF->depth_cm>0.0) ){
-    if (temp_WF->to_bottom==FALSE && temp_WF->is_WF_GW==TRUE && temp_WF->depth_cm>0.0){
+    if ((temp_WF->to_bottom==FALSE && temp_WF->is_WF_GW==TRUE && temp_WF->depth_cm>0.0)){
       deepest_AET_accepting_TO_WF_in_RZ = temp_WF;
     }
     temp_WF = temp_WF->next;
@@ -481,70 +475,7 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
   }//2 July AET fix
   double deepest_AET_accepting_TO_WF_in_RZ_depth_before_move = deepest_AET_accepting_TO_WF_in_RZ->depth_cm;
 
-  printf("deepest_AET_accepting_TO_WF_in_RZ->front_num: %d \n", deepest_AET_accepting_TO_WF_in_RZ->front_num);
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
-  printf("  \n ");
+  // printf("deepest_AET_accepting_TO_WF_in_RZ->front_num: %d \n", deepest_AET_accepting_TO_WF_in_RZ->front_num);
 
   if ( (root_zone_depth>0) && (surf_frac_rz<(1-1e-5) ) ){
 
@@ -557,7 +488,7 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
 
     thicknesses_vec[0] = 0.0;
 
-    printf("WF_thickness_cm: %lf \n", WF_thickness_cm);
+    // printf("WF_thickness_cm: %lf \n", WF_thickness_cm);
 
     /////for AET in TO stuff, first we make a vector thicknesses_vec that will be used to determine the fraction of AET each WF in the rooting zone contributes. 
     for (int wf = 1; wf != 1+(listLength(*head)); wf++) { 
@@ -585,16 +516,16 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
 
       if (wf==1){
         WF_thickness_cm = current->depth_cm;
-        printf("WF_thickness_cm calc 1: %lf \n", WF_thickness_cm);
+        // printf("WF_thickness_cm calc 1: %lf \n", WF_thickness_cm);
       }
       else{
         WF_thickness_cm = current->depth_cm - listFindFront(WF_num-1, *head, NULL)->depth_cm;
-        printf("WF_thickness_cm calc 2: %lf \n", WF_thickness_cm);
+        // printf("WF_thickness_cm calc 2: %lf \n", WF_thickness_cm);
       }
 
       if ( (current->to_bottom==TRUE) && (current->depth_cm <= root_zone_depth)){
         WF_thickness_cm = 0.0;
-        printf("WF_thickness_cm calc 3: %lf \n", WF_thickness_cm);
+        // printf("WF_thickness_cm calc 3: %lf \n", WF_thickness_cm);
       }
 
       struct wetting_front *previous = listFindFront(WF_num - 1, *head, NULL);
@@ -604,11 +535,11 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
           struct wetting_front *previous_previous = listFindFront(previous->front_num - 1, *head, NULL);
           if (previous_previous!=NULL){
             WF_thickness_cm += previous->depth_cm - previous_previous->depth_cm;
-            printf("WF_thickness_cm calc 4: %lf \n", WF_thickness_cm);
+            // printf("WF_thickness_cm calc 4: %lf \n", WF_thickness_cm);
           }
           else{
             WF_thickness_cm += previous->depth_cm;
-            printf("WF_thickness_cm calc 5: %lf \n", WF_thickness_cm);
+            // printf("WF_thickness_cm calc 5: %lf \n", WF_thickness_cm);
           }
           previous = previous_previous;
           if (previous==NULL){
@@ -637,11 +568,11 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
 
       if (wf==listLength(*head)){
         WF_thickness_cm = (1 - frac_vec_sum - surf_frac_rz) * root_zone_depth;
-        printf("WF_thickness_cm calc 6: %lf \n", WF_thickness_cm);
+        // printf("WF_thickness_cm calc 6: %lf \n", WF_thickness_cm);
       }
       else if ( current->depth_cm >= root_zone_depth ){//should never happen now because we break if depth>root zone depth earlier 
         WF_thickness_cm = (1 - frac_vec_sum - surf_frac_rz) * root_zone_depth;
-        printf("WF_thickness_cm calc 7: %lf \n", WF_thickness_cm);
+        // printf("WF_thickness_cm calc 7: %lf \n", WF_thickness_cm);
         if ( (WF_num-1)>0){
           thickness_of_WF_crossing_rooting_zone = current->depth_cm - listFindFront(WF_num-1, *head, NULL)->depth_cm;
         }
@@ -665,11 +596,11 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
 
       if (thicknesses_vec[0]>1e10){
         printf("thicknesses_vec[0]>1e10 \n");
-        // abort();
+        abort();
       }
 
-      printf("setting thicknesses_vec[WF_num] as WF_thickness_cm, printing WF_thickness_cm: %lf \n", WF_thickness_cm);
-      printf("and that was for WF: %d \n", WF_num);
+      // printf("setting thicknesses_vec[WF_num] as WF_thickness_cm, printing WF_thickness_cm: %lf \n", WF_thickness_cm);
+      // printf("and that was for WF: %d \n", WF_num);
 
       if (verbosity.compare("high") == 0) {
         printf("thicknesses_vec[WF_num]: %.17lf \n",thicknesses_vec[WF_num]);
@@ -714,11 +645,11 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
     }
     already_computed_TO_RZ_frac = already_computed_TO_RZ_frac / root_zone_depth;
 
-    printf("thicknesses_vec[0] before aug: %.27lf \n", thicknesses_vec[0]);
-    printf("thicknesses_vec[1] before aug: %.27lf \n", thicknesses_vec[1]);
-    printf("thicknesses_vec[2] before aug: %.27lf \n", thicknesses_vec[2]);
-    printf("thicknesses_vec[3] before aug: %.27lf \n", thicknesses_vec[3]);
-    printf("thicknesses_vec[4] before aug: %.27lf \n", thicknesses_vec[4]);
+    // printf("thicknesses_vec[0] before aug: %.27lf \n", thicknesses_vec[0]);
+    // printf("thicknesses_vec[1] before aug: %.27lf \n", thicknesses_vec[1]);
+    // printf("thicknesses_vec[2] before aug: %.27lf \n", thicknesses_vec[2]);
+    // printf("thicknesses_vec[3] before aug: %.27lf \n", thicknesses_vec[3]);
+    // printf("thicknesses_vec[4] before aug: %.27lf \n", thicknesses_vec[4]);
 
 
     // // if (){
@@ -761,16 +692,13 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
       thicknesses_vec[second_to_last_thicknesses_vec_index_yielding_nonzero_result] = 0.0;//I think this code can be deleted
     }
 
-    // printf("second_to_last: %d \n", second_to_last);
-    printf("last_thicknesses_vec_index_yielding_nonzero_result: %d \n", last_thicknesses_vec_index_yielding_nonzero_result);
+    // printf("last_thicknesses_vec_index_yielding_nonzero_result: %d \n", last_thicknesses_vec_index_yielding_nonzero_result);
 
-    // printf("thicknesses_vec[second_to_last] after aug: %lf \n", thicknesses_vec[second_to_last]);
-
-    printf("thicknesses_vec[0] after aug: %.17lf \n", thicknesses_vec[0]);
-    printf("thicknesses_vec[1] after aug: %.17lf \n", thicknesses_vec[1]);
-    printf("thicknesses_vec[2] after aug: %.17lf \n", thicknesses_vec[2]);
-    printf("thicknesses_vec[3] after aug: %.17lf \n", thicknesses_vec[3]);
-    printf("thicknesses_vec[4] after aug: %.17lf \n", thicknesses_vec[4]);
+    // printf("thicknesses_vec[0] after aug: %.17lf \n", thicknesses_vec[0]);
+    // printf("thicknesses_vec[1] after aug: %.17lf \n", thicknesses_vec[1]);
+    // printf("thicknesses_vec[2] after aug: %.17lf \n", thicknesses_vec[2]);
+    // printf("thicknesses_vec[3] after aug: %.17lf \n", thicknesses_vec[3]);
+    // printf("thicknesses_vec[4] after aug: %.17lf \n", thicknesses_vec[4]);
 
     
     if ( (root_zone_depth>0.0) ){
@@ -798,7 +726,7 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
           printf("front_num: %d \n", current->front_num);
         }
 
-        printf("WF_thickness_cm: %.17lf \n", WF_thickness_cm);
+        // printf("WF_thickness_cm: %.17lf \n", WF_thickness_cm);
 
         // printf("\n ###################################################################################################################################################################################### \n");
         // int size = sizeof(thicknesses_vec) / sizeof(thicknesses_vec[0]);
@@ -809,7 +737,7 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
         // printf("\n ###################################################################################################################################################################################### \n");
 
         if ( (WF_thickness_cm>0.0) && (current->to_bottom==FALSE) ){
-          printf("tag 1 \n");
+          // printf("tag 1 \n");
           temp_AET_value = calc_aet_for_individual_TO_WFs(WF_num, WF_thickness_cm, root_zone_depth, PET_timestep_cm, timestep_h, wilting_point_psi_cm, field_capacity_psi_cm,
                 soil_type, soil_properties, head);
 
@@ -818,15 +746,15 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
             printf("WF_thickness_cm: %lf \n",WF_thickness_cm);
           }
 
-          if (WF_thickness_cm>1e10){
-            printf("WF_thickness_cm>1e10 \n");
-            // abort();
-          }
+          // if (WF_thickness_cm>1e10){
+          //   printf("WF_thickness_cm>1e10 \n");
+          //   // abort();
+          // }
 
           // printf("temp_AET_value: %.17lf \n", temp_AET_value);
           // printf("and that is for WF_num: %d \n", WF_num);
           // cumulative_ET_from_TO_WFs_cm += temp_AET_value; //8 July 2024: moving to after height is subtracted from TO WFs, to address marginal case where AET has to be augmented
-          printf("updated cumulative_ET_from_TO_WFs_cm: %.17lf \n", cumulative_ET_from_TO_WFs_cm);
+          // printf("updated cumulative_ET_from_TO_WFs_cm: %.17lf \n", cumulative_ET_from_TO_WFs_cm);
 
 
           struct wetting_front *previous = listFindFront(current->front_num - 1, *head, NULL); //6 September 2023 addition to move seemingly stuck fronts
@@ -855,12 +783,12 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
               if (thickness_of_WF_crossing_rooting_zone==0){
                 // current->theta -= temp_AET_value / WF_thickness_cm; // was previously extracting AET by changing theta, now doing it based on height.
                 current->depth_cm += temp_AET_value / (current->next->theta - current->theta); 
-                printf("new depth: %lf \n", current->depth_cm);
+                // printf("new depth: %lf \n", current->depth_cm);
               }
               else{
                 // current->theta -= temp_AET_value / thickness_of_WF_crossing_rooting_zone;
                 current->depth_cm += temp_AET_value / (current->next->theta - current->theta); 
-                printf("new depth: %lf \n", current->depth_cm);
+                // printf("new depth: %lf \n", current->depth_cm);
               }
             }
           }
@@ -868,12 +796,12 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
             if (thickness_of_WF_crossing_rooting_zone==0.0){
               // current->theta -= temp_AET_value / WF_thickness_cm; // was previously extracting AET by changing theta, now doing it based on height. 
               current->depth_cm += temp_AET_value / (current->next->theta - current->theta); 
-              printf("new depth: %lf \n", current->depth_cm);
+              // printf("new depth: %lf \n", current->depth_cm);
             }
             else{
               // current->theta -= temp_AET_value / thickness_of_WF_crossing_rooting_zone;
               current->depth_cm += temp_AET_value / (current->next->theta - current->theta); 
-              printf("new depth: %lf \n", current->depth_cm);
+              // printf("new depth: %lf \n", current->depth_cm);
             }
           }
 
@@ -975,65 +903,71 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
     // if ((surf_frac_rz<0.99999) && (PET_timestep_cm>0.0) && (cumulative_ET_from_TO_WFs_cm<1e-6)) {
   if (run_AET_correction){
     if ((surf_frac_rz<0.99999) && (PET_timestep_cm>0.0)) {
-      printf("aet check 1 \n");
       struct wetting_front *shallowest_eligible_TO_WF = listFindFront(listLength_TO_WFs_above_surface_WFs(*head) + listLength_surface(*head) + 1, *head, NULL);
       struct wetting_front *next = shallowest_eligible_TO_WF->next;
-      struct wetting_front *deepest_surf_WF = listFindFront(listLength_surface(*head) + 1, *head, NULL);
 
-      printf("shallowest_eligible_TO_WF->front_num first time: %d \n", shallowest_eligible_TO_WF->front_num);
 
       if (listLength_surface(*head)==0){
         while ((shallowest_eligible_TO_WF->next!=NULL) && (shallowest_eligible_TO_WF->depth_cm<root_zone_depth)){
             shallowest_eligible_TO_WF = shallowest_eligible_TO_WF->next;
         }
       }
-      printf("shallowest_eligible_TO_WF->front_num second time: %d \n", shallowest_eligible_TO_WF->front_num);
-      printf("aet check 2 \n");
+      // printf("shallowest_eligible_TO_WF->front_num second time: %d \n", shallowest_eligible_TO_WF->front_num);
+      // printf("aet check 2 \n");
       while(shallowest_eligible_TO_WF->to_bottom==TRUE){
-        printf("aet check 3 \n");
+        // printf("aet check 3 \n");
         if (shallowest_eligible_TO_WF->next==NULL){
           break;
         }
         shallowest_eligible_TO_WF = shallowest_eligible_TO_WF->next;
-        printf("aet check 3.1 \n");
+        // printf("aet check 3.1 \n");
       }
-      printf("shallowest_eligible_TO_WF->front_num third time: %d \n", shallowest_eligible_TO_WF->front_num);
+      // printf("shallowest_eligible_TO_WF->front_num third time: %d \n", shallowest_eligible_TO_WF->front_num);
       if (shallowest_eligible_TO_WF->next==NULL){
         next = shallowest_eligible_TO_WF;
       }
       else{
         next = shallowest_eligible_TO_WF->next;
       }
-      printf("aet check 4 \n");
-      printf("aet check 5 \n");
+      // printf("aet check 4 \n");
+      // printf("aet check 5 \n");
       int WF_num = shallowest_eligible_TO_WF->front_num;
-      printf("aet check 6 \n");
+      // printf("aet check 6 \n");
 
       // double already_computed_TO_RZ_frac = 
-      printf("already_computed_TO_RZ_frac: %lf \n", already_computed_TO_RZ_frac);
-      printf("surf_frac_rz: %lf \n", surf_frac_rz);
+      // printf("already_computed_TO_RZ_frac: %lf \n", already_computed_TO_RZ_frac);
+      // printf("surf_frac_rz: %lf \n", surf_frac_rz);
       // double WF_thickness_cm = fmax(0,root_zone_depth*(1-surf_frac_rz-already_computed_TO_RZ_frac));
       double WF_thickness_cm = fmax(0,root_zone_depth*(1-deepest_surf_depth_at_start/root_zone_depth-already_computed_TO_RZ_frac));
       
-      printf("WF_thickness_cm: %.17lf \n", WF_thickness_cm);
-      printf("aet check 7 \n");
+      // printf("WF_thickness_cm: %.17lf \n", WF_thickness_cm);
+      // printf("aet check 7 \n");
       double temp_AET_value = calc_aet_for_individual_TO_WFs(WF_num, WF_thickness_cm, root_zone_depth, PET_timestep_cm, timestep_h, wilting_point_psi_cm, field_capacity_psi_cm,
                   soil_type, soil_properties, head);
 
         if (verbosity.compare("high") == 0) {
           printf("shallowest_eligible_TO_WF->front_num: %d \n", shallowest_eligible_TO_WF->front_num);
           printf("shallowest_eligible_TO_WF->depth_cm: %.17lf \n", shallowest_eligible_TO_WF->depth_cm);
-          printf("mass at start of multilayer TO AET extraction below rz: %lf \n", lgar_calc_mass_bal(cum_layer_thickness_cm, *head));
+          printf("mass at start of TO AET extraction below rz: %lf \n", lgar_calc_mass_bal(cum_layer_thickness_cm, *head));
           printf("temp_AET_value: %lf \n", temp_AET_value);
           listPrint(*head);
         }
 
         double mass_before_AET_extraction = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
-        if (shallowest_eligible_TO_WF->layer_num==1){
+        if (shallowest_eligible_TO_WF->layer_num==num_layers+1000){//...the idea here is to temporarily turn off this code, because when working with TO WFs, the "simple case" is the lowest layer not the highest layer. Anyway the code in the else clause should work generally. 
           shallowest_eligible_TO_WF->theta -= temp_AET_value / WF_thickness_cm;
-          printf("theta_new in extracting below RZ, top layer: %lf \n", shallowest_eligible_TO_WF->theta);
+          int soil_num = soil_type[num_layers];
+          double theta_r = soil_properties[soil_num].theta_r;
+          if (shallowest_eligible_TO_WF->theta<theta_r){
+            double temp_mass_before = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+            shallowest_eligible_TO_WF->theta = theta_r + 1.E-12;
+            double temp_mass_after = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+            temp_AET_value = temp_AET_value - (temp_mass_after - temp_mass_before);
+          }
+          // printf("theta_new in extracting below RZ, top layer: %lf \n", shallowest_eligible_TO_WF->theta);
         }
         else{
+          // printf("theta_new in extracting below RZ, not top layer: %lf \n", shallowest_eligible_TO_WF->theta);
           int layer_num = shallowest_eligible_TO_WF->layer_num;
           int soil_num = soil_type[layer_num];
           double vg_a_k, vg_m_k, vg_n_k;
@@ -1062,7 +996,7 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
           //   AET_demand_cm = temp_AET_value;//26 June 2024: added *(1/surf_frac_rz)
           // }
 
-          printf("checck 1 \n");
+          // printf("checck 1 \n");
 
 
           for (int k=1; k<layer_num; k++) {
@@ -1081,15 +1015,6 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
 
             double theta_below = calc_theta_from_h(psi_cm_below, vg_a_k, vg_m_k, vg_n_k, theta_e_k, theta_r_k);
 
-            // if (deepest_surf_WF!=NULL){
-            //   if (deepest_surf_WF->depth_cm>cum_layer_thickness_cm[k]){
-            //     layer_thickness = 0.0;
-            //   }
-            //   if (deepest_surf_WF->layer_num==k){
-            //     layer_thickness = cum_layer_thickness_cm[k] - deepest_surf_WF->depth_cm;
-            //   }
-            // }
-
               new_mass += layer_thickness * (theta - 0*theta_below);
             prior_mass += layer_thickness * (theta - 0*theta_below);
 
@@ -1106,16 +1031,12 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
           
           new_mass = prior_mass;
           prior_mass = prior_mass - AET_demand_cm;
-          printf("right before lgar_theta_mass_balance, here is new_mass: %lf \n", new_mass);
-          printf("right before lgar_theta_mass_balance, here is prior_mass: %lf \n", prior_mass);
+          // printf("right before lgar_theta_mass_balance, here is new_mass: %lf \n", new_mass);
+          // printf("right before lgar_theta_mass_balance, here is prior_mass: %lf \n", prior_mass);
           
           double theta_new = 0.0;
-          bool surf_present = FALSE;
-          if (listLength_surface(*head)>0){
-            surf_present = TRUE;
-          }
           if (listLength_surface(*head)==0){
-            theta_new = lgar_theta_mass_balance(surf_present, layer_num, soil_num, shallowest_eligible_TO_WF->psi_cm, new_mass, prior_mass, &AET_demand_cm, 
+            theta_new = lgar_theta_mass_balance(layer_num, soil_num, shallowest_eligible_TO_WF->psi_cm, new_mass, prior_mass, &AET_demand_cm, 
                       delta_thetas, delta_thickness, soil_type, soil_properties);
             shallowest_eligible_TO_WF->theta = theta_new;
           }
@@ -1133,24 +1054,33 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
             double tolerance = 1.E-12;
             new_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
             prior_mass = new_mass - AET_demand_cm;
-            printf("right before lgar_theta_mass_balance like code when surf_WFs, here is new_mass: %lf \n", new_mass);
-            printf("right before lgar_theta_mass_balance like code when surf_WFs, here is prior_mass: %lf \n", prior_mass);
+            // printf("right before lgar_theta_mass_balance like code when surf_WFs, here is new_mass: %lf \n", new_mass);
+            // printf("right before lgar_theta_mass_balance like code when surf_WFs, here is prior_mass: %lf \n", prior_mass);
             double psi_cm_loc_prev = psi_cm_loc;
             double delta_mass = fabs(new_mass - prior_mass);
             double theta = 0.0;
             int iter = 0;
             double factor = 1.0;//was 1.0 previously. This code is far faster and seems to avoid loops with >10000 iterations. Low van Genuchten n values can cause this
             bool switched = false; // flag that determines capillary head to be incremented or decremented
-            printf("delta_mass: %lf \n", delta_mass);
+            // printf("delta_mass: %lf \n", delta_mass);
+            bool iter_aug_flag=FALSE;
+            double delta_mass_prev   = delta_mass;
+            int count_no_mass_change = 0;
+            int break_no_mass_change = 5;
 
 
             while (delta_mass > tolerance) {
               iter++;
-
-              // if (iter>1000 && iter_aug_flag==FALSE){
-              //   factor = factor*100;
-              //   iter_aug_flag = TRUE;
+              // if (iter>10000){
+              //   printf("iter: %d \n", iter);
+              //   listPrint(*head);
+              //   abort();
               // }
+
+              if (iter>1000 && iter_aug_flag==FALSE){
+                factor = factor*100;
+                iter_aug_flag = TRUE;
+              }
 
               if (new_mass > prior_mass) {
                 psi_cm_loc += 0.1 * factor;
@@ -1185,11 +1115,11 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
               theta = calc_theta_from_h(psi_cm_loc, soil_properties[soil_num].vg_alpha_per_cm, soil_properties[soil_num].vg_m,
                       soil_properties[soil_num].vg_n,soil_properties[soil_num].theta_e,
                       soil_properties[soil_num].theta_r);
+              
 
               shallowest_eligible_TO_WF->psi_cm = psi_cm_loc;
               shallowest_eligible_TO_WF->theta = theta;
               theta_new = theta;
-              printf("theta_new: %lf \n", theta_new);
 
 
 
@@ -1243,62 +1173,44 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
 
               new_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
               delta_mass = fabs(new_mass - prior_mass);
-              printf("internal delta_mass: %.17lf \n", delta_mass);
 
-              // stop the loop if the error between the current and previous psi is less than 10^-15
-              // 1. enough accuracy, 2. the algorithm can't improve the error further,
-              // 3. avoid infinite loop, 4. handles case where theta is very close to theta_r and convergence might be possible but would be extremely slow
-              // 5. handles a corner case when prior mass is tiny (e.g., <1.E-5)
-              // printf("A1 = %.20f, %.18f %.18f %.18f %.18f \n ",fabs(psi_cm_loc - psi_cm_loc_prev) , psi_cm_loc, psi_cm_loc_prev, factor, delta_mass);
+
+
+              if (fabs(psi_cm_loc - psi_cm_loc_prev) < 1E-15 && factor < 1E-13) break;
+
+              // another condition to avoid infinite loop when the error does not improve
+              if (fabs(delta_mass - delta_mass_prev) < 1E-15)
+                count_no_mass_change++;
+              else
+                count_no_mass_change = 0;
+
+              // break the loop if the mass does not change in the five consecutive iterations.
+              if (count_no_mass_change == break_no_mass_change)
+                break;
               
-              // if (fabs(psi_cm_loc - psi_cm_loc_prev) < 1E-15 && factor < 1E-13) break;
+              if (psi_cm_loc > 1e7){//there are rare cases where theta is very close to theta_r, and delta_mass - delta_mass_prev will change extremely slowly. Convergence might be possible but the model will take hours to converge rather than seconds. 
+              //an alternative solution was to change the threshold in if (fabs(delta_mass - delta_mass_prev) < 1e-15) to 1e-11, but that solution is somewhat slow. 
+                break;
+              }
 
-              // if (delta_mass < tolerance) break;
+              // -ve pressure will return NAN, so terminate the loop if previous psi is way small and current psi is zero
+              // the wetting front is almost saturated
+              if (psi_cm_loc <= 0 && psi_cm_loc_prev < 0) break;
 
-              // // another condition to avoid infinite loop when the error does not improve
-              // if (fabs(delta_mass - delta_mass_prev) < 1E-15)
-              //   count_no_mass_change++;
-              // else
-              //   count_no_mass_change = 0;
+              delta_mass_prev = delta_mass;
 
-              // // break the loop if the mass does not change in the five consecutive iterations.
-              // if (count_no_mass_change == break_no_mass_change)
-              //   break;
-              
-              // if (psi_cm_loc > 1e7){//there are rare cases where theta is very close to theta_r, and delta_mass - delta_mass_prev will change extremely slowly. Convergence might be possible but the model will take hours to converge rather than seconds. 
-              // //an alternative solution was to change the threshold in if (fabs(delta_mass - delta_mass_prev) < 1e-15) to 1e-11, but that solution is somewhat slow. 
-              //   break;
-              // }
-
-              // // -ve pressure will return NAN, so terminate the loop if previous psi is way small and current psi is zero
-              // // the wetting front is almost saturated
-              // if (psi_cm_loc <= 0 && psi_cm_loc_prev < 0) break;
-
-              // delta_mass_prev = delta_mass;
 
             }
           }
 
+          free(delta_thetas);
+          free(delta_thickness);
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          printf("theta_new in extracting below RZ, multilayer: %lf \n", theta_new);
-          printf("was AET_demand_cm changed? here it is: %lf \n", AET_demand_cm);
+          // printf("theta_new in extracting below RZ, multilayer: %lf \n", theta_new);
+          // printf("was AET_demand_cm changed? here it is: %lf \n", AET_demand_cm);
         }
 
         
@@ -1313,7 +1225,6 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
         double Se = calc_Se_from_theta(shallowest_eligible_TO_WF->theta,theta_e,theta_r);
         shallowest_eligible_TO_WF->psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
         
-
         struct wetting_front *current = listFindFront(listLength(*head), *head, NULL);
         struct wetting_front *above = listFindFront(listLength(*head)-1, *head, NULL);
 
@@ -1333,23 +1244,25 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
             }
           }
           current = above;
-          above = listFindFront(current->front_num - 1, *head, NULL);
+          if (current!=NULL){
+            above = listFindFront(current->front_num - 1, *head, NULL);
+          }
           if (above==NULL){
             break;
           }
         }
 
         double mass_after_AET_extraction = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
-        printf("cumulative_ET_from_TO_WFs_cm before below rz aug: %.17lf \n", cumulative_ET_from_TO_WFs_cm);
+        // printf("cumulative_ET_from_TO_WFs_cm before below rz aug: %.17lf \n", cumulative_ET_from_TO_WFs_cm);
         cumulative_ET_from_TO_WFs_cm += (mass_before_AET_extraction - mass_after_AET_extraction);//5 June 2024 takeout
-        printf("mass_before_AET_extraction: %.17lf \n", mass_before_AET_extraction);
-        printf("mass_after_AET_extraction: %.17lf \n", mass_after_AET_extraction);
-        // cumulative_ET_from_TO_WFs_cm += temp_AET_value;
-        printf("cumulative_ET_from_TO_WFs_cm after below rz aug: %.17lf \n", cumulative_ET_from_TO_WFs_cm);
+        // printf("mass_before_AET_extraction: %.17lf \n", mass_before_AET_extraction);
+        // printf("mass_after_AET_extraction: %.17lf \n", mass_after_AET_extraction);
+        // printf("cumulative_ET_from_TO_WFs_cm after below rz aug: %.17lf \n", cumulative_ET_from_TO_WFs_cm);
 
     }//makes it so that water is extracted from below the RZ under certain circumstances 
   }
   
+
   return(cumulative_ET_from_TO_WFs_cm);
 
 }
