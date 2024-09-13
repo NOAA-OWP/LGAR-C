@@ -10,4 +10,4 @@ layer_soil_type=13,14,15
 max_valid_soil_types=25
 wilting_point_psi=15495.0[cm]
 field_capacity_psi=340.9[cm]
-giuh_ordinates=0.0,0.0,0.0,0.0,0.0
+giuh_ordinates=0.0

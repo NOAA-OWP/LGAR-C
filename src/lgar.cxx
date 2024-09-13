@@ -787,12 +787,6 @@ ReadVectorData(string key)
 
   if (z1.find(delimiter) == string::npos) {
     double v = stod(z1);
-    if (v == 0.0) {
-      stringstream errMsg;
-      errMsg << "soil_z (depth of soil reservior) should be greater than zero. It it set to "<< v << " in the config file "<< "\n";
-      throw runtime_error(errMsg.str());
-    }
-
     value.push_back(v);
 
   }
