@@ -890,29 +890,29 @@ extern void lgar_global_mass_balance(struct model_state *state, double *giuh_run
   
   //check if the giuh queue have some water left at the end of simulaiton; needs to be included in the global mass balance
   // hold on; this is probably not needed as we have volrunoff in the balance; revist AJK
-  for(int i=1; i <= state->lgar_bmi_params.num_giuh_ordinates; i++)
+  for(int i=0; i <= state->lgar_bmi_params.num_giuh_ordinates; i++)
     volend_giuh_cm += giuh_runoff_queue_cm[i];
 
-
   double global_error_cm = volstart + volprecip - volrunoff - volAET - volon - volrech - volend + volchange_calib_cm;
-
- printf("\n********************************************************* \n");
- printf("-------------------- Simulation Summary ----------------- \n");
- //printf("Time (sec)                 = %6.10f \n", elapsed);
- printf("------------------------ Mass balance ------------------- \n");
- printf("Initial water in soil     = %14.10f cm\n", volstart);
- printf("Total precipitation       = %14.10f cm\n", volprecip);
- printf("Total infiltration        = %14.10f cm\n", volin);
- printf("Final water in soil       = %14.10f cm\n", volend);
- printf("Surface ponded water      = %14.10f cm\n", volon);
- printf("Surface runoff            = %14.10f cm\n", volrunoff);
- printf("GIUH runoff               = %14.10f cm\n", volrunoff_giuh);
- printf("Total percolation         = %14.10f cm\n", volrech);
- printf("Total AET                 = %14.10f cm\n", volAET);
- printf("Total PET                 = %14.10f cm\n", volPET);
- printf("Total discharge (Q)       = %14.10f cm\n", total_Q_cm);
- printf("Vol change (calibration)  = %14.10f cm\n", volchange_calib_cm);
- printf("Global balance            =   %.6e cm\n", global_error_cm);
+  
+  printf("\n********************************************************* \n");
+  printf("-------------------- Simulation Summary ----------------- \n");
+  //printf("Time (sec)                 = %6.10f \n", elapsed);
+  printf("------------------------ Mass balance ------------------- \n");
+  printf("Initial water in soil     = %14.10f cm\n", volstart);
+  printf("Total precipitation       = %14.10f cm\n", volprecip);
+  printf("Total infiltration        = %14.10f cm\n", volin);
+  printf("Final water in soil       = %14.10f cm\n", volend);
+  printf("Surface ponded water      = %14.10f cm\n", volon);
+  printf("Surface runoff            = %14.10f cm\n", volrunoff);
+  printf("GIUH runoff               = %14.10f cm\n", volrunoff_giuh);
+  printf("GIUH water (in array)     = %14.10f cm\n", volend_giuh_cm);
+  printf("Total percolation         = %14.10f cm\n", volrech);
+  printf("Total AET                 = %14.10f cm\n", volAET);
+  printf("Total PET                 = %14.10f cm\n", volPET);
+  printf("Total discharge (Q)       = %14.10f cm\n", total_Q_cm);
+  printf("Vol change (calibration)  = %14.10f cm\n", volchange_calib_cm);
+  printf("Global balance            =   %.6e cm\n", global_error_cm);
 
 }
 
