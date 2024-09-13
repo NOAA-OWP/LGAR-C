@@ -36,7 +36,7 @@ extern string verbosity;
 #define use_bmi_flag FALSE       // TODO set to TRUE to run in BMI environment
 
 #define MAX_NUM_SOIL_LAYERS 4
-#define MAX_NUM_SOIL_TYPES 16
+#define MAX_NUM_SOIL_TYPES 15
 #define MAX_SOIL_NAME_CHARS 25
 #define MAX_NUM_WETTING_FRONTS 300
 
