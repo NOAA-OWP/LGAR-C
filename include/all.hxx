@@ -36,7 +36,8 @@ extern string verbosity;
 #define use_bmi_flag FALSE       // TODO set to TRUE to run in BMI environment
 
 #define MAX_NUM_SOIL_LAYERS 4
-#define MAX_NUM_SOIL_TYPES 15
+#define MAX_NUM_SOIL_TYPES 25 //changed back to 25 from 15, because the file that loads soil types for Bushland relies on entries 16, 17, and 18 in the .dat file.
+//and generally, although we might want to restrict soil types to the 12 recognized ones and a few invalid soil types, in theory what if a user wanted to use a custom .dat file with a large number of soils?
 #define MAX_SOIL_NAME_CHARS 25
 #define MAX_NUM_WETTING_FRONTS 300
 
@@ -346,7 +347,7 @@ extern double lgarto_TO_WFs_merge_via_depth(double initial_mass, double column_d
 
 //subroutine allows TO WFs to merge with other TO WFs when a lower TO WF gets too dry. 
 //in the rare case that merging based on theta is necessary but the wetting front that would be deleted has to_bottom == TRUE, then instead the mass difference is moved to the GW flux.
-extern double lgarto_TO_WFs_merge_via_theta(int num_layers, double initial_mass, double column_depth, double* cum_layer_thickness_cm, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
+extern double lgarto_TO_WFs_merge_via_theta(double initial_mass, double column_depth, double* cum_layer_thickness_cm, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
 
 // subroutine to handle wet over dry wetting fronts condtions
 extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
