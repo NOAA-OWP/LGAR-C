@@ -392,14 +392,7 @@ Update()
         }
       }
 
-      // if (top_most_surface_WF->depth_cm<5){
-      //   while (top_most_surface_WF->depth_cm<5){
-      //     top_most_surface_WF = top_most_surface_WF->next;
-      //   }
-      // }//dry depth aug
-
       theta_for_new_wf = top_most_surface_WF->theta;
-      // theta_for_new_wf = theta_e;
 
       if (verbosity.compare("high") == 0) {
         printf("State before moving creating new WF...\n");
@@ -467,14 +460,7 @@ Update()
         }
       }
 
-      // if (top_most_surface_WF->depth_cm<5){
-      //   while (top_most_surface_WF->depth_cm<5){
-      //     top_most_surface_WF = top_most_surface_WF->next;
-      //   }
-      // }//dry depth aug
-
       theta_for_new_wf = top_most_surface_WF->theta;
-      // theta_for_new_wf = theta_e;
 
       lgar_create_surficial_front(state->lgar_bmi_params.TO_enabled, num_layers, &ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth, theta_for_new_wf,
 				  state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
@@ -518,7 +504,7 @@ Update()
 
       volin_timestep_cm += volin_subtimestep_cm;
       volrunoff_timestep_cm += volrunoff_subtimestep_cm;
-      volrech_subtimestep_cm = volin_subtimestep_cm; // this gets updated later, probably not needed here
+      volrech_subtimestep_cm = volin_subtimestep_cm;
 
       volon_subtimestep_cm = ponded_depth_subtimestep_cm;
       if (volrunoff_subtimestep_cm < 0.0) abort();
@@ -600,45 +586,10 @@ Update()
       listPrint(state->head);
     }
 
-    bool unexpected_local_error = fabs(local_mb) > mbal_tol ? true : false; //1.0E-4
+    bool unexpected_local_error = fabs(local_mb) > mbal_tol ? true : false; //1.0E-4 was the default for LASAM stability testing 
     if (isinf(local_mb)){
       unexpected_local_error = true;
     }
-
-    // if (AET_subtimestep_cm>PET_subtimestep_cm){
-    //   printf("AET_subtimestep_cm>PET_subtimestep_cm \n");
-    //   unexpected_local_error = true;//remove before commit 
-    // }
-
-    // if (AET_subtimestep_cm>0.00000){
-    //   printf("aborting for AET_subtimestep_cm >0 for testing purposes \n");
-    //   unexpected_local_error = true;//remove before commit 
-    // }
-
-    // if (fabs(volrech_subtimestep_cm)>1e-6){
-    //   printf("aborting for recharge ~!= 0 for testing purposes \n");
-    //   unexpected_local_error = true;//remove before commit 
-    // }
-
-    // if (listLength_surface(state->head)>0){
-    //   printf("aborting for presence of surface WFs for testing purposes \n");
-    //   unexpected_local_error = true;//remove before commit 
-    // }
-
-    // if (volrech_subtimestep_cm<-1e-1){
-    //   printf("aborting for certain percolation for testing purposes \n");
-    //   unexpected_local_error = true;//remove before commit 
-    // }
-
-    // if (AET_subtimestep_cm>1.1*PET_subtimestep_cm){
-    //   printf("aborting because AET was substantially larger than PET \n");
-    //   unexpected_local_error = true;//remove before commit 
-    // }
-
-    // if ( (state->head->is_WF_GW==FALSE && state->head->next->is_WF_GW==FALSE) && (state->head->to_bottom==TRUE) && (fabs(state->head->psi_cm - state->head->next->psi_cm)>1.E-4) ){
-    //   printf("aborting because there is a substantial mismatch in psi among layers \n");
-    //   // abort(); //as it turns out, with some soils, the extreme sensitivity of theta to psi as psi approaches 0 means we should tolerate small differences in psi among layers, for example substantially larger than 1E-4 should be ok
-    // }
 
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0 || unexpected_local_error) {
@@ -699,7 +650,7 @@ Update()
   volrunoff_giuh_timestep_cm = giuh_convolution_integral(volrunoff_timestep_cm, num_giuh_ordinates, giuh_ordinates, giuh_runoff_queue);
 
   // total mass of water leaving the system, at this time it is the giuh-only, but later will add groundwater component as well.
-  // when groundwater component is added, it should probably happen inside of the subcycling loop.
+  // for LGARTO, I believe that volQ will be streamflow via GIUH, and indeed a streamflow component due to GW will be added once we add a GW reservoir
   volQ_timestep_cm = volrunoff_giuh_timestep_cm;
 
 
