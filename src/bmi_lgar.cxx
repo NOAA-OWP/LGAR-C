@@ -372,7 +372,7 @@ Update()
       // }
       
       // depth of the surficial front to be created
-      dry_depth = lgar_calc_dry_depth(use_closed_form_G, nint, subtimestep_h, &delta_theta, state->lgar_bmi_params.layer_soil_type,
+      dry_depth = lgar_calc_dry_depth(use_closed_form_G, state->lgar_bmi_params.TO_enabled, nint, subtimestep_h, &delta_theta, state->lgar_bmi_params.layer_soil_type,
 				      state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
 				      state->head, state->soil_properties);
       
@@ -440,7 +440,7 @@ Update()
 			       &state->head, state->state_previous, state->soil_properties, surf_AET_vec);
 
       // depth of the surficial front to be created
-      dry_depth = lgar_calc_dry_depth(use_closed_form_G, nint, subtimestep_h, &delta_theta, state->lgar_bmi_params.layer_soil_type,
+      dry_depth = lgar_calc_dry_depth(use_closed_form_G, state->lgar_bmi_params.TO_enabled, nint, subtimestep_h, &delta_theta, state->lgar_bmi_params.layer_soil_type,
 				      state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
 				      state->head, state->soil_properties);
 

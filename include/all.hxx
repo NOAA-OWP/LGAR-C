@@ -289,7 +289,7 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double timestep_h, 
 			   double *frozen_factor, struct wetting_front* head, struct soil_properties_ *soil_properties, int num_layers);
 
 // computes dry depth
-extern double lgar_calc_dry_depth(bool use_closed_form_G, int nint, double timestep_h, double *deltheta, int *soil_type,
+extern double lgar_calc_dry_depth(bool use_closed_form_G, bool TO_enabled, int nint, double timestep_h, double *deltheta, int *soil_type,
                                   double *cum_layer_thickness_cm, double *frozen_factor,
 				  struct wetting_front* head, struct soil_properties_ *soil_properties);
 

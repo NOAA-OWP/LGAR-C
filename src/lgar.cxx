@@ -3413,7 +3413,7 @@ extern double lgar_create_surficial_front(bool TO_enabled, int num_layers, doubl
    formulated in the 2015 paper mentioned above only applies to the first few moments of a new WF, whereas
    we are using a coarser time step in this model*/
 // ############################################################################################
-extern double lgar_calc_dry_depth(bool use_closed_form_G, int nint, double timestep_h, double *delta_theta, int *soil_type,
+extern double lgar_calc_dry_depth(bool use_closed_form_G, bool TO_enabled, int nint, double timestep_h, double *delta_theta, int *soil_type,
 				  double *cum_layer_thickness_cm, double *frozen_factor,
 				  struct wetting_front* head, struct soil_properties_ *soil_properties)
 {
@@ -3472,10 +3472,12 @@ extern double lgar_calc_dry_depth(bool use_closed_form_G, int nint, double times
   //when dry depth greater than layer 1 thickness, set dry depth to layer 1 thickness
   dry_depth = fmin(cum_layer_thickness_cm[layer_num], dry_depth);
 
-  dry_depth = dry_depth * 0.2; //Especially in LGARTO, solution quality is sensitive to dry depth, and the dry depth concept as explained in both the 1997 GAR and 2023 LGAR papers probably is only applicable for small time steps. 
-  //It is easy to demonstrate that an unaltered dry depth initializes wetting fronts in an unrealistic way, effectively assuming an enormous dzdt value during the time step for which the WF was created.
-  //LGAR simulations seem to be mostly insensitive to reducing the dry depth by a factor of 0.1-0.2, while this range of factors massively improves LGARTO simulations and makes wetting fronts have more reasonable initial depths. 
+  if (TO_enabled){
+  dry_depth = dry_depth * 0.2; //in LGARTO, solution quality is sensitive to dry depth, and the dry depth concept as explained in both the 1997 GAR and 2023 LGAR papers probably is only applicable for small time steps. 
+  //It is easy to demonstrate that an unaltered dry depth initializes wetting fronts in an unrealistic way in some cases, effectively assuming an enormous dzdt value during the time step for which the WF was created.
+  //LGAR (not LGARTO) simulations seem to be mostly insensitive to reducing the dry depth by a factor of 0.1-0.2, while this range of factors massively improves LGARTO simulations and makes wetting fronts have more reasonable initial depths. 
   //Some text on this topic should be in the Discussion section of the LGARTO paper.
+  }
   
   return dry_depth;
 
