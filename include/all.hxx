@@ -36,6 +36,7 @@ extern string verbosity;
 #define use_bmi_flag FALSE       // TODO set to TRUE to run in BMI environment
 
 #define MAX_NUM_SOIL_LAYERS 4
+
 #define MAX_NUM_SOIL_TYPES 25 //changed back to 25 from 15, because the file that loads soil types for Bushland relies on entries 16, 17, and 18 in the .dat file.
 //and generally, although we might want to restrict soil types to the 12 recognized ones and a few invalid soil types, in theory what if a user wanted to use a custom .dat file with a large number of soils?
 #define MAX_SOIL_NAME_CHARS 25
@@ -135,9 +136,11 @@ struct lgar_bmi_parameters
   double root_zone_depth_cm;             // maximum depth from which roots extract water
   bool   use_closed_form_G = false;      /* true if closed form of capillary drive calculation is desired, false if numeric integral
 					    for capillary drive calculation is desired */
+
   bool   adaptive_timestep = false;      // if set to true, model uses adaptive timestep. In this case, the minimum timestep is the timestep specified in the config file. The maximum time step will be equal to the forcing resolution
   bool   TO_enabled = false;             // if set to true, model uses multilayer TO model for recharge 
   double mbal_tol;                       // if a substep's mass balance error is larger than this number, the model will abort. By default it is set to a large value (10 cm).
+
   double ponded_depth_cm;                // amount of water on the surface unavailable for surface runoff
   double ponded_depth_max_cm;            // maximum amount of water on the surface unavailable for surface runoff
   double precip_previous_timestep_cm;    // amount of rainfall (previous time step)
@@ -253,8 +256,10 @@ extern void                     listReverseOrder(struct wetting_front** head_ref
 extern bool                     listFindLayer(struct wetting_front* link, int num_layers, double *cum_layer_thickness_cm,
 					      int *lives_in_layer, bool *extends_to_bottom_flag);
 extern struct wetting_front*    listCopy(struct wetting_front* current, struct wetting_front* state_previous=NULL);
+
 extern void                     listDelete(struct wetting_front* head);
 extern bool                     GW_fronts_among_surf_WFs(struct wetting_front *head);
+
 
 
 

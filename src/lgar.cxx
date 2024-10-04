@@ -210,7 +210,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   fp.clear();
   fp.seekg(0, fp.beg);
 
-
   if (verbosity.compare("none") != 0) {
     std::cerr<<"------------- Initialization from config file ---------------------- \n";
   }
@@ -222,6 +221,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   state->lgar_bmi_params.TO_enabled        = false;
   // setting mass balance tolerance to be large by default; this can be specified in the config file
   state->lgar_bmi_params.mbal_tol = 1.E1;
+
   
   bool is_layer_thickness_set       = false;
   bool is_initial_psi_set           = false;
@@ -426,10 +426,12 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       continue;
     }
     else if (param_key == "adaptive_timestep") { 
-      if (param_value == "false") {
+
+      if ((param_value == "false") || (param_value == "0")) {
         state->lgar_bmi_params.adaptive_timestep = false;
       }
-      else if (param_value == "true") {
+      else if ( (param_value == "true") || (param_value == "1")) {
+
         state->lgar_bmi_params.adaptive_timestep = true;
       }
       else {
@@ -439,6 +441,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       continue;
     }
+
     else if (param_key == "mbal_tol") {
       state->lgar_bmi_params.mbal_tol = stod(param_value);
 
@@ -463,6 +466,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       continue;
     }
+
     else if (param_key == "timestep") {
       state->lgar_bmi_params.timestep_h = stod(param_value);
 
@@ -477,6 +481,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       assert (state->lgar_bmi_params.timestep_h > 0);
       is_timestep_set = true;
+
+      state->lgar_bmi_params.minimum_timestep_h = state->lgar_bmi_params.timestep_h;
 
       if (verbosity.compare("high") == 0) {
 	std::cerr<<"Model timestep [hours,seconds]: "<<state->lgar_bmi_params.timestep_h<<" , "
@@ -1027,7 +1033,6 @@ extern void lgar_global_mass_balance(struct model_state *state, double *giuh_run
   for(int i=0; i <= state->lgar_bmi_params.num_giuh_ordinates; i++)
     volend_giuh_cm += giuh_runoff_queue_cm[i];
 
-
   double global_error_cm = volstart + volprecip - volrunoff - volAET - volon - volrech - volend + volchange_calib_cm;
 
   printf("\n********************************************************* \n");
@@ -1369,8 +1374,6 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
       free(delta_thetas);
       free(delta_thickness);
 
-
-      
       current->theta = fmax(theta_r, fmin(theta_new, theta_e));
 
       double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
@@ -5194,7 +5197,6 @@ extern double adjust_new_theta(int new_wf_num, double target_mass, double *cum_l
   next = current->next;
 
   if ((current->theta<next->theta) && (listLength_surface(*head)>0)){
-
     
     soil_num = soil_type[current->layer_num];
     theta_e_temp = soil_properties[soil_num].theta_e;
@@ -5255,6 +5257,7 @@ extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_t
       break;
     }
 
+
     current = next;
     next = current->next;
   }
@@ -5311,5 +5314,5 @@ extern double lgarto_calc_largest_mag_TO_dzdt(struct wetting_front* head){
 
 }
 
-
 #endif
+

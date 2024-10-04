@@ -27,7 +27,7 @@ class NotImplemented : public std::logic_error {
 
 }
 
-class BmiLGAR : public bmixx::Bmi {
+class BmiLGAR : public bmi::Bmi {
 public:
   ~BmiLGAR();
   BmiLGAR():giuh_ordinates(nullptr), giuh_runoff_queue(nullptr) {

@@ -57,6 +57,7 @@ Initialize (std::string config_file)
 
 }
 
+
 /**
  * @brief Allocate (or reallocate) storage for soil parameters
  * 
@@ -65,6 +66,7 @@ void BmiLGAR::realloc_soil(){
 
   delete [] state->lgar_bmi_params.soil_depth_wetting_fronts;
   delete [] state->lgar_bmi_params.soil_moisture_wetting_fronts;
+
 
   state->lgar_bmi_params.soil_depth_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
   state->lgar_bmi_params.soil_moisture_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
@@ -85,8 +87,10 @@ Update()
   }
 
 
+
   double mm_to_cm = 0.1; // unit conversion
   double mm_to_m = 0.001;
+
 
   if (state->lgar_bmi_params.is_invalid_soil_type) {
     // add to mass balance accumulated variables
@@ -97,6 +101,9 @@ Update()
     state->lgar_mass_balance.volAET_cm      = 0.0;
     state->lgar_mass_balance.volrech_cm     = 0.0;
     state->lgar_mass_balance.volrunoff_cm  += state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
+
+    state->lgar_mass_balance.volQ_cm       += state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
+
     state->lgar_mass_balance.volQ_gw_cm     = 0.0;
     state->lgar_mass_balance.volPET_cm      = 0.0;
     state->lgar_mass_balance.volrunoff_giuh_cm  = 0.0;
@@ -129,8 +136,9 @@ Update()
     state->lgar_bmi_params.calib_params_flag = false;
   }
 
+
   // local variables for readibility
-  int subcycles = state->lgar_bmi_params.forcing_interval;
+  int subcycles;
   int num_layers = state->lgar_bmi_params.num_layers;
 
   // local variables for a full timestep (i.e., timestep of the forcing data)
@@ -174,6 +182,7 @@ Update()
   bool adaptive_timestep = state->lgar_bmi_params.adaptive_timestep;
   double mbal_tol = state->lgar_bmi_params.mbal_tol;
 
+
   // constant value used in the AET function
   double AET_thresh_Theta = 0.85;    // scaled soil moisture (0-1) above which AET=PET (fix later!)
   double AET_expon        = 1.0;     // exponent that allows curvature of the rising portion of the Budyko curve (fix later!)
@@ -191,6 +200,7 @@ Update()
   // adaptive time step is set 
   if (adaptive_timestep) {
     subtimestep_h = state->lgar_bmi_params.forcing_resolution_h;
+
     if (state->lgar_bmi_input_params->precipitation_mm_per_h > 10.0) {
       subtimestep_h = state->lgar_bmi_params.minimum_timestep_h;  //case where precip > 1 cm/h
     }
@@ -204,7 +214,8 @@ Update()
   state->lgar_bmi_params.forcing_interval = int(state->lgar_bmi_params.forcing_resolution_h/state->lgar_bmi_params.timestep_h+1.0e-08); // add 1.0e-08 to prevent truncation error
   subcycles = state->lgar_bmi_params.forcing_interval;
 
-  if (verbosity.compare("high") == 0) {//and adaptive time step is engaged? 
+  if (verbosity.compare("high") == 0) {
+
     printf("time step size in hours: %lf \n", state->lgar_bmi_params.timestep_h);
   }
   
@@ -411,10 +422,12 @@ Update()
       temp_rch += temp_excess_water;
       temp_runoff += temp_excess_water;
 
+
       if(state->state_previous != NULL ){
         listDelete(state->state_previous);
         state->state_previous = NULL;
       }
+
       state->state_previous = listCopy(state->head);
 
       volin_timestep_cm += volin_subtimestep_cm;
@@ -467,6 +480,7 @@ Update()
 				  state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
 
       state->state_previous = NULL;
+
       state->state_previous = listCopy(state->head);
 
       volin_timestep_cm += volin_subtimestep_cm;
@@ -573,6 +587,8 @@ Update()
     volon_timestep_cm = volon_subtimestep_cm; // surface ponded water at the end of the timestep 
 
 
+    /*----------------------------------------------------------------------*/
+
     // increment runoff for the subtimestep
     surface_runoff_subtimestep_cm = volrunoff_subtimestep_cm;
     surface_runoff_timestep_cm += surface_runoff_subtimestep_cm ;
@@ -652,7 +668,6 @@ Update()
   // total mass of water leaving the system, at this time it is the giuh-only, but later will add groundwater component as well.
   // for LGARTO, I believe that volQ will be streamflow via GIUH, and indeed a streamflow component due to GW will be added once we add a GW reservoir
   volQ_timestep_cm = volrunoff_giuh_timestep_cm;
-
 
 
   /*----------------------------------------------------------------------*/
