@@ -36,7 +36,6 @@ extern string verbosity;
 #define use_bmi_flag FALSE       // TODO set to TRUE to run in BMI environment
 
 #define MAX_NUM_SOIL_LAYERS 4
-
 #define MAX_NUM_SOIL_TYPES 25 //changed back to 25 from 15, because the file that loads soil types for Bushland relies on entries 16, 17, and 18 in the .dat file.
 //and generally, although we might want to restrict soil types to the 12 recognized ones and a few invalid soil types, in theory what if a user wanted to use a custom .dat file with a large number of soils?
 #define MAX_SOIL_NAME_CHARS 25
@@ -136,11 +135,10 @@ struct lgar_bmi_parameters
   double root_zone_depth_cm;             // maximum depth from which roots extract water
   bool   use_closed_form_G = false;      /* true if closed form of capillary drive calculation is desired, false if numeric integral
 					    for capillary drive calculation is desired */
-
   bool   adaptive_timestep = false;      // if set to true, model uses adaptive timestep. In this case, the minimum timestep is the timestep specified in the config file. The maximum time step will be equal to the forcing resolution
   bool   TO_enabled = false;             // if set to true, model uses multilayer TO model for recharge 
+  bool   free_drainage_enabled = false;  // When running in LGAR mode (TO_enabled is false), then free_drainage_enabled will specify whether the lower boundary condition is no flow (false), or free drainage (true). 
   double mbal_tol;                       // if a substep's mass balance error is larger than this number, the model will abort. By default it is set to a large value (10 cm).
-
   double ponded_depth_cm;                // amount of water on the surface unavailable for surface runoff
   double ponded_depth_max_cm;            // maximum amount of water on the surface unavailable for surface runoff
   double precip_previous_timestep_cm;    // amount of rainfall (previous time step)
@@ -256,10 +254,8 @@ extern void                     listReverseOrder(struct wetting_front** head_ref
 extern bool                     listFindLayer(struct wetting_front* link, int num_layers, double *cum_layer_thickness_cm,
 					      int *lives_in_layer, bool *extends_to_bottom_flag);
 extern struct wetting_front*    listCopy(struct wetting_front* current, struct wetting_front* state_previous=NULL);
-
 extern void                     listDelete(struct wetting_front* head);
 extern bool                     GW_fronts_among_surf_WFs(struct wetting_front *head);
-
 
 
 
@@ -308,7 +304,7 @@ extern double lgar_create_surficial_front(bool TO_enabled, int num_layers, doubl
 					double *frozen_factor, struct wetting_front **head, struct soil_properties_ *soil_properties);
 
 // computes the infiltration capacity, fp, of the soil
-extern double lgar_insert_water(bool use_closed_form_G, int nint, double timestep_h, double *AET_demand_cm, double *ponded_depth,
+extern double lgar_insert_water(bool use_closed_form_G, int nint, double timestep_h, double *free_drainage_subtimestep_cm, double *AET_demand_cm, double *ponded_depth,
 				double *volin_this_timestep, double precip_timestep_cm, int wf_free_drainge_demand,
 				int num_layers, double ponded_depth_max_cm, int *soil_type, double *cum_layer_thickness_cm,
 				double *frozen_factor, struct wetting_front* head, struct soil_properties_ *soil_properties);
@@ -318,7 +314,7 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
 // 				     double old_mass, int number_of_layers, double *actual_ET_demand,
 // 				     double *cum_layer_thickness_cm, int *soil_type_by_layer, double *frozen_factor,
 // 				     struct wetting_front** head, struct wetting_front* state_previous, struct soil_properties_ *soil_properties);
-extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, double PET_timestep_cm, double wilting_point_psi_cm, double field_capacity_psi_cm, double root_zone_depth_cm,
+extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, double *free_drainage_subtimestep_cm, double PET_timestep_cm, double wilting_point_psi_cm, double field_capacity_psi_cm, double root_zone_depth_cm,
              double *volin_cm, int wf_free_drainage_demand, double old_mass, int num_layers, double surf_frac_rz, double *AET_demand_cm, double *cum_layer_thickness_cm,
 				     int *soil_type, double *frozen_factor, struct wetting_front** head,
 				     struct wetting_front* state_previous, struct soil_properties_ *soil_properties, double *surf_AET_vec);

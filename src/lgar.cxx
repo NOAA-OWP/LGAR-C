@@ -210,18 +210,19 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   fp.clear();
   fp.seekg(0, fp.beg);
 
+
   if (verbosity.compare("none") != 0) {
     std::cerr<<"------------- Initialization from config file ---------------------- \n";
   }
 
   // setting these options to false (defualt) 
-  state->lgar_bmi_params.sft_coupled       = false;
-  state->lgar_bmi_params.use_closed_form_G = false;
-  state->lgar_bmi_params.adaptive_timestep = false;
-  state->lgar_bmi_params.TO_enabled        = false;
+  state->lgar_bmi_params.sft_coupled           = false;
+  state->lgar_bmi_params.use_closed_form_G     = false;
+  state->lgar_bmi_params.adaptive_timestep     = false;
+  state->lgar_bmi_params.TO_enabled            = false;
+  state->lgar_bmi_params.free_drainage_enabled = false;
   // setting mass balance tolerance to be large by default; this can be specified in the config file
   state->lgar_bmi_params.mbal_tol = 1.E1;
-
   
   bool is_layer_thickness_set       = false;
   bool is_initial_psi_set           = false;
@@ -419,29 +420,40 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
         state->lgar_bmi_params.use_closed_form_G = true;
       }
       else {
-	std::cerr<<"Invalid option: use_closed_form_G must be true or false. \n";
+	std::cerr<<"Invalid option: use_closed_form_G must be true or false, or left unspecified (defaulting to false). \n";
         abort();
       }
 
       continue;
     }
     else if (param_key == "adaptive_timestep") { 
-
       if ((param_value == "false") || (param_value == "0")) {
         state->lgar_bmi_params.adaptive_timestep = false;
       }
       else if ( (param_value == "true") || (param_value == "1")) {
-
         state->lgar_bmi_params.adaptive_timestep = true;
       }
       else {
-	std::cerr<<"Invalid option: adaptive_timestep must be true or false. \n";
+	std::cerr<<"Invalid option: adaptive_timestep must be true or false, or left unspecified (defaulting to false). \n";
         abort();
       }
 
       continue;
     }
+    else if (param_key == "free_drainage_enabled") { 
+      if (param_value == "false") {
+        state->lgar_bmi_params.free_drainage_enabled = false;
+      }
+      else if (param_value == "true") {
+        state->lgar_bmi_params.free_drainage_enabled = true;
+      }
+      else {
+	std::cerr<<"Invalid option: free_drainage_enabled must be true or false, or left unspecified (defaulting to false). \n";
+        abort();
+      }
 
+      continue;
+    }
     else if (param_key == "mbal_tol") {
       state->lgar_bmi_params.mbal_tol = stod(param_value);
 
@@ -460,13 +472,12 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
         state->lgar_bmi_params.TO_enabled = true;
       }
       else {
-	std::cerr<<"Invalid option: TO_enabled must be true or false. \n";
+	std::cerr<<"Invalid option: TO_enabled must be true or false, or left unspecified (defaulting to false). \n";
         abort();
       }
 
       continue;
     }
-
     else if (param_key == "timestep") {
       state->lgar_bmi_params.timestep_h = stod(param_value);
 
@@ -481,8 +492,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       assert (state->lgar_bmi_params.timestep_h > 0);
       is_timestep_set = true;
-
-      state->lgar_bmi_params.minimum_timestep_h = state->lgar_bmi_params.timestep_h;
 
       if (verbosity.compare("high") == 0) {
 	std::cerr<<"Model timestep [hours,seconds]: "<<state->lgar_bmi_params.timestep_h<<" , "
@@ -808,8 +817,8 @@ extern void InitializeWettingFronts(bool TO_enabled, int num_layers, double init
     int wf_in_layer = 1;
     //extra_moisture_factor and extra_height_factor, when not equal to 0, initalize the model with wetting fronts that are not at their hydrostatic positions. Using 0 for both is preferred unless you want initial conditions to deviate from hydrostatic. 
     //extra_moisture_factor and extra_height_factor have been useful for testing and development but are note recommended to be changed anymore. 
-    double extra_moisture_factor = 0; 
-    double extra_height_factor = 0;
+    double extra_moisture_factor = 0.0;  //20
+    double extra_height_factor = 0.0;
 
     for(int front=1;front<=(num_layers*number_of_WFs_per_layer);front++) {
 
@@ -853,10 +862,10 @@ extern void InitializeWettingFronts(bool TO_enabled, int num_layers, double init
         bottom_flag=false; //in LGARTO, not all initial WFs extend to the bottom of their layers.
       }
 
-      // if (new_wf_depth<cum_layer_thickness_cm[layer-1]){
-      //   new_wf_depth = cum_layer_thickness_cm[layer-1];
-      //This code makes it so that if a wetting front would be higher than it is allowed to be for its layer, via accidentally making extra_height_factor too large, then the wetting front is at the top of its layer. To be safe, generally should make sure that extra_height_factor is small enough such that WFs are in their layers without this code.
-      // } 
+      if (new_wf_depth<cum_layer_thickness_cm[layer-1]){
+        new_wf_depth = cum_layer_thickness_cm[layer-1];
+      // This code makes it so that if a wetting front would be higher than it is allowed to be for its layer, via accidentally making extra_height_factor too large, then the wetting front is at the top of its layer. To be safe, generally should make sure that extra_height_factor is small enough such that WFs are in their layers without this code.
+      } 
 
       // the next lines create the initial moisture profile
       current = listInsertFront(new_wf_depth,theta_init,front,layer,bottom_flag,head,TO_enabled);
@@ -1033,26 +1042,34 @@ extern void lgar_global_mass_balance(struct model_state *state, double *giuh_run
   for(int i=0; i <= state->lgar_bmi_params.num_giuh_ordinates; i++)
     volend_giuh_cm += giuh_runoff_queue_cm[i];
 
+
   double global_error_cm = volstart + volprecip - volrunoff - volAET - volon - volrech - volend + volchange_calib_cm;
 
-  printf("\n********************************************************* \n");
-  printf("-------------------- Simulation Summary ----------------- \n");
-  //printf("Time (sec)                 = %6.10f \n", elapsed);
-  printf("------------------------ Mass balance ------------------- \n");
-  printf("Initial water in soil     = %14.10f cm\n", volstart);
-  printf("Total precipitation       = %14.10f cm\n", volprecip);
-  printf("Total infiltration        = %14.10f cm\n", volin);
-  printf("Final water in soil       = %14.10f cm\n", volend);
-  printf("Surface ponded water      = %14.10f cm\n", volon);
-  printf("Surface runoff            = %14.10f cm\n", volrunoff);
-  printf("GIUH runoff               = %14.10f cm\n", volrunoff_giuh);
-  printf("GIUH water (in array)     = %14.10f cm\n", volend_giuh_cm);
-  printf("Total percolation         = %14.10f cm\n", volrech);
-  printf("Total AET                 = %14.10f cm\n", volAET);
-  printf("Total PET                 = %14.10f cm\n", volPET);
-  printf("Total discharge (Q)       = %14.10f cm\n", total_Q_cm);
-  printf("Vol change (calibration)  = %14.10f cm\n", volchange_calib_cm);
-  printf("Global balance            =   %.6e cm\n", global_error_cm);
+  // if (volAET<0.0 || volrech<-10.0){
+  //   printf("AET less than 0, or recharge is unrealistically small, likely because free drainage is not handled properly \n");
+  //   abort();
+  // }
+
+  // else{
+    printf("\n********************************************************* \n");
+    printf("-------------------- Simulation Summary ----------------- \n");
+    //printf("Time (sec)                 = %6.10f \n", elapsed);
+    printf("------------------------ Mass balance ------------------- \n");
+    printf("Initial water in soil     = %14.10f cm\n", volstart);
+    printf("Total precipitation       = %14.10f cm\n", volprecip);
+    printf("Total infiltration        = %14.10f cm\n", volin);
+    printf("Final water in soil       = %14.10f cm\n", volend);
+    printf("Surface ponded water      = %14.10f cm\n", volon);
+    printf("Surface runoff            = %14.10f cm\n", volrunoff);
+    printf("GIUH runoff               = %14.10f cm\n", volrunoff_giuh);
+    printf("GIUH water (in array)     = %14.10f cm\n", volend_giuh_cm);
+    printf("Total percolation         = %14.10f cm\n", volrech);
+    printf("Total AET                 = %14.10f cm\n", volAET);
+    printf("Total PET                 = %14.10f cm\n", volPET);
+    printf("Total discharge (Q)       = %14.10f cm\n", total_Q_cm);
+    printf("Vol change (calibration)  = %14.10f cm\n", volchange_calib_cm);
+    printf("Global balance            =   %.6e cm\n", global_error_cm);
+  // }
 
 }
 
@@ -1108,7 +1125,7 @@ extern int wetting_front_free_drainage(struct wetting_front* head) {
   Note: '_old' denotes the wetting_front or variables at the previous timestep (or state)
 */
 // #######################################################################################################
-extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, double PET_timestep_cm, double wilting_point_psi_cm, double field_capacity_psi_cm, double root_zone_depth_cm,
+extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, double *free_drainage_subtimestep_cm, double PET_timestep_cm, double wilting_point_psi_cm, double field_capacity_psi_cm, double root_zone_depth_cm,
              double *volin_cm, int wf_free_drainage_demand, double old_mass, int num_layers, double surf_frac_rz, double *AET_demand_cm, double *cum_layer_thickness_cm,
 				     int *soil_type, double *frozen_factor, struct wetting_front** head,
 				     struct wetting_front* state_previous, struct soil_properties_ *soil_properties, double *surf_AET_vec)
@@ -1244,7 +1261,8 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
        listPrint(*head);
     }
 
-    double free_drainage_demand = 0.0;
+    // double free_drainage_demand = 0.0;
+    double free_drainage_demand = *free_drainage_subtimestep_cm;
     double actual_ET_demand;//big change 12 oct
     if (!TO_enabled){
       actual_ET_demand = *AET_demand_cm;
@@ -1345,7 +1363,8 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
       delta_thetas[layer_num] = 0.0;
       delta_thickness[layer_num] = current->depth_cm - cum_layer_thickness_cm[layer_num-1];
 
-      double free_drainage_demand = 0.0;
+      // double free_drainage_demand = 0.0;
+      double free_drainage_demand = *free_drainage_subtimestep_cm;
 
       if (TO_enabled){
         if (wf_free_drainage_demand == wf){ 
@@ -1374,6 +1393,8 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
       free(delta_thetas);
       free(delta_thickness);
 
+
+      
       current->theta = fmax(theta_r, fmin(theta_new, theta_e));
 
       double Se = calc_Se_from_theta(current->theta,theta_e,theta_r);
@@ -1402,7 +1423,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
       // if wetting front is the most surficial wetting front
       if (layer_num == 1) {
 
-	double free_drainage_demand = 0;
+	double free_drainage_demand = *free_drainage_subtimestep_cm;
 	// prior mass = mass contained in the current old wetting front
 	double prior_mass = current_old->depth_cm * (current_old->theta -  next_old->theta);
 
@@ -1432,9 +1453,10 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
 	else {
       if ((prior_mass/current->depth_cm + next->theta)<theta_r){
         //the idea here is that in some cases, the reduction in theta via WF movement or AET will be intense enough such that theta goes below theta_r.
-        //it requires a fairly unusual soil, which I encountered during random parameter sampling.
+        //it requires a fairly unusual soil, or strong free drainage, which I encountered during random parameter sampling.
+
         double mass_before_theta_went_below_theta_r = lgar_calc_mass_bal(cum_layer_thickness_cm, *head) - current->depth_cm*(current->theta - (prior_mass/current->depth_cm + next->theta));
-        if (!TO_enabled){//instead of deleting, we rely on how in LGARTO mode this WF will now merge with the WF below.
+        if (!TO_enabled && listLength(*head)>1){//instead of deleting, we rely on how in LGARTO mode this WF will now merge with the WF below.
           listDeleteFront(current->front_num, head, soil_type, soil_properties);
         }
         double mass_after_theta_went_below_theta_r = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
@@ -1442,7 +1464,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
         actual_ET_demand -= fabs(mass_before_theta_went_below_theta_r - mass_after_theta_went_below_theta_r);
       }
       else {//This is the case where theta>theta_r, which will be almost all of the time 
-	      current->theta = fmax(theta_r, fmin(theta_e, prior_mass/current->depth_cm + next->theta));
+	      current->theta = fmax(theta_r + 0*1.E-9, fmin(theta_e, prior_mass/current->depth_cm + next->theta));
       }
     }
 
@@ -1517,7 +1539,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
 	delta_thetas[layer_num] = next->theta;
 	delta_thickness[layer_num] = current->depth_cm - cum_layer_thickness_cm[layer_num-1];
 
-	double free_drainage_demand = 0.0;
+	double free_drainage_demand = *free_drainage_subtimestep_cm;
   
 
   if (TO_enabled){
@@ -1567,6 +1589,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
     }
 
     if ((wf == 1) || (wf==top_most_surface_WF)) { 
+      free_drainage_demand = *free_drainage_subtimestep_cm;
       wf_free_drainage_demand = wetting_front_free_drainage(*head);
       struct wetting_front *wf_free_drainage = listFindFront(wf_free_drainage_demand, *head, NULL);
 
@@ -1608,7 +1631,6 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
           iter++;
           if (iter>1e4) {
             break_flag = TRUE;
-            // *AET_demand_cm = *AET_demand_cm + mass_balance_error; //doing this leads to AET>PET over the course of a simulation
             bottom_boundary_flux_cm = bottom_boundary_flux_cm + mass_balance_error;
             // actual_ET_demand += mass_balance_error;
 
@@ -1712,13 +1734,28 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
 
     if (correction_type_surf==4){
       lgar_fix_dry_over_wet_wetting_fronts(&mass_change, cum_layer_thickness_cm, soil_type, head, soil_properties);
-      *AET_demand_cm = *AET_demand_cm - mass_change;
+      if (*free_drainage_subtimestep_cm==0.0){
+        *AET_demand_cm = *AET_demand_cm - mass_change;
+      }
+      else {
+        *free_drainage_subtimestep_cm = *free_drainage_subtimestep_cm - mass_change;
+        // *AET_demand_cm = *AET_demand_cm - mass_change;
+        if (*free_drainage_subtimestep_cm<0.0){
+          *AET_demand_cm = *AET_demand_cm + *free_drainage_subtimestep_cm;
+          *free_drainage_subtimestep_cm = 0.0;
+        }
+      }
     }
 
     correction_type_surf =  lgarto_correction_type_surf(num_layers, cum_layer_thickness_cm, head);
     if (verbosity.compare("high") == 0) {
       printf("correction_type_surf at end of iteration in while loop: %d \n", correction_type_surf);
     }
+  }
+
+  if (*AET_demand_cm<0.0 && *free_drainage_subtimestep_cm>0.0){
+    *free_drainage_subtimestep_cm += *AET_demand_cm;
+    *AET_demand_cm = 0.0;
   }
 
   mass_change = 0.0;
@@ -1789,26 +1826,58 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
     }
     bool TO_WFs_above_surface_WFs_flag = false;
     double bottom_boundary_flux_above_surface_WFs_cm = 0.0;
-    for (int wf = (listLength(*head)-1); wf != (listLength_surface(*head)); wf--) { 
+    int temp_count_surface_WF = 0;
+    for (int wf = (listLength(*head)-1); wf != 1; wf--) { 
+
+      if (wf<=0){
+        break;
+      }
+      
       current = listFindFront(wf,*head, NULL);
-      previous = listFindFront(wf-1,*head, NULL);
+
+      if (current==NULL){
+        printf("current is null \n");
+        printf("wf: %d \n", wf);
+      }
       next = listFindFront(wf+1,*head, NULL);
-      int temp_count_surface_WF = 0;
       if (current->is_WF_GW==0){
         while (current->is_WF_GW==0){
           temp_count_surface_WF++;
           TO_WFs_above_surface_WFs_flag = true;
 
+          if (wf-temp_count_surface_WF<=0){
+            break;
+          }
           current = listFindFront(wf-temp_count_surface_WF, *head, NULL);
-          previous = listFindFront(wf-1-temp_count_surface_WF, *head, NULL);
-
-          next = listFindFront(wf+1-temp_count_surface_WF, *head, NULL);
         }
+        wf = wf - temp_count_surface_WF;
       }
+
+      if (wf-temp_count_surface_WF<=0){
+        break;
+      }
+
       double delta_depth;
       delta_depth = current->dzdt_cm_per_h * timestep_h;
       double delta_theta;
-      delta_theta = next->theta - current->theta;
+      if (current->layer_num == next->layer_num){
+        delta_theta = next->theta - current->theta;
+      }
+      else{
+        double equiv_next_theta;
+        int soil_num = soil_type[current->layer_num];
+
+        double theta_e   = soil_properties[soil_num].theta_e;
+        double theta_r   = soil_properties[soil_num].theta_r;
+        double vg_a      = soil_properties[soil_num].vg_alpha_per_cm;
+        double vg_m      = soil_properties[soil_num].vg_m;
+        double vg_n      = soil_properties[soil_num].vg_n;
+
+        equiv_next_theta = calc_theta_from_h(next->psi_cm, vg_a, vg_m, vg_n, theta_e, theta_r);
+
+        delta_theta = equiv_next_theta - current->theta;
+        
+      }
 
       if (TO_WFs_above_surface_WFs_flag==false){
         current->depth_cm += delta_depth;
@@ -1875,7 +1944,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
       if ( (current->is_WF_GW==1) && (current->depth_cm>0.0) && (current->psi_cm>(next->psi_cm + 0.99*cum_layer_thickness_cm[num_layers]) ) && (current->to_bottom==FALSE) && (in_order) && (current->psi_cm > cum_layer_thickness_cm[num_layers]) && (current->psi_cm<5*cum_layer_thickness_cm[num_layers]) ){
         //the factor 0.99 in the line above has also been 0.5, it's not terribly important. Basically it will determine how frequently a new WF will be inserted, becasue a larger factor here will make it so that a larger gap is psi is required before a new WF is inserted.
         //reducing this factor (values as low as 0.05 have been explored) theoretically increases both computational expense and accuracy, but in practice for year long simulations the impact seems fairly small.
-        double first_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+        double first_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head); //tune here
 
         int soil_num = soil_type[current->layer_num];
 
@@ -1887,7 +1956,6 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
 
         double new_psi = (current->psi_cm + next->psi_cm)*0.5;
         if (new_psi>current->psi_cm){
-          // new_psi = (current->psi_cm*1.99 + 0.01*next->psi_cm)*0.5; //taking weighted avg probably plays into infintesimal change better, seems to have minimal impact however 
           new_psi = (current->psi_cm + next->psi_cm)*0.5;
         }
         double new_theta = calc_theta_from_h(new_psi, vg_a, vg_m, vg_n, theta_e, theta_r);
@@ -2831,6 +2899,7 @@ extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cu
   struct wetting_front *next;
   current = *head;
   next = current->next;
+  bool deleted_front = false;
 
   for (int l=1; l <= listLength(*head); l++) {
     if ((next != NULL) && (current->is_WF_GW==0)) {
@@ -2873,6 +2942,7 @@ extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cu
     }
 
     current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
+    deleted_front = true;
     double mass_after = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
     *mass_change += fabs(mass_after - mass_before);
 
@@ -2892,6 +2962,21 @@ extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cu
     next = NULL;
         else
     next = current->next;
+  }
+
+  if (deleted_front){
+    current = *head;
+    next = current->next;
+    for (int l=1; l <= listLength(*head); l++) {
+      if (isnan(current->psi_cm)){
+        listDeleteFront(current->front_num, head, soil_type, soil_properties);
+        current = next;
+        next = current->next;
+      }
+      if (next==NULL){
+        break;
+      }
+    }
   }
 
   if (verbosity.compare("high") == 0) {
@@ -2941,7 +3026,7 @@ extern bool lgar_check_dry_over_wet_wetting_fronts(struct wetting_front* head)
    in the current timestep, that is precipitation in the current and previous
    timesteps was greater than zero */
 // ############################################################################################
-extern double lgar_insert_water(bool use_closed_form_G, int nint, double timestep_h, double *AET_demand_cm, double *ponded_depth_cm,
+extern double lgar_insert_water(bool use_closed_form_G, int nint, double timestep_h, double *free_drainage_subtimestep_cm, double *AET_demand_cm, double *ponded_depth_cm,
 				double *volin_this_timestep, double precip_timestep_cm, int wf_free_drainage_demand,
 			        int num_layers, double ponded_depth_max_cm, int *soil_type,
 				double *cum_layer_thickness_cm, double *frozen_factor,
@@ -3021,13 +3106,11 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
   }
 
   // checkpoint # AJ
-  int soil_num_k = soil_type[head->layer_num];
-  double theta_e1 = soil_properties[soil_num_k].theta_e; // saturated theta of top layer
 
   // if free drainge has to be included, which currently we don't, then the following will be set to hydraulic conductivity
   // of the deeepest layer
-  if ((layer_num_fp == num_layers) && (current_free_drainage->theta == theta_e1) && (num_layers == number_of_wetting_fronts))
-    f_p = fmin(f_p, *AET_demand_cm/timestep_h); //the idea here is that, if the soil is completely saturated, a little bit of water can still enter if AET is sufficiently large 
+  if ((layer_num_fp == num_layers) && (current_free_drainage->psi_cm < 1.E-1) && (num_layers == number_of_wetting_fronts))
+    f_p = fmin(f_p, *AET_demand_cm/timestep_h); //the idea here is that, if the soil is nearly completely saturated, a little bit of water can still enter if AET is sufficiently large 
 
   //this code checks if there is enough storage available for infiltrating water. That is, f_p can only be as big as there is room for water. 
   double max_storage = 0.0;
@@ -3051,17 +3134,23 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
 
   double ponded_depth_temp = *ponded_depth_cm;
 
-  double free_drainage_demand = 0;
+  double free_drainage_demand = *free_drainage_subtimestep_cm;
+  
 
   // 'if' condition is not needed ... AJ
   if ((layer_num_fp==num_layers) && (num_layers == number_of_wetting_fronts))
-    ponded_depth_temp = *ponded_depth_cm - f_p * timestep_h - free_drainage_demand*0;
+    ponded_depth_temp = *ponded_depth_cm - f_p * timestep_h - 0*free_drainage_demand;
   else
-    ponded_depth_temp = *ponded_depth_cm - f_p * timestep_h - free_drainage_demand*0;
+    ponded_depth_temp = *ponded_depth_cm - f_p * timestep_h - 0*free_drainage_demand;
 
   ponded_depth_temp   = fmax(ponded_depth_temp, 0.0);
 
-  double fp_cm = f_p * timestep_h + free_drainage_demand/timestep_h; // infiltration in cm
+  double fp_cm = f_p * timestep_h + 0*free_drainage_demand; // infiltration in cm
+
+  if (num_layers == listLength(head) && (head->psi_cm<1.E-2)){
+    ponded_depth_temp = ponded_depth_temp - free_drainage_demand;
+    fp_cm = fp_cm + free_drainage_demand;
+  }
 
   if (ponded_depth_max_cm > 0.0 ) {
 
@@ -3476,7 +3565,7 @@ extern double lgar_calc_dry_depth(bool use_closed_form_G, bool TO_enabled, int n
   dry_depth = fmin(cum_layer_thickness_cm[layer_num], dry_depth);
 
   if (TO_enabled){
-  dry_depth = dry_depth * 0.2; //in LGARTO, solution quality is sensitive to dry depth, and the dry depth concept as explained in both the 1997 GAR and 2023 LGAR papers probably is only applicable for small time steps. 
+    dry_depth = dry_depth * 0.2; //in LGARTO, solution quality is sensitive to dry depth, and the dry depth concept as explained in both the 1997 GAR and 2023 LGAR papers probably is only applicable for small time steps. 
   //It is easy to demonstrate that an unaltered dry depth initializes wetting fronts in an unrealistic way in some cases, effectively assuming an enormous dzdt value during the time step for which the WF was created.
   //LGAR (not LGARTO) simulations seem to be mostly insensitive to reducing the dry depth by a factor of 0.1-0.2, while this range of factors massively improves LGARTO simulations and makes wetting fronts have more reasonable initial depths. 
   //Some text on this topic should be in the Discussion section of the LGARTO paper.
@@ -3676,6 +3765,7 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double timestep_h, 
             avoid_div_by_zero_factor = 1.E-10;
           }
           dzdt = (next->K_cm_per_h - current->K_cm_per_h) / (next->theta - current->theta + avoid_div_by_zero_factor) * (1 - (next->psi_cm+1e-6) / (D - current->depth_cm + avoid_div_by_zero_factor)); //the small numbers 1e-6 and 1e-9 are designed to prevent psi = 0 and division by 0
+          
           if (verbosity.compare("high") == 0) {
               printf("initial dzdt calc for GW WF: %lf \n ",dzdt);
               printf("current->front_num: %d \n ",current->front_num);
@@ -3779,7 +3869,7 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double timestep_h, 
                           soil_properties[soil_num_loc].vg_m);
             if (k==layer_num){
               if (previous!=NULL){
-                denominator_left += (cum_layer_thickness_cm[k] - previous->depth_cm)/ K_cm_per_h_prev_loc;
+                denominator_left += (cum_layer_thickness_cm[k] - current->depth_cm)/ K_cm_per_h_prev_loc;
               }
               else{
                 denominator_left += (cum_layer_thickness_cm[k])/ K_cm_per_h_prev_loc;
@@ -3796,7 +3886,7 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double timestep_h, 
             K_composite_left = D / (denominator_left);
           }
           else{
-            K_composite_left = (D - previous->depth_cm) / (denominator_left);
+            K_composite_left = (D - current->depth_cm) / (denominator_left);
           }
 
           if (current->layer_num == next->layer_num){
@@ -3828,12 +3918,6 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double timestep_h, 
 
       if ( (current->depth_cm + dzdt*timestep_h)<0.0 ){//prevent WFs from going above the soil surface via dzdt         
         dzdt = current->depth_cm/timestep_h; //so this is just one of many ways to solve the problem ... should be somewhat uncommon
-
-        // while ((current->depth_cm + dzdt*timestep_h)<0.0){
-        //   dzdt = dzdt*0.5;
-        // }
-
-        //While this correctly makes WFs not have a negative depth, it might affect the flux of GW to the vadose zone during times of extreme ET
       } 
 
       if (current->next!=NULL){
@@ -3947,7 +4031,7 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double timestep_h, 
       dzdt = 1e-9;
     }
 
-    if (dzdt>1E4){//insanity check. Keep in mind that this can be quite relevant, as WFs that are very close in theta can yield enormous, unrealistic dzdt values
+    if (dzdt>1E4){//insanity check. Keep in mind that this can be quite relevant, as adjacent WFs that are very close in theta can yield enormous, unrealistic dzdt values
       dzdt = 1E4;
     }
 
@@ -4086,7 +4170,6 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
     // 1. enough accuracy, 2. the algorithm can't improve the error further,
     // 3. avoid infinite loop, 4. handles case where theta is very close to theta_r and convergence might be possible but would be extremely slow
     // 5. handles a corner case when prior mass is tiny (e.g., <1.E-5)
-    // printf("A1 = %.20f, %.18f %.18f %.18f %.18f \n ",fabs(psi_cm_loc - psi_cm_loc_prev) , psi_cm_loc, psi_cm_loc_prev, factor, delta_mass);
     
     if (fabs(psi_cm_loc - psi_cm_loc_prev) < 1E-15 && factor < 1E-13) {
       break;
@@ -4204,10 +4287,11 @@ extern void lgarto_ensure_rooting_zone_population(double rzd, double PET_timeste
   current = *head; 
 
   while (( (num_TO_WFs_in_rz - listLength_surface(*head))<4) && (PET_timestep_cm>0.0) && (listLength_surface(*head)==0) && current->psi_cm<1.E6 ){//the 1.E-6 ensures that we don't get absurdly dry WFs towards surface 
-
+  // while (( (num_TO_WFs_in_rz - listLength_surface(*head))<15) && current->psi_cm<1.E6 ){//the 1.E-6 ensures that we don't get absurdly dry WFs towards surface 
+    //tune here //10
     current = *head; 
     // double new_psi = current->psi_cm + 30.0; //this could be a parameter ... or perhas calculated as some fraction of the thickness of the model domain. 
-    double new_psi = current->psi_cm + 0.25*rzd;
+    double new_psi = current->psi_cm + 0.25*rzd; //0.25 or 0.05
 
    /*The idea is that merging of TO WFs with other TO WFs or with surface WFs at various points can make it so that there are no WFs left in the rooting zone except for the one that extends to the soil surface.
     More commonly however, it can simply be the case that periods of relatively low precipitation and high AET can move all TO WFs in the rooting zone out of the rooting zone.
@@ -4229,6 +4313,7 @@ extern void lgarto_ensure_rooting_zone_population(double rzd, double PET_timeste
     double theta_new = calc_theta_from_h(new_psi, vg_a, vg_m, vg_n, theta_e, theta_r);
 
     listInsertFirst(0.0, theta_new, 1, 1, FALSE, head, true);
+    // abort();
     current = *head; 
     current->psi_cm = new_psi;
 
@@ -5105,7 +5190,7 @@ extern void lgarto_consolidate_excessive_fronts(double* cum_layer_thickness_cm, 
     printf("states before lgarto_consolidate_excessive_fronts: \n");
     listPrint(*head);
   }
-  while (lgarto_count_fronts_for_excessive_calc(head) > 6){ //6
+  while (lgarto_count_fronts_for_excessive_calc(head) > 6){ //6 //tune here //20
     listDeleteFront(1, head, soil_type, soil_properties);
   }
   double end_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
@@ -5197,6 +5282,7 @@ extern double adjust_new_theta(int new_wf_num, double target_mass, double *cum_l
   next = current->next;
 
   if ((current->theta<next->theta) && (listLength_surface(*head)>0)){
+
     
     soil_num = soil_type[current->layer_num];
     theta_e_temp = soil_properties[soil_num].theta_e;
@@ -5257,7 +5343,6 @@ extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_t
       break;
     }
 
-
     current = next;
     next = current->next;
   }
@@ -5314,5 +5399,5 @@ extern double lgarto_calc_largest_mag_TO_dzdt(struct wetting_front* head){
 
 }
 
-#endif
 
+#endif
