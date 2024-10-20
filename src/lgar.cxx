@@ -810,7 +810,7 @@ extern void InitializeWettingFronts(bool TO_enabled, int num_layers, double init
     bool bottom_flag;
     double Ksat_cm_per_h;
     struct wetting_front *current;
-    int number_of_WFs_per_layer = 4; //used to determine the number of initial WFs per soil layer in LGARTO. For longer simulations, both simulation quality and runtime do not depend heavilty on this, for shorter simulations it can be important. 
+    int number_of_WFs_per_layer = 4;//4 //used to determine the number of initial WFs per soil layer in LGARTO. For longer simulations, both simulation quality and runtime do not depend heavilty on this, for shorter simulations it can be important. 
     bool switch_to_next_layer_flag = false;
     double prior_psi_cm = cum_layer_thickness_cm[num_layers];
     double new_wf_depth;
@@ -1457,7 +1457,9 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
 
         double mass_before_theta_went_below_theta_r = lgar_calc_mass_bal(cum_layer_thickness_cm, *head) - current->depth_cm*(current->theta - (prior_mass/current->depth_cm + next->theta));
         if (!TO_enabled && listLength(*head)>1){//instead of deleting, we rely on how in LGARTO mode this WF will now merge with the WF below.
-          listDeleteFront(current->front_num, head, soil_type, soil_properties);
+          current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
+          current = next;
+          //possible current should be made to next
         }
         double mass_after_theta_went_below_theta_r = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
         *AET_demand_cm = *AET_demand_cm - fabs(mass_before_theta_went_below_theta_r - mass_after_theta_went_below_theta_r);
@@ -2200,7 +2202,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
   next = current->next;
   for (int wf=1; wf != listLength(*head); wf++) {
     if ( (current->depth_cm==0.0) && (listLength_surface(*head)>0) && (current->psi_cm>cum_layer_thickness_cm[num_layers]) ){
-      listDeleteFront(current->front_num, head, soil_type, soil_properties);
+      current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
     }
     if (next==NULL){
       break;
@@ -2297,7 +2299,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
           current->depth_cm = next->depth_cm + 1.E-7;
         }
         else {
-          listDeleteFront(current->front_num, head, soil_type, soil_properties);
+          current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
         }
         double end_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
         bottom_boundary_flux_cm += (start_mass - end_mass);
@@ -2324,7 +2326,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
         bottom_boundary_flux_cm += (current->depth_cm - next->depth_cm)*(current->theta-next->theta); //wondering if this should be moved to runoff rather than bottom bdy flux //well, it's a lot rarer than you expected, so not too important, and moving to runoff only makes sense if the domain is completely saturated
         next->psi_cm = current->psi_cm;
         next->theta = current->theta;
-        listDeleteFront(current->front_num, head, soil_type, soil_properties);
+        current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
         current = next;
         if (verbosity.compare("high") == 0) {
           printf("after deleted front too deep: \n");
@@ -2456,7 +2458,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
   next = current->next;
   for (int wf = 1; wf != (listLength(*head)); wf++){
     if (current->depth_cm>cum_layer_thickness_cm[num_layers]){
-      listDeleteFront(current->front_num, head, soil_type, soil_properties);
+      current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
       delete_flag = true;
     }
     current = next;
@@ -2487,7 +2489,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
   struct wetting_front *shallowest_nonzero_depth_TO_WF = listFindFront(listLength_TO_WFs_above_surface_WFs(*head) + listLength_surface(*head) + 1, *head, NULL);
   if (last_depth_zero_TO_WF!=NULL && shallowest_nonzero_depth_TO_WF!=NULL && listLength_surface(*head)>0){
     while (last_depth_zero_TO_WF->psi_cm < shallowest_nonzero_depth_TO_WF->psi_cm){
-      listDeleteFront(last_depth_zero_TO_WF->front_num, head, soil_type, soil_properties);
+      last_depth_zero_TO_WF = listDeleteFront(last_depth_zero_TO_WF->front_num, head, soil_type, soil_properties);
       last_depth_zero_TO_WF = listFindFront(listLength_TO_WFs_above_surface_WFs(*head), *head, NULL);
       if (last_depth_zero_TO_WF==NULL){
         break;
@@ -2548,7 +2550,7 @@ extern void lgar_merge_wetting_fronts(struct wetting_front** head, int *soil_typ
         current->psi_cm         = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
         current->K_cm_per_h     = calc_K_from_Se(Se_k, Ksat_cm_per_h_k, vg_m_k); // AJ - K_temp in python version for 1st layer
 
-        listDeleteFront(next->front_num, head, soil_type, soil_properties);
+        next = listDeleteFront(next->front_num, head, soil_type, soil_properties);
 
       }
     }
@@ -2752,15 +2754,15 @@ extern double lgar_wetting_front_cross_domain_boundary(bool TO_enabled, double* 
       if (TO_enabled){
         current->next->is_WF_GW = 1;
       }
-      listDeleteFront(current->front_num, head, soil_type, soil_properties);
+      current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
     }
 
     bottom_flux_cm += bottom_flux_cm_temp;
-    current = current->next;
-
     if (break_flag){
      break;
     }
+    current = current->next;
+
     }
   if (verbosity.compare("high") == 0) {
     printf("after surface WFs cross model lower boundary: \n");
@@ -2969,7 +2971,7 @@ extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cu
     next = current->next;
     for (int l=1; l <= listLength(*head); l++) {
       if (isnan(current->psi_cm)){
-        listDeleteFront(current->front_num, head, soil_type, soil_properties);
+        current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
         current = next;
         next = current->next;
       }
@@ -3300,6 +3302,8 @@ extern double lgar_create_surficial_front(bool TO_enabled, int num_layers, doubl
 
   current->dzdt_cm_per_h = 0.0; //for now assign 0 to dzdt as it will be computed/updated in lgar_dzdt_calc function
 
+  int current_front_num_temp = current->front_num;
+  
   if (current->next!=NULL){// sometimes a new WF immediately has to merge with another WF or cross a layer bdy
     if (current->depth_cm>current->next->depth_cm){
       //do a merge cross merge
@@ -3315,6 +3319,7 @@ extern double lgar_create_surficial_front(bool TO_enabled, int num_layers, doubl
     }
   }
 
+
   /*************************************************************************************/
   //the rest of the fxn lgar_create_surficial_front is code dealing with when TO mode is on. 
   //we check if the new WF is deeper than any TO WFs.
@@ -3324,9 +3329,10 @@ extern double lgar_create_surficial_front(bool TO_enabled, int num_layers, doubl
 
   /*************************************************************************************/
   //first, the new WF is moved into its correct position based on depth if necessary. It often will be in TO mode.
+  current = listFindFront(current_front_num_temp,*head,NULL);
   next = current->next;
   bool had_to_sort = false;
-  if (TO_enabled==1){
+  if (TO_enabled==1 && next!=NULL){
     if (current->depth_cm>next->depth_cm){
       had_to_sort = true;
       listSortFrontsByDepth(*head); 
@@ -3440,7 +3446,7 @@ extern double lgar_create_surficial_front(bool TO_enabled, int num_layers, doubl
   for (int wf = 1; wf != (listLength(*head)); wf++) {
     if ( (next!=NULL) && (current!=NULL) ){
       if ( (current->is_WF_GW==1) & (next->is_WF_GW==1) & (current->layer_num==next->layer_num) & (next->psi_cm==0) & ( fabs(current->theta - next->theta)<1e-7 ) ){
-        listDeleteFront(current->front_num, head, soil_type, soil_properties);
+        current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
       }
     }
     current = next;
@@ -3468,7 +3474,7 @@ extern double lgar_create_surficial_front(bool TO_enabled, int num_layers, doubl
           printf("wf to be deleted based on current->front_num: %d \n",current->front_num);
           printf("depth of that wf: %lf \n",current->depth_cm);
         }
-        listDeleteFront(current->front_num, head, soil_type, soil_properties);
+        current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
       }
       current = next;
       next = current->next;
@@ -4260,7 +4266,7 @@ extern void lgarto_resolve_TO_WF_between_surf_WFs(int *soil_type, struct soil_pr
       
         if ( (current->layer_num == next->layer_num) && next->to_bottom==FALSE) {
 
-          listDeleteFront(next->front_num, head, soil_type, soil_properties);
+          next = listDeleteFront(next->front_num, head, soil_type, soil_properties);
           surface_WFs_deeper_than_top_mobile_TO_WF = GW_fronts_among_surf_WFs(*head);
           break;
 
@@ -4849,7 +4855,9 @@ extern double lgarto_TO_WFs_merge_via_depth(double initial_mass, double column_d
   for (int wf = 1; wf != (listLength(*head)); wf++){
 
     if ( (current->depth_cm>next->depth_cm) && (current->is_WF_GW==1) && (next->is_WF_GW==1) && (next->to_bottom==FALSE) && (current->to_bottom==FALSE) && (current->theta < next->theta) ){
-      listDeleteFront(next->front_num, head, soil_type, soil_properties);
+      next = listDeleteFront(next->front_num, head, soil_type, soil_properties);
+      next = current->next;
+      //possible current should be made to next (but in this case next be made to current->next)
         
         double temp_tol = 1e-10;
         double factor;
@@ -4881,7 +4889,7 @@ extern double lgarto_TO_WFs_merge_via_depth(double initial_mass, double column_d
             current->depth_cm -= 0.1 * factor;
           }
 
-          if ((next->depth_cm>column_depth)){ // because the deepest WF can oscillate around the GW position 
+          if ((next->depth_cm>column_depth)){
             break;
           }
         }
@@ -4930,14 +4938,14 @@ extern double lgarto_TO_WFs_merge_via_theta(double initial_mass, double column_d
     if (  ((current->theta>next->theta)) && (current->is_WF_GW==1) && (next->is_WF_GW==1) && (next->layer_num==current->layer_num)  ){ 
 
       if (current->depth_cm == 0.0){
-        listDeleteFront(current->front_num, head, soil_type, soil_properties);
+        current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
+        //possible current should be made to next , although this one has been handled by this point 
         double new_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
         mass_diff = initial_mass - new_mass; 
       }
       else {
         if (next->to_bottom==FALSE && previous->to_bottom==FALSE){
-          listDeleteFront(current->front_num, head, soil_type, soil_properties);
-          current = next;
+          current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
 
           double temp_tol = 1e-12;
           double factor = 1.0; 
@@ -4966,7 +4974,7 @@ extern double lgarto_TO_WFs_merge_via_theta(double initial_mass, double column_d
             }
 
             if (current->depth_cm<0.0){
-              listDeleteFront(current->front_num, head, soil_type, soil_properties);
+              current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
               double new_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
               mass_diff = initial_mass - new_mass; 
               break;
@@ -4975,7 +4983,7 @@ extern double lgarto_TO_WFs_merge_via_theta(double initial_mass, double column_d
           }
         }
         else{
-          listDeleteFront(current->front_num, head, soil_type, soil_properties);
+          current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
           double new_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
           mass_diff = initial_mass - new_mass; 
           //the idea here is that when the conditions for TO-TO merging based on theta are correct by next->to_bottom==FALSE, you can't use the above code because you can't delete a to_bottom == TRUE WF. 
@@ -4983,11 +4991,12 @@ extern double lgarto_TO_WFs_merge_via_theta(double initial_mass, double column_d
         }
       }
     }
-
     previous = current;
+    if (previous->front_num==listLength(*head)){
+      break;
+    }
     current = current->next;
     next = current->next;
-
     }
 
     if (verbosity.compare("high") == 0) {
@@ -5086,7 +5095,8 @@ extern void lgar_TO_wetting_fronts_cross_layer_boundary(int *front_num_with_nega
         next->to_bottom = 0;
 
         if (isnan(next->depth_cm)){
-          listDeleteFront(next->front_num, head, soil_type, soil_properties);
+          next = listDeleteFront(next->front_num, head, soil_type, soil_properties);
+          next = current->next;
         }
 
         if (verbosity.compare("high") == 0) {
@@ -5339,7 +5349,7 @@ extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_t
   next = current->next;
   for (int wf = 1; wf != (listLength(*head)); wf++) {
     if ( ((current->layer_num==next->layer_num) && (fabs(current->theta - next->theta)<1.E-10)) ){
-      listDeleteFront(current->front_num, head, soil_type, soil_properties); 
+      current = listDeleteFront(current->front_num, head, soil_type, soil_properties); 
       break;
     }
 
@@ -5365,7 +5375,7 @@ extern bool correct_close_psis(int *soil_type, struct soil_properties_ *soil_pro
   next = current->next;
   for (int wf = 1; wf != (listLength(*head)); wf++) {
     if ( (current->layer_num==next->layer_num) && (current->is_WF_GW==FALSE && next->is_WF_GW==TRUE) && ((fabs(current->psi_cm - next->psi_cm)<1.E-3)  )){
-      listDeleteFront(current->front_num, head, soil_type, soil_properties); 
+      current = listDeleteFront(current->front_num, head, soil_type, soil_properties); 
       close_psis = true;
       break;
     }

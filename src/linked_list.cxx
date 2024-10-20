@@ -322,7 +322,7 @@ extern struct wetting_front* listDeleteFront(int front_num, struct wetting_front
     previous = current->next;
 
   }
-  
+  if( current != NULL ) free( current );
   current = previous;
 
   while(previous != NULL) { // decrement all front numbers

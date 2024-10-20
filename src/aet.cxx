@@ -330,7 +330,7 @@ extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_de
   next = current->next;
   for (int wf = 1; wf != (listLength(*head)-1); wf++){
     if (current->to_bottom==FALSE && next->is_WF_GW==TRUE && current->is_WF_GW==TRUE && fabs(current->psi_cm - next->psi_cm)<1.e-3){
-      listDeleteFront(current->front_num, head, soil_type, soil_properties);
+      current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
     }
     current = next;
     if (current==NULL){
