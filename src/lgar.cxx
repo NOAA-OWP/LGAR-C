@@ -1944,9 +1944,10 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
         break;
       }
       if ( (current->is_WF_GW==1) && (current->depth_cm>0.0) && (current->psi_cm>(next->psi_cm + 0.99*cum_layer_thickness_cm[num_layers]) ) && (current->to_bottom==FALSE) && (in_order) && (current->psi_cm > cum_layer_thickness_cm[num_layers]) && (current->psi_cm<5*cum_layer_thickness_cm[num_layers]) ){
+        //high accuracy version: change the factor 0.99 above to 0.1
         //the factor 0.99 in the line above has also been 0.5, it's not terribly important. Basically it will determine how frequently a new WF will be inserted, becasue a larger factor here will make it so that a larger gap is psi is required before a new WF is inserted.
         //reducing this factor (values as low as 0.05 have been explored) theoretically increases both computational expense and accuracy, but in practice for year long simulations the impact seems fairly small.
-        double first_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head); //tune here
+        double first_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
 
         int soil_num = soil_type[current->layer_num];
 
@@ -4294,7 +4295,7 @@ extern void lgarto_ensure_rooting_zone_population(double rzd, double PET_timeste
 
   while (( (num_TO_WFs_in_rz - listLength_surface(*head))<4) && (PET_timestep_cm>0.0) && (listLength_surface(*head)==0) && current->psi_cm<1.E6 ){//the 1.E-6 ensures that we don't get absurdly dry WFs towards surface 
   // while (( (num_TO_WFs_in_rz - listLength_surface(*head))<15) && current->psi_cm<1.E6 ){//the 1.E-6 ensures that we don't get absurdly dry WFs towards surface 
-    //tune here //10
+    //high accuracy version: use the version where new wetting fronts are created regardless of PET
     current = *head; 
     // double new_psi = current->psi_cm + 30.0; //this could be a parameter ... or perhas calculated as some fraction of the thickness of the model domain. 
     double new_psi = current->psi_cm + 0.25*rzd; //0.25 or 0.05
@@ -5200,7 +5201,7 @@ extern void lgarto_consolidate_excessive_fronts(double* cum_layer_thickness_cm, 
     printf("states before lgarto_consolidate_excessive_fronts: \n");
     listPrint(*head);
   }
-  while (lgarto_count_fronts_for_excessive_calc(head) > 6){ //6 //tune here //20
+  while (lgarto_count_fronts_for_excessive_calc(head) > 6){
     listDeleteFront(1, head, soil_type, soil_properties);
   }
   double end_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
