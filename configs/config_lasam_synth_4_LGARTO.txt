@@ -1,10 +1,11 @@
-verbosity=high
+verbosity=none
 forcing_file=./forcing/forcing_data_synth_4_LGARTO.txt
 soil_params_file=./data/vG_default_params_HYDRUS.dat
 layer_thickness=10.0,45.0,45.0[cm]
 initial_psi=100.0[cm]
 timestep=300[sec]
 endtime=72[hr]
+use_closed_form_G=true
 forcing_resolution=300[sec]
 layer_soil_type=4,5,6
 max_valid_soil_types=25
