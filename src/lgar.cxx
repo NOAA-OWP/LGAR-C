@@ -1944,6 +1944,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
         break;
       }
       if ( (current->is_WF_GW==1) && (current->depth_cm>0.0) && (current->psi_cm>(next->psi_cm + 0.99*cum_layer_thickness_cm[num_layers]) ) && (current->to_bottom==FALSE) && (in_order) && (current->psi_cm > cum_layer_thickness_cm[num_layers]) && (current->psi_cm<5*cum_layer_thickness_cm[num_layers]) ){
+      // if ( (current->is_WF_GW==1) && (current->depth_cm>0.0) && (current->psi_cm>(next->psi_cm + 0.1*cum_layer_thickness_cm[num_layers]) ) && (current->to_bottom==FALSE) && (in_order) ){
         //high accuracy version: change the factor 0.99 above to 0.1
         //the factor 0.99 in the line above has also been 0.5, it's not terribly important. Basically it will determine how frequently a new WF will be inserted, becasue a larger factor here will make it so that a larger gap is psi is required before a new WF is inserted.
         //reducing this factor (values as low as 0.05 have been explored) theoretically increases both computational expense and accuracy, but in practice for year long simulations the impact seems fairly small.
@@ -1979,7 +1980,14 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
           current->depth_cm = 0.0;
         }
 
+        // printf("WF inserted to account for large spacing. current front num: %d \n", current->front_num);
+        // listPrint(*head);
+
         mass_added = lgar_calc_mass_bal(cum_layer_thickness_cm, *head) - first_mass;
+
+        // if (current->next->psi_cm<500.0){//another high accuracy option that more frequently inserts WFs to avoid large gaps in psi between adjacent WFs. Can marginally help with negative recharge but severely impacts runtime. 
+        //   break;
+        // }
 
         break;
       }
