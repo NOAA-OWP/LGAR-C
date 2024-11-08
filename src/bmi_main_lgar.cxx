@@ -163,6 +163,7 @@ int main(int argc, char *argv[])
 
   // do final mass balance ( inside Finalize() ) and finish the simulation
   model_state.Finalize();
+
   if (outdata_fptr) {
     fclose(outdata_fptr);
     fclose(outlayer_fptr);

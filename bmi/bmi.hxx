@@ -22,7 +22,7 @@ namespace bmi {
   class Bmi {
     public:
       virtual ~Bmi() { }
-
+      
       // Model control functions.
       virtual void Initialize(std::string config_file) = 0;
       virtual void Update() = 0;
