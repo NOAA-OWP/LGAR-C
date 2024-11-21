@@ -4,6 +4,7 @@
 #include <chrono>
 #include <thread>
 #include <cassert>
+#include <cstdlib>
 
 std::shared_ptr<Logger> Logger::loggerInstance;
 
@@ -46,8 +47,8 @@ void Logger::SetLogPreferences(LogLevel level = LogLevel::ERROR) {
 	ss.str("");
 
 	logFile.open(logFilePath, std::ios::app);
-	if (!logFile.good()) {
-		std::cerr << "Warning: Can't Open shared Log File referenced from NGEN_LOG_FILE_PATH env. variable" << std::endl;
+	if (logFile.bad()) {
+		std::cerr << "Warning: Can't Open shared Log File referenced from NGEN_LOG_FILE_PATH env. variable for LASAM module" << std::endl;
     	// create a local log file for LASAM module instead
 		std::string fwd_slash = "/";
     	std::string logFileName = "lasam_log.txt";
@@ -57,22 +58,22 @@ void Logger::SetLogPreferences(LogLevel level = LogLevel::ERROR) {
 		const char *cstr = mkdir_cmd.c_str();
    		status = system(cstr);
    		if (status == -1)
-   		   std::cerr << "Error(" << (errno) << ") creating log file directory: " << logFileDir << std::endl;
+   		   std::cerr << "Error(" << (errno) << ") creating log file directory for LASAM module: " << logFileDir << std::endl;
    		else
-   		   std::cout << "Log directory: " << logFileDir <<std::endl;
+   		   std::cout << "Log directory for LASAM module: " << logFileDir <<std::endl;
 		// create a local log file for LASAM module
 		logFilePath = logFileDir+logFileName;
 		logFile.open(logFilePath, ios::out | ios::app);
-		if (!logFile.good()) {
-			std::cerr << "Can't Open local directory Log File:" << logFilePath <<std::endl;			
+		if (logFile.bad()) {
+			std::cerr << "Can't Open local directory Log File for LASAM module:" << logFilePath <<std::endl;			
 		}
 		else {
-			std::cout << "Logging instead into: " << logFilePath << std::endl;
+			std::cout << "LASAM is Logging instead into: " << logFilePath << std::endl;
 		}
 			
 	}
 	else {
-		std::cout << "Log File Path:" << logFilePath << std::endl;
+		std::cout << "Log File Path for LASAM module:" << logFilePath << std::endl;
 	}
 
 }
@@ -130,7 +131,7 @@ void Logger::Log(std::string message, LogLevel messageLevel = LogLevel::DEBUG) {
 		final_message = createTimestamp() + separator + mod_name + separator + logType + message;
 		if (!logFile.bad()) {
 			logFile << final_message;
-			std::cout << final_message;
+			//std::cout << final_message;
 			logFile.flush();
 		}
 
@@ -184,11 +185,31 @@ std::string Logger::createTimestamp() {
     return ss.str();
 }
 
+bool logger_setup_done = false;
+
 void Logger::setup_logger(void) {
-    // One time log preferences
-    (Logger::GetInstance())->SetLogPreferences(LogLevel::INFO);
+    if (!logger_setup_done) {
+		// One time log preferences
+    	(Logger::GetInstance())->SetLogPreferences(LogLevel::INFO);
+		logger_setup_done = true;
+	}
 }
 
 std::string Logger::getLogFilePath() {
 	return logFilePath;
+}
+
+void Logger::debug_log(const char* message, ...) {
+    va_list arglist;
+    va_start(arglist, message);
+
+    size_t length = vsnprintf(NULL, 0, message, arglist) * sizeof(char);
+    char *buffer = (char *) malloc(length); 
+    vsnprintf(buffer, length, message, arglist);
+    va_end(arglist);
+	std::string buf_str = buffer;
+	
+	LOG(buf_str, LogLevel::DEBUG);
+
+	free(buffer);
 }
