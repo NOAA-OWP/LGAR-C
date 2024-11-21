@@ -210,7 +210,7 @@ Update()
   subcycles = state->lgar_bmi_params.forcing_interval;
 
   if (verbosity.compare("high") == 0) {
-    printf("time step size in hours: %lf \n", state->lgar_bmi_params.timestep_h);
+    Logger::debug_log("time step size in hours: %lf \n", state->lgar_bmi_params.timestep_h);
   }
   
   // subcycling loop (loop over model's timestep)
@@ -344,7 +344,7 @@ Update()
 				      state->head, state->soil_properties);
 
       if (verbosity.compare("high") == 0) {
-        printf("State before moving creating new WF...\n");
+        Logger::debug_log("State before moving creating new WF...\n");
         listPrint(state->head);
       }
       
@@ -353,7 +353,7 @@ Update()
 				  state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
 
       if (verbosity.compare("high") == 0) {
-        printf("State after moving creating new WF...\n");
+        Logger::debug_log("State after moving creating new WF...\n");
         listPrint(state->head);
       }
 
@@ -366,7 +366,7 @@ Update()
       volin_timestep_cm += volin_subtimestep_cm;
 
       if (verbosity.compare("high") == 0) {
-	std::cout<<"New wetting front created...\n";
+	Logger::debug_log("New wetting front created...\n");
 	listPrint(state->head);
       }
     }
@@ -456,14 +456,14 @@ Update()
     volQ_gw_timestep_cm += volQ_gw_subtimestep_cm;
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      printf("Printing wetting fronts at this subtimestep... \n");
+      Logger::debug_log("Printing wetting fronts at this subtimestep... \n");
       listPrint(state->head);
     }
 
     bool unexpected_local_error = fabs(local_mb) > 1.0E-4 ? true : false;
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0 || unexpected_local_error) {
-      printf("\nLocal mass balance at this timestep... \n\
+      Logger::debug_log("\nLocal mass balance at this timestep... \n\
       Error         = %14.10f \n\
       Initial water = %14.10f \n\
       Water added   = %14.10f \n\
@@ -477,7 +477,7 @@ Update()
 	     volend_subtimestep_cm);
 
       if (unexpected_local_error) {
-	printf("Local mass balance (in this timestep) is %14.10f, larger than expected, needs some debugging...\n ",local_mb);
+	Logger::debug_log("Local mass balance (in this timestep) is %14.10f, larger than expected, needs some debugging...\n ",local_mb);
 	abort();
       }
 
