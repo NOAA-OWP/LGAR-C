@@ -351,7 +351,7 @@ Update()
     if (is_top_wf_saturated)
       create_surficial_front = false;
 
-    if ( (state->lgar_bmi_params.TO_enabled) && ( (precip_subtimestep_cm > 0.0) || (volon_timestep_cm > 0.0) ) && (listLength_surface(state->head)==0) && (state->head->theta<(theta_e+1e-12)) ){ 
+    if ( (state->lgar_bmi_params.TO_enabled) && ( (precip_subtimestep_cm > 0.0) || (volon_timestep_cm > 0.0) ) && (listLength_surface(state->head)==0) && (state->head->theta<(theta_e-1.0E-12)) ){ 
       create_surficial_front = true; //however in LGARTO mode, a new WF can be created if there is nonzero ponded head in the event that a surface WF merged with a TO WF and became TO, and there is still remaining ponded head 
     }
 
@@ -367,7 +367,8 @@ Update()
 
     /*----------------------------------------------------------------------*/
     /* create a new wetting front if the following is true. */
-    if(create_surficial_front && !is_top_wf_saturated) {
+    // if(create_surficial_front && !is_top_wf_saturated) {
+    if(create_surficial_front) {
 
       double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
       double temp_rch = 0.0;
@@ -438,61 +439,6 @@ Update()
 
       if (verbosity.compare("high") == 0) {
 	std::cerr<<"New wetting front created...\n";
-	listPrint(state->head);
-      }
-    }
-
-    if(create_surficial_front && is_top_wf_saturated && (state->lgar_bmi_params.TO_enabled))  {
-
-      double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
-      double temp_rch = 0.0;
-      // move the wetting fronts without adding any water; this is done to close the mass balance
-      wf_free_drainage_demand = wetting_front_free_drainage(state->head);
-      temp_rch = lgar_move_wetting_fronts(state->lgar_bmi_params.TO_enabled, subtimestep_h, &free_drainage_subtimestep_cm, PET_subtimestep_cm_per_h, wilting_point_psi_cm, field_capacity_psi_cm, root_zone_depth_cm, 
-             &temp_pd, wf_free_drainage_demand, volend_subtimestep_cm,
-			       num_layers, surf_frac_rz, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
-			       state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
-			       &state->head, state->state_previous, state->soil_properties, surf_AET_vec);
-
-      // depth of the surficial front to be created
-      dry_depth = lgar_calc_dry_depth(use_closed_form_G, state->lgar_bmi_params.TO_enabled, nint, subtimestep_h, &delta_theta, state->lgar_bmi_params.layer_soil_type,
-				      state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
-				      state->head, state->soil_properties);
-
-      double theta_for_new_wf = 0.0;
-      struct wetting_front *top_most_surface_WF;
-      top_most_surface_WF = state->head;
-
-      if (listLength_surface(state->head)>0){
-        while (top_most_surface_WF->is_WF_GW==1){
-          top_most_surface_WF = top_most_surface_WF->next;
-        }
-      }
-
-      if (top_most_surface_WF->depth_cm==0.0){
-        while (top_most_surface_WF->depth_cm==0){
-          top_most_surface_WF = top_most_surface_WF->next;
-        }
-      }
-
-      theta_for_new_wf = top_most_surface_WF->theta;
-
-      lgar_create_surficial_front(state->lgar_bmi_params.TO_enabled, num_layers, &ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth, theta_for_new_wf,
-				  state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
-				  state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
-
-      state->state_previous = NULL;
-      state->state_previous = listCopy(state->head);
-
-      volin_timestep_cm += volin_subtimestep_cm;
-
-      volrech_subtimestep_cm = temp_rch; 
-
-      volrech_timestep_cm += volrech_subtimestep_cm;
-
-      if (verbosity.compare("high") == 0) {
-	std::cerr<<"New wetting front created...\n";
-	std::cerr<<" "<<"\n";
 	listPrint(state->head);
       }
     }
