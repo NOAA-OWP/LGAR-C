@@ -1125,7 +1125,7 @@ extern int wetting_front_free_drainage(struct wetting_front* head) {
   Note: '_old' denotes the wetting_front or variables at the previous timestep (or state)
 */
 // #######################################################################################################
-extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, double *free_drainage_subtimestep_cm, double PET_subtimestep_cm, double wilting_point_psi_cm, double field_capacity_psi_cm, double root_zone_depth_cm,
+extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, double *free_drainage_subtimestep_cm, double PET_timestep_cm, double wilting_point_psi_cm, double field_capacity_psi_cm, double root_zone_depth_cm,
              double *volin_cm, int wf_free_drainage_demand, double old_mass, int num_layers, double surf_frac_rz, double *AET_demand_cm, double *cum_layer_thickness_cm,
 				     int *soil_type, double *frozen_factor, struct wetting_front** head,
 				     struct wetting_front* state_previous, struct soil_properties_ *soil_properties, double *surf_AET_vec)
@@ -1800,7 +1800,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
       listPrint(*head);
     }
 
-    double cumulative_ET_from_TO_WFs_cm = lgarto_calc_aet_from_TO_WFs(num_layers, deepest_surf_depth_at_start, root_zone_depth, PET_subtimestep_cm, timestep_h, surf_frac_rz, 
+    double cumulative_ET_from_TO_WFs_cm = lgarto_calc_aet_from_TO_WFs(num_layers, deepest_surf_depth_at_start, root_zone_depth, PET_timestep_cm, timestep_h, surf_frac_rz, 
                                                                       wilting_point_psi_cm, field_capacity_psi_cm, soil_type, cum_layer_thickness_cm, soil_properties, head);
 
 
@@ -1811,7 +1811,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
     }
     
     double AET_in_TO_WFs_cm = 0.0;
-    lgarto_ensure_rooting_zone_population(root_zone_depth, PET_subtimestep_cm, soil_type, soil_properties, head); 
+    lgarto_ensure_rooting_zone_population(root_zone_depth, PET_timestep_cm, soil_type, soil_properties, head); 
 
     *AET_demand_cm += cumulative_ET_from_TO_WFs_cm;
 
@@ -4292,7 +4292,7 @@ extern void lgarto_resolve_TO_WF_between_surf_WFs(int *soil_type, struct soil_pr
 }
 
 
-extern void lgarto_ensure_rooting_zone_population(double rzd, double PET_subtimestep_cm, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head){
+extern void lgarto_ensure_rooting_zone_population(double rzd, double PET_timestep_cm, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head){
   if (verbosity.compare("high") == 0) {
     printf("states before lgarto_ensure_rooting_zone_population: \n");
     listPrint(*head);
@@ -4301,7 +4301,7 @@ extern void lgarto_ensure_rooting_zone_population(double rzd, double PET_subtime
   struct wetting_front *current;
   current = *head; 
 
-  while (( (num_TO_WFs_in_rz - listLength_surface(*head))<4) && (PET_subtimestep_cm>0.0) && (listLength_surface(*head)==0) && current->psi_cm<1.E6 ){//the 1.E-6 ensures that we don't get absurdly dry WFs towards surface 
+  while (( (num_TO_WFs_in_rz - listLength_surface(*head))<4) && (PET_timestep_cm>0.0) && (listLength_surface(*head)==0) && current->psi_cm<1.E6 ){//the 1.E-6 ensures that we don't get absurdly dry WFs towards surface 
   // while (( (num_TO_WFs_in_rz - listLength_surface(*head))<15) && current->psi_cm<1.E6 ){//the 1.E-6 ensures that we don't get absurdly dry WFs towards surface 
     //high accuracy version: use the version where new wetting fronts are created regardless of PET
     current = *head; 

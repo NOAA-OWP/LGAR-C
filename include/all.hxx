@@ -314,7 +314,7 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
 // 				     double old_mass, int number_of_layers, double *actual_ET_demand,
 // 				     double *cum_layer_thickness_cm, int *soil_type_by_layer, double *frozen_factor,
 // 				     struct wetting_front** head, struct wetting_front* state_previous, struct soil_properties_ *soil_properties);
-extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, double *free_drainage_subtimestep_cm, double PET_subtimestep_cm, double wilting_point_psi_cm, double field_capacity_psi_cm, double root_zone_depth_cm,
+extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, double *free_drainage_timestep_cm, double PET_subtimestep_cm, double wilting_point_psi_cm, double field_capacity_psi_cm, double root_zone_depth_cm,
              double *volin_cm, int wf_free_drainage_demand, double old_mass, int num_layers, double surf_frac_rz, double *AET_demand_cm, double *cum_layer_thickness_cm,
 				     int *soil_type, double *frozen_factor, struct wetting_front** head,
 				     struct wetting_front* state_previous, struct soil_properties_ *soil_properties, double *surf_AET_vec);
@@ -413,10 +413,10 @@ extern void calc_aet(bool TO_enabled, double PET_timestep_cm, double time_step_h
 extern double calc_aet_for_individual_TO_WFs(int WF_num, double WF_thickness_cm, double rooting_zone_depth, double PET_timestep_cm, double time_step_h, double wilting_point_psi_cm,
 		       double field_capacity_psi_cm, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
-extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_depth_at_start, double root_zone_depth, double PET_subtimestep_cm, double timestep_h, double surf_frac_rz, 
+extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_depth_at_start, double root_zone_depth, double PET_timestep_cm, double timestep_h, double surf_frac_rz, 
                                           double wilting_point_psi_cm, double field_capacity_psi_cm, int *soil_type, double *cum_layer_thickness_cm, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
-extern void lgarto_ensure_rooting_zone_population(double rzd, double PET_subtimestep_cm, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
+extern void lgarto_ensure_rooting_zone_population(double rzd, double PET_timestep_cm, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
 
 extern int lgarto_correction_type(int num_layers, double* cum_layer_thickness_cm, struct wetting_front** head);//returns an integer that describes which type of layer boundary crossing or WF merging is necessary, for all WFs
