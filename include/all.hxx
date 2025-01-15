@@ -416,7 +416,7 @@ extern double calc_aet_for_individual_TO_WFs(int WF_num, double WF_thickness_cm,
 extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_depth_at_start, double root_zone_depth, double PET_timestep_cm, double timestep_h, double surf_frac_rz, 
                                           double wilting_point_psi_cm, double field_capacity_psi_cm, int *soil_type, double *cum_layer_thickness_cm, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
-extern void lgarto_ensure_rooting_zone_population(double rzd, double PET_timestep_cm, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
+extern void lgarto_ensure_rooting_zone_population(double rzd, double PET_subtimestep_cm, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
 
 extern int lgarto_correction_type(int num_layers, double* cum_layer_thickness_cm, struct wetting_front** head);//returns an integer that describes which type of layer boundary crossing or WF merging is necessary, for all WFs
