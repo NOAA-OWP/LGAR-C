@@ -413,7 +413,7 @@ extern void calc_aet(bool TO_enabled, double PET_timestep_cm, double time_step_h
 extern double calc_aet_for_individual_TO_WFs(int WF_num, double WF_thickness_cm, double rooting_zone_depth, double PET_timestep_cm, double time_step_h, double wilting_point_psi_cm,
 		       double field_capacity_psi_cm, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
-extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_depth_at_start, double root_zone_depth, double PET_timestep_cm, double timestep_h, double surf_frac_rz, 
+extern double lgarto_calc_aet_from_TO_WFs(int num_layers, double deepest_surf_depth_at_start, double root_zone_depth, double PET_subtimestep_cm, double timestep_h, double surf_frac_rz, 
                                           double wilting_point_psi_cm, double field_capacity_psi_cm, int *soil_type, double *cum_layer_thickness_cm, struct soil_properties_ *soil_properties, struct wetting_front** head);
 
 extern void lgarto_ensure_rooting_zone_population(double rzd, double PET_subtimestep_cm, int *soil_type, struct soil_properties_ *soil_properties, struct wetting_front** head);
