@@ -314,7 +314,7 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
 // 				     double old_mass, int number_of_layers, double *actual_ET_demand,
 // 				     double *cum_layer_thickness_cm, int *soil_type_by_layer, double *frozen_factor,
 // 				     struct wetting_front** head, struct wetting_front* state_previous, struct soil_properties_ *soil_properties);
-extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, double *free_drainage_timestep_cm, double PET_timestep_cm, double wilting_point_psi_cm, double field_capacity_psi_cm, double root_zone_depth_cm,
+extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, double *free_drainage_subtimestep_cm, double PET_timestep_cm, double wilting_point_psi_cm, double field_capacity_psi_cm, double root_zone_depth_cm,
              double *volin_cm, int wf_free_drainage_demand, double old_mass, int num_layers, double surf_frac_rz, double *AET_demand_cm, double *cum_layer_thickness_cm,
 				     int *soil_type, double *frozen_factor, struct wetting_front** head,
 				     struct wetting_front* state_previous, struct soil_properties_ *soil_properties, double *surf_AET_vec);
