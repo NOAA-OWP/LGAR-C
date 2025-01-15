@@ -18,7 +18,7 @@ bool correct_AET_out_of_root_zone_via_surf_WFs = FALSE;
 extern void calc_aet(bool TO_enabled, double PET_timestep_cm, double time_step_h, double wilting_point_psi_cm, double field_capacity_psi_cm, double root_zone_depth_cm, double *surf_frac_rz, 
                        int *soil_type, double AET_thresh_Theta, double AET_expon, struct wetting_front* head,
             		       struct soil_properties_ *soil_properties, double *surf_AET_vec)
-{
+{//calc_aet just calcualtes AET that should be extracted from surface WFs, GW WF contribution to AET is calculated elsewhere
 
   if (verbosity.compare("high") == 0) {
     printf("Computing AET... \n");
@@ -119,11 +119,6 @@ extern void calc_aet(bool TO_enabled, double PET_timestep_cm, double time_step_h
             break;
           }
         }
-
-
-
-
-
 
         if (correct_AET_out_of_root_zone_via_surf_WFs && listLength_surface(head)>0){
           if ((listLength_TO_WFs_in_rz_nonzero_depth(root_zone_depth_cm, head)==0) && (wf==(listLength_TO_WFs_above_surface_WFs(head) + listLength_surface(head)))){

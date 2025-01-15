@@ -362,7 +362,6 @@ Update()
       std::cerr<<"Create superficial wetting front? "<< flag << "\n";
     }
 
-    double temp_runoff = 0.0;
     double temp_excess_water = 0.0;
 
     /*----------------------------------------------------------------------*/
@@ -396,12 +395,15 @@ Update()
       struct wetting_front *top_most_surface_WF;
       top_most_surface_WF = state->head;
 
+      //in LGARTO, there can be GW WFs that technically have a depth of 0 and are to the left of surface WFs. So the top surface WF won't necessarily just be head 
       if (listLength_surface(state->head)>0){
         while (top_most_surface_WF->is_WF_GW==1){
           top_most_surface_WF = top_most_surface_WF->next;
         }
       }
 
+      //in the case where there are no surface WFs, the shallowest GW WF with a nonzero depth is taken as top_most_surface_WF, which is simply used as the most superficial moisture for creating a new WF 
+      //note that that in this case top_most_surface_WF is technically a GW WF and not a surface WF 
       if (top_most_surface_WF->depth_cm==0.0){
         while (top_most_surface_WF->depth_cm==0){
           top_most_surface_WF = top_most_surface_WF->next;
@@ -425,7 +427,6 @@ Update()
       }
 
       temp_rch += temp_excess_water;
-      temp_runoff += temp_excess_water;
 
       if(state->state_previous != NULL ){
         listDelete(state->state_previous);
