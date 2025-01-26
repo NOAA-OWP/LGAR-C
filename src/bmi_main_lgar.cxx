@@ -19,6 +19,7 @@
 #include "../bmi/bmi.hxx"
 #include "../include/all.hxx"
 #include "../include/bmi_lgar.hxx"
+#include "../include/Logger.hpp"
 
 // module finds forcing file name in the config file
 std::string GetForcingFile(std::string config_file);
@@ -26,6 +27,7 @@ std::string GetForcingFile(std::string config_file);
 // module read forcings (precipitation and PET)
 void ReadForcingData(std::string config_file, std::vector<std::string>& time, std::vector<double>& precip, std::vector<double>& pet);
 
+std::stringstream bmimain_ss("");
 
 #define SUCCESS 0
 
@@ -37,9 +39,9 @@ int main(int argc, char *argv[])
   bool is_IO_supress = false; // if true no output files will be written
 
   if (argc != 2) {
-    printf("Usage: ./build/xlgar CONFIGURATION_FILE \n");
-    printf("Run the LASAM (Lumped Arid/semi-aric Model through its BMI with a configuration file.\n");
-    printf("Outputs are written to files `variables_data.csv and layers_data.csv`.\n");
+    Logger::debug_log("Usage: ./build/xlgar CONFIGURATION_FILE \n");
+    Logger::debug_log("Run the LASAM (Lumped Arid/semi-aric Model through its BMI with a configuration file.\n");
+    Logger::debug_log("Outputs are written to files `variables_data.csv and layers_data.csv`.\n");
     return SUCCESS;
   }
 
@@ -88,8 +90,9 @@ int main(int argc, char *argv[])
   assert (nsteps <= int(PET.size()) ); // assertion to ensure that nsteps are less or equal than the input data
   
   if (verbosity.compare("high") == 0 && !is_IO_supress) {
-    std::cout<<"Variables are written to file           : \'data_variables.csv\' \n";
-    std::cout<<"Wetting fronts state is written to file : \'data_layers.csv\' \n";
+    bmimain_ss <<"Variables are written to file           : \'data_variables.csv\' \n";
+    bmimain_ss <<"Wetting fronts state is written to file : \'data_layers.csv\' \n";
+    LOG(bmimain_ss.str(), LogLevel::INFO); bmimain_ss.str("");  
   }
 
   FILE *outdata_fptr = NULL;
@@ -116,9 +119,10 @@ int main(int argc, char *argv[])
   for (int i = 0; i < nsteps; i++) {
 
     if (verbosity.compare("none") != 0) {
-      std::cout<<"===============================================================\n";
-      std::cout<<"Real time | "<<time[i]<<"\n";
-      std::cout<<"Rainfall [mm/h], PET [mm/h] = "<<precipitation[i]<<" , "<<PET[i]<<"\n";
+      bmimain_ss <<"===============================================================\n";
+      bmimain_ss <<"Real time | "<<time[i]<<"\n";
+      bmimain_ss <<"Rainfall [mm/h], PET [mm/h] = "<<precipitation[i]<<" , "<<PET[i]<<"\n";
+      LOG(bmimain_ss.str(), LogLevel::INFO); bmimain_ss.str("");  
     }
 
     model_state.SetValue(var_name_precip, &precipitation[i]);
@@ -172,8 +176,9 @@ int main(int argc, char *argv[])
 
   elapsed = (double)(end_time - start_time) / CLOCKS_PER_SEC;
 
-  std::cout<<setprecision(4);
-  std::cout<<"Time                      =   "<< elapsed <<" sec \n";
+  bmimain_ss <<setprecision(4);
+  bmimain_ss <<"Time                      =   "<< elapsed <<" sec \n";
+  LOG(bmimain_ss.str(), LogLevel::INFO); bmimain_ss.str("");  
 
   return SUCCESS;
 }
@@ -223,7 +228,8 @@ ReadForcingData(std::string config_file, std::vector<std::string>& time, std::ve
   std::ifstream fp;
   fp.open(forcing_file);
   if (!fp) {
-    cout<<"file "<<forcing_file<<" doesn't exist. \n";
+    bmimain_ss <<"file "<<forcing_file<<" doesn't exist. \n";
+    LOG(bmimain_ss.str(), LogLevel::ERROR); bmimain_ss.str("");  
     abort();
   }
 
