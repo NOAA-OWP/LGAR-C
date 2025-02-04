@@ -1618,11 +1618,6 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
         bool switched = false;
         double tolerance = 1e-10;
 
-        // check if the difference is less than the tolerance
-        if (mass_balance_error <= tolerance) {
-          // return current_mass;
-        }
-
         double depth_new = wf_free_drainage->depth_cm;
 
         // loop to adjust the depth for mass balance
@@ -1783,7 +1778,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
     double mass_before_TO_move = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
 
     /*************************************************************************************/
-    //first, have to check rare case where multiple surface WFs advance and both surpass a TO WF, such that a TO WF would be in between 2 surface WFs. In this case it's just easiest to merge the surface WFs.
+    //first, have to check rare case where multiple surface WFs advance and both surpass a TO WF, such that a TO WF would be in between 2 surface WFs. In this case it's just easiest to delete the TO WF between surf WFs.
     if (listLength_surface(*head)>0){
       lgarto_resolve_TO_WF_between_surf_WFs(soil_type, soil_properties, head);
     }
@@ -1842,7 +1837,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
         printf("wf: %d \n", wf);
       }
       next = listFindFront(wf+1,*head, NULL);
-      if (current->is_WF_GW==0){
+      if (current->is_WF_GW==0){//this code skips over surface WFs
         while (current->is_WF_GW==0){
           temp_count_surface_WF++;
           TO_WFs_above_surface_WFs_flag = true;
@@ -1865,7 +1860,8 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
       if (current->layer_num == next->layer_num){
         delta_theta = next->theta - current->theta;
       }
-      else{
+      else{// in the event that next is in a deeper layer (which can happen when we are calculating delta_theta for a WF in the top layer, the next TO WF is in a deeper layer, and there are surface WFs between them),
+           // we have to calculate what the equivalent theta value would be if the next TO WF was in the same layer as the current one.
         double equiv_next_theta;
         int soil_num = soil_type[current->layer_num];
 
@@ -1886,7 +1882,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
       }
 
       if (TO_WFs_above_surface_WFs_flag){
-        bottom_boundary_flux_above_surface_WFs_cm = bottom_boundary_flux_above_surface_WFs_cm + delta_depth * delta_theta; //30 July 2024 test takeout
+        bottom_boundary_flux_above_surface_WFs_cm = bottom_boundary_flux_above_surface_WFs_cm + delta_depth * delta_theta;
       }
       bottom_boundary_flux_cm = bottom_boundary_flux_cm + delta_depth * delta_theta; //the + is due to the fact that this is a flux out of the model 
 
@@ -1970,7 +1966,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
         new_corrective_WF->psi_cm=new_psi;
         new_corrective_WF->is_WF_GW=TRUE;
         
-        current->depth_cm = current->depth_cm - cum_layer_thickness_cm[num_layers]*4.E-4;
+        current->depth_cm = current->depth_cm - cum_layer_thickness_cm[num_layers]*4.E-6; //for most of LGARTO's development, the last factor in this line was 4.E-4
         if (current->front_num>1){
           if (current->depth_cm<listFindFront(current->front_num - 1, *head, NULL)->depth_cm){
             current->depth_cm = (current->next->depth_cm + listFindFront(current->front_num - 1, *head, NULL)->depth_cm)*0.5; 
@@ -1985,7 +1981,9 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
 
         mass_added = lgar_calc_mass_bal(cum_layer_thickness_cm, *head) - first_mass;
 
-        // if (current->next->psi_cm<500.0){//another high accuracy option that more frequently inserts WFs to avoid large gaps in psi between adjacent WFs. Can marginally help with negative recharge but severely impacts runtime. 
+        // printf("mass_added: %lf \n", mass_added);
+
+        // if (current->next->psi_cm<500.0){//another high accuracy option that more frequently inserts WFs to avoid large gaps in psi between adjacent WFs. Can marginally help with negative recharge but severely impacts runtime.
         //   break;
         // }
 
@@ -2127,9 +2125,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
         correction_type = lgarto_correction_type(num_layers, cum_layer_thickness_cm, head);
       }
 
-      if (correction_type==8){//in some rare cases, a TO WF was deleted such that the deepest surface WF (or more) should become TO.
-      //PTL: this is probably not necessary anymore, due to the fact that listDeleteFront now handles correcting to_bottom, is_WF_GW, and psi and theta corrections.
-      //Still, I'm leaving it in for now. When I have time (currently towards the end of the OWP contract) I will test without this code. 
+      if (correction_type==8){//in some rare cases, a TO WF was deleted such that the deepest surface WF (or more) should become TO, or the deepest surface WF had enough water extracted such that it should become TO.
         struct wetting_front *temp_WF = *head;
         for (int wf = 1; wf != (listLength(*head)); wf++){
           if ((temp_WF==NULL)){
@@ -2206,10 +2202,10 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
 
   /*************************************************************************************/
   //this is code that deletes WFs if they're drier than hydrostatic and at the surface. 
-  //this code seems to improve some simulations but not others. Keeping in for now, and I get the idea behind it, but not sure it it's strictly necessary
   current = *head; 
   next = current->next;
   for (int wf=1; wf != listLength(*head); wf++) {
+    // if ( (current->depth_cm==0.0) && (listLength_surface(*head)>0) && (current->psi_cm>5.*cum_layer_thickness_cm[num_layers]) ){//including the factor of 5 seems to improve most simulations but has not been tested broadly for stabilit yet
     if ( (current->depth_cm==0.0) && (listLength_surface(*head)>0) && (current->psi_cm>cum_layer_thickness_cm[num_layers]) ){
       current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
     }
@@ -2233,18 +2229,16 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
   
   if (is_dry_over_wet_wf){
     lgar_fix_dry_over_wet_wetting_fronts(&mass_change, cum_layer_thickness_cm, soil_type, head, soil_properties);
-    lgar_fix_dry_over_wet_wetting_fronts(&mass_change, cum_layer_thickness_cm, soil_type, head, soil_properties); // should really do a while loop that does it until not necessary 
+    lgar_fix_dry_over_wet_wetting_fronts(&mass_change, cum_layer_thickness_cm, soil_type, head, soil_properties); // should really do a while loop that does it until not necessary, although this seems to be quite rarely required after lgar_fix_dry_over_wet_wetting_fronts was included in the iterative correction type loop for surface WFs
   }
 
   if (verbosity.compare("high") == 0) {
     printf ("mass change/adjustment (dry_over_wet case) = %lf \n", mass_change);
   }
 
-  /* sometimes merging can cause a slight mass balance error, to close the mass balance, the tiny error is
+  /* sometimes dry over wet merging can cause a slight mass balance error, to close the mass balance, the tiny error is
      swept into AET. This seems to be a reasonable solution rather than considering all possible cases which
-     would probably be hard and time consuming. Some of these cases (e.g., rain or AET on totally saturated
-     soil) are very rare and the error is small is magnitude. For LGARTO development, might have to revisit,
-     but for LGAR this seems to work great.
+     would probably be hard and time consuming.
   */
 
   if (fabs(mass_change) > 1.0E-7) {
@@ -2257,7 +2251,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
   // there is a rare error where, after a wetting front crosses a layer boundary to a soil layer with a much more sensitive soil water retention curve, and the wetting front is near but not at saturation,
   // the barely unsatruated wetting front in the new layer will update its psi value as 0. This causes unequal psi values among adjacent wetting fronts in different layers and then a small mass balance error.
   // While that is ok for this soil layer in particular, adjacent wetting fronts above this one with a less sensitive soil water retention curve will yield a non-theta_e value for the psi value that is slightly above 0.
-  // A solution is to either not run the following code, or to not run it when the wetting front is very close to saturation with a very sensitive soil water retention curve. Adding code that runs the following only for psi>1, because the problem occurs for very small nonzero psi (for example 0.001) 
+  // Therefore the following code should not be run when the wetting front is very close to saturation with a very sensitive soil water retention curve. Adding code that runs the following only for psi>1, because the problem occurs for very small nonzero psi (for example 0.001) 
 
   current = *head;
 
@@ -2380,8 +2374,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
       }
     }
     if (next!=NULL){
-      if((current->to_bottom==TRUE) && (next->is_WF_GW==TRUE) && (current->is_WF_GW==TRUE) && (fabs(current->psi_cm - next->psi_cm)>1e-5)){//so this technically works but it's probably not a great solution. Should instead fix unequal psis among layer interfaces when the problem occurs, which is related to when negative WF depths occur and then a WF gets sent to the surface that shouldn't.
-        //oh also, this forces mass balance closure, at least before this point, because if there is a mass bal error, its put into *volin
+      if((current->to_bottom==TRUE) && (next->is_WF_GW==TRUE) && (current->is_WF_GW==TRUE) && (fabs(current->psi_cm - next->psi_cm)>1e-5)){//enforce that psis are equal on either side of a layer interface when both WFs on either side of layer interface are TO, in case that this was missed after TO WF movement / merging / layer boundary crossing
         double current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
         next->psi_cm = current->psi_cm;
         int soil_num_k  = soil_type[next->layer_num];
@@ -2492,6 +2485,7 @@ extern double lgar_move_wetting_fronts(bool TO_enabled, double timestep_h, doubl
 
   /***********************************************/
   //code that prevents depth=0.0 TO WFs from being drier than the shallowest depth>0.0 TO WF. Relevant when there are both surface WFs and depth=0.0 TO WFs.
+  //The idea here is that all TO WFs to the left of surface WFs must have larger psi values than TO WFs that are below surface WFs
   current = *head;
   next = current->next;
   struct wetting_front *last_depth_zero_TO_WF = listFindFront(listLength_TO_WFs_above_surface_WFs(*head), *head, NULL);
@@ -3131,18 +3125,6 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
     max_storage += soil_properties[soil_num].theta_e * (cum_layer_thickness_cm[k]-cum_layer_thickness_cm[k-1]);
   }// would be more efficient to make max_storage a vairable that is not computed every time lgar_insert_water is called
 
-  // if (f_p*timestep_h + current_mass > max_storage){
-  //   f_p = f_p*timestep_h + current_mass - max_storage;
-  // }//19 August 2024 test
-  /////the interesting thing here is that there are arguments both for and against using the above 3 lines.
-  /////for: the vadose zone can't hold more water than it currently has available for storage, but
-  /////against: the recharge fluxes have not yet been extracted, so in reality the above code underestimates f_p.
-  /////ultimately either choice is defensible and the impact becomes smaller as the time step gets smaller. 
-
-  // if ( (current_mass)/max_storage > 0.99 and also if TO mode is off ){
-  //   printf("warning: vadose zone is 99 percent full or greater. If you are using the model in an environment with more precipitation than PET, LGAR is not an appropriate model because its lower boundary condition is no flow. \n ");
-  // } //turning off for now; should really print like once per model run or so, not every time step 
-
   double ponded_depth_temp = *ponded_depth_cm;
 
   double free_drainage_demand = *free_drainage_subtimestep_cm;
@@ -3218,8 +3200,7 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
 }
 
 // ######################################################################################
-/* This subroutine is called iff there is no surfacial front, it creates a new front and
-   inserts ponded depth, and will return some amount if can't fit all water
+/* This subroutine creates a new front and inserts ponded depth, and will return some amount if can't fit all water
    into the soil.  Note ponded_depth_cm is a pointer.   Access its value as (*ponded_depth_cm). */
 // ######################################################################################
 extern double lgar_create_surficial_front(bool TO_enabled, int num_layers, double *ponded_depth_cm, double *volin, double dry_depth,
@@ -3247,7 +3228,7 @@ extern double lgar_create_surficial_front(bool TO_enabled, int num_layers, doubl
 
   current = *head;
 
-  if (listLength_surface(*head)>0){//when TO mode is on, there are TO WFs that can have a depth of 0 and are not relevant for new wetting front depth calc
+  if (listLength_surface(*head)>0){//when TO mode is on, TO WFs that are left of (above) surface WFs are not relevant for new wetting front depth calc
     while (current->is_WF_GW==1){
       current = current->next;
     }
@@ -3346,7 +3327,7 @@ extern double lgar_create_surficial_front(bool TO_enabled, int num_layers, doubl
       had_to_sort = true;
       listSortFrontsByDepth(*head); 
 
-      lgarto_resolve_TO_WF_between_surf_WFs(soil_type, soil_properties, head); //do the thing here  
+      lgarto_resolve_TO_WF_between_surf_WFs(soil_type, soil_properties, head);
 
     }
     if (verbosity.compare("high") == 0) {
@@ -3437,7 +3418,7 @@ extern double lgar_create_surficial_front(bool TO_enabled, int num_layers, doubl
   /*************************************************************************************/
   //now that mass balance has been corrected, some cleanup is necessary. 
   // in the event that the new WF went deep enough and is dry enough to become a TO WF, it should. It often will.
-  // probably no longer necessary due to the fact that listDeleteFront handles such corrections now 
+  // probably no longer necessary due to the fact that listDeleteFront handles such corrections now. Keeping in for redundancy however
   current = *head;
   next = current->next;
   for (int wf = 1; wf != (listLength(*head)); wf++) {
@@ -3465,8 +3446,7 @@ extern double lgar_create_surficial_front(bool TO_enabled, int num_layers, doubl
     }
   } 
 
-  lgar_merge_wetting_fronts(head, soil_type, frozen_factor, soil_properties); //in the event that the new WF is deeper than the shallowest surface WF, these have to merge. Should eventually make sure that all merging and layer bdy crossing code run not just once, but run until they are no longer needed 
-
+  lgar_merge_wetting_fronts(head, soil_type, frozen_factor, soil_properties); //in the event that the new WF is deeper than the shallowest surface WF, these have to merge. Should eventually make sure that all merging and layer bdy crossing code run not just once, but run until they are no longer needed
 
   if (verbosity.compare("high") == 0) {
     printf("before code that deletes negative WFs: \n");
@@ -3580,9 +3560,9 @@ extern double lgar_calc_dry_depth(bool use_closed_form_G, bool TO_enabled, int n
   dry_depth = fmin(cum_layer_thickness_cm[layer_num], dry_depth);
 
   if (TO_enabled){
-    dry_depth = dry_depth * 0.2; //in LGARTO, solution quality is sensitive to dry depth, and the dry depth concept as explained in both the 1997 GAR and 2023 LGAR papers probably is only applicable for small time steps. 
+    dry_depth = dry_depth * 0.2; //in LGARTO, solution quality can be somewhat sensitive to dry depth, and the dry depth concept as explained in both the 1997 GAR and 2023 LGAR papers probably is only applicable for small time steps. 
   //It is easy to demonstrate that an unaltered dry depth initializes wetting fronts in an unrealistic way in some cases, effectively assuming an enormous dzdt value during the time step for which the WF was created.
-  //LGAR (not LGARTO) simulations seem to be mostly insensitive to reducing the dry depth by a factor of 0.1-0.2, while this range of factors massively improves LGARTO simulations and makes wetting fronts have more reasonable initial depths. 
+  //LGAR (not LGARTO) simulations seem to be mostly insensitive to reducing the dry depth by a factor of 0.1-0.2, while this range of factors can sometimes improve LGARTO simulations and makes wetting fronts have more reasonable initial depths. 
   //Some text on this topic should be in the Discussion section of the LGARTO paper.
   }
   
@@ -4252,7 +4232,7 @@ extern void lgarto_resolve_TO_WF_between_surf_WFs(int *soil_type, struct soil_pr
 
   bool surface_WFs_deeper_than_top_mobile_TO_WF = GW_fronts_among_surf_WFs(*head);
 
-  while (surface_WFs_deeper_than_top_mobile_TO_WF && depth_of_top_most_mobile_TO_WF>0.0){//do the thing here 2
+  while (surface_WFs_deeper_than_top_mobile_TO_WF && depth_of_top_most_mobile_TO_WF>0.0){
     struct wetting_front *current;
     struct wetting_front *next;
     current = *head; 
@@ -4781,7 +4761,7 @@ extern int lgarto_correction_type(int num_layers, double* cum_layer_thickness_cm
     }
 
     if (current->is_WF_GW==FALSE && next->is_WF_GW==TRUE && current->theta<next->theta && current->layer_num==next->layer_num && correction_type==0){
-      correction_type = 8;//fairly confident that correction type 8 is no longer necessary due to new functionality of listDeleteFront, will test removal when time is available
+      correction_type = 8;//this is the case where the deepest surface WF is dry enough to become a TO WF
     }
 
     if (current->to_bottom==TRUE && current->is_WF_GW==FALSE && current->next->is_WF_GW==TRUE){
