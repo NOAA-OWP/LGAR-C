@@ -87,7 +87,7 @@ extern double calc_Geff(bool use_closed_form_G, double theta1, double theta2, do
 
       //dh is the trapezoid width for numerical integration. dh becomes smaller if the percent difference between K1 and K2 is too large, and dh becomes bigger if K1 and K2 are sufficiently close.
       //In the case that (K1-K2)/K2 > 0.02, K1 and K2 differ by more than 2 percent. The factor of 2 percent seemed to offer the optimal intersection of accuracy and speed. 
-      if ( (K1-K2)/K2 > 0.02 ){//if K1 disagrees with K2 by more than this fraction, then dh is made smaller
+      if ( (K1-K2)/K2 > 0.02 ){//if K1 disagrees with K2 by more than this fraction, then dh is made smaller, default value is 0.02
         dh = dh*0.5;
       }
       else {//but if K1 and K2 are within a certain fraction of each other, then dh is made larger
@@ -154,7 +154,7 @@ double calc_theta_from_h(double h,double alpha, double m, double n, double theta
 /***********************************/
 double calc_Se_from_h(double h,double alpha, double m, double n)
 {
-  if(is_epsilon_less_than(h,1.0e-10)) return 1.0;  // this function doesn't work well ffor tiny h
+  if(is_epsilon_less_than(h,1.0E-10)) return 1.0;  // this function doesn't work well ffor tiny h
   else return(1.0/(pow(1.0+pow(alpha*h,n),m)));
 }
 
@@ -171,7 +171,11 @@ double calc_K_from_Se(double Se, double Ksat, double m)
 /***********************************/
 double calc_h_from_Se(double Se, double alpha, double m, double n)
 {
-  return(1.0/alpha*pow(pow(Se,-1.0/m)-1.0,1.0/n));
+  double result = 1.0/alpha*pow(pow(Se,-1.0/m)-1.0,1.0/n);
+  if (result > 1.E20){
+    result = 1.E20;//as theta appraoches theta_r, psi can get enormous 
+  }
+  return(result);
 }
 
 /***************************************/
