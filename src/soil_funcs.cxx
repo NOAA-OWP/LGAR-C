@@ -1,5 +1,4 @@
 #include "../include/all.hxx"
-#include "../include/Logger.hpp"
 #include "iostream"
 /*##################################################*/
 /*##################################################*/
@@ -61,10 +60,10 @@ extern double calc_Geff(bool use_closed_form_G, double theta1, double theta2, do
     if (verbosity.compare("high") == 0) {
       // debug statements to see if calc_Se_from_h function is working properly
       Se = calc_Se_from_h(h_i,vg_alpha,vg_m,vg_n);
-      Logger::debug_log("Se_i = %8.6lf,  Se_inverse = %8.6lf\n", Se_i, Se);
+      printf("Se_i = %8.6lf,  Se_inverse = %8.6lf\n", Se_i, Se);
 
       Se = calc_Se_from_h(h_f,vg_alpha,vg_m,vg_n);
-      Logger::debug_log("Se_f = %8.6lf,  Se_inverse = %8.6lf\n", Se_f, Se);
+      printf("Se_f = %8.6lf,  Se_inverse = %8.6lf\n", Se_f, Se);
     }
 
     dh = (h_i-h_f)/(double)nint;
@@ -115,7 +114,7 @@ extern double calc_Geff(bool use_closed_form_G, double theta1, double theta2, do
     Geff = fabs(Geff/Ksat);       // by convention Geff is a positive quantity
 
     if (verbosity.compare("high") == 0){
-      Logger::debug_log("Capillary suction (G) = %8.6lf \n", Geff);
+      printf ("Capillary suction (G) = %8.6lf \n", Geff);
     }
 
     return Geff;

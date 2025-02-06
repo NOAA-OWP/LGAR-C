@@ -1,5 +1,4 @@
 #include "../include/all.hxx"
-#include "../include/Logger.hpp"
 
 //#####################################################################################
 /* authors : Fred Ogden and Ahmad Jan
@@ -48,15 +47,15 @@ extern void listDelete(struct wetting_front* head)
 extern void listPrint(struct wetting_front* head)
 {
   struct wetting_front *current = head;
-  Logger::debug_log("\n[ ");
+  printf("\n[ ");
 
   //start from the beginning
   while(current != NULL) {
     if (current->next == NULL)
-      Logger::debug_log("(%lf,%6.14f,%d,%d,%d, %e, %lf %6.14f) ] \n",current->depth_cm, current->theta, current->layer_num,
+      printf("(%lf,%6.14f,%d,%d,%d, %e, %lf %6.14f) ] \n",current->depth_cm, current->theta, current->layer_num,
 	     current->front_num, current->to_bottom, current->dzdt_cm_per_h, current->K_cm_per_h, current->psi_cm);
     else
-      Logger::debug_log("(%lf,%6.14f,%d,%d,%d, %e, %lf %6.14f)\n",current->depth_cm, current->theta, current->layer_num,
+      printf("(%lf,%6.14f,%d,%d,%d, %e, %lf %6.14f)\n",current->depth_cm, current->theta, current->layer_num,
 	     current->front_num, current->to_bottom, current->dzdt_cm_per_h, current->K_cm_per_h, current->psi_cm);
     current = current->next;
   }
@@ -439,7 +438,7 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
 	current=current->next;
 
 	while (current != NULL) { // increment all front numbers
-	  //Logger::debug_log("front number: %3d, current->next=%p\n",current->front_num,current->next);
+	  //printf("front number: %3d, current->next=%p\n",current->front_num,current->next);
 	  current->front_num++;
 	  previous = current;
 	  current = current->next;
@@ -533,7 +532,7 @@ extern void listSortFrontsByDepth(struct wetting_front *head)
 // probably not needed, left in as an example of how it's done
 extern void listReverseOrder(struct wetting_front** head_ref)
 {
-  Logger::debug_log("In Reverse order.... \n ");
+  printf("In Reverse order.... \n ");
   struct wetting_front* prev   = NULL;
   struct wetting_front* current = *head_ref;  // notice that it is passed down as a pointer to a pointer, that explains
   struct wetting_front* next;                 // why they call this "head_ref", it is a pointer referencing the

@@ -12,12 +12,10 @@
 #include "../bmi/bmi.hxx"
 #include "../include/bmi_lgar.hxx"
 #include "../include/all.hxx"
-#include "../include/Logger.hpp"
 
-std::stringstream bmilgar_ss("");
 
 // default verbosity is set to 'none' other option 'high' or 'low' needs to be specified in the config file
-string verbosity="high";
+string verbosity="none";
 
 /**
  * @brief Delete dynamic arrays allocated in Initialize() and held by this object
@@ -34,8 +32,6 @@ BmiLGAR::~BmiLGAR(){
 void BmiLGAR::
 Initialize (std::string config_file)
 {
-  Logger::setup_logger();
-  LOG("Inside BmiLGAR::Initialize \n", LogLevel::INFO);  
   if (config_file.compare("") != 0 ) {
     this->state = new model_state;
     state->head = NULL;
@@ -83,10 +79,9 @@ void BmiLGAR::
 Update()
 {
   if (verbosity.compare("none") != 0) {
-    bmilgar_ss <<"---------------------------------------------------------\n";
-    bmilgar_ss <<"|****************** LASAM BMI Update... ******************|\n";
-    bmilgar_ss <<"---------------------------------------------------------\n";
-    LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+    std::cerr<<"---------------------------------------------------------\n";
+    std::cerr<<"|****************** LASAM BMI Update... ******************|\n";
+    std::cerr<<"---------------------------------------------------------\n";
   }
 
   double mm_to_cm = 0.1; // unit conversion
@@ -185,9 +180,8 @@ Update()
   double ponded_depth_max_cm = state->lgar_bmi_params.ponded_depth_max_cm;
 
   if (verbosity.compare("high") == 0) {
-    bmilgar_ss <<"Pr  [cm/h] (timestep) = "<<state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<"\n";
-    bmilgar_ss <<"PET [cm/h] (timestep) = "<<state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<"\n"; 
-    LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+    std::cerr<<"Pr  [cm/h] (timestep) = "<<state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<"\n";
+    std::cerr<<"PET [cm/h] (timestep) = "<<state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<"\n"; 
   }
 
   assert (state->lgar_bmi_input_params->precipitation_mm_per_h >= 0.0);
@@ -210,7 +204,7 @@ Update()
   subcycles = state->lgar_bmi_params.forcing_interval;
 
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log("time step size in hours: %lf \n", state->lgar_bmi_params.timestep_h);
+    printf("time step size in hours: %lf \n", state->lgar_bmi_params.timestep_h);
   }
   
   // subcycling loop (loop over model's timestep)
@@ -220,9 +214,8 @@ Update()
     this->state->lgar_bmi_params.timesteps ++;
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      bmilgar_ss <<"BMI Update |---------------------------------------------------------------|\n";
-      bmilgar_ss <<"BMI Update |Timesteps = "<< state->lgar_bmi_params.timesteps<<", Time [h] = "<<this->state->lgar_bmi_params.time_s / 3600.<<", Subcycle = "<< cycle <<" of "<<subcycles<<std::endl;
-      LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+      std::cerr<<"BMI Update |---------------------------------------------------------------|\n";
+      std::cerr<<"BMI Update |Timesteps = "<< state->lgar_bmi_params.timesteps<<", Time [h] = "<<this->state->lgar_bmi_params.time_s / 3600.<<", Subcycle = "<< cycle <<" of "<<subcycles<<std::endl;
     }
 
     if( state->state_previous != NULL ){
@@ -258,9 +251,8 @@ Update()
     //using cerr instead of cout due to some cout buffering issues when running in the ngen framework, cerr doesn't buffer so it prints immediately to the sreeen.
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
 
-      bmilgar_ss <<"Pr [cm/h], Pr [cm] (subtimestep), subtimestep [h] = "<<state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<", "<< precip_subtimestep_cm <<", "<< subtimestep_h<<" ("<<subtimestep_h*3600<<" sec)"<<"\n";
-      bmilgar_ss <<"PET [cm/h], PET [cm] (subtimestep) = "<<state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<", "<< PET_subtimestep_cm<<"\n";
-      LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+      std::cerr<<"Pr [cm/h], Pr [cm] (subtimestep), subtimestep [h] = "<<state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<", "<< precip_subtimestep_cm <<", "<< subtimestep_h<<" ("<<subtimestep_h*3600<<" sec)"<<"\n";
+      std::cerr<<"PET [cm/h], PET [cm] (subtimestep) = "<<state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<", "<< PET_subtimestep_cm<<"\n";
     }
 
     AET_subtimestep_cm            = 0.0;
@@ -313,9 +305,8 @@ Update()
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
       std::string flag        = (create_surficial_front && !is_top_wf_saturated) == true ? "Yes" : "No";
       std::string flag_top_wf = is_top_wf_saturated == true ? "Yes" : "No";
-      bmilgar_ss <<"Is top wetting front saturated? "<< flag_top_wf  << "\n";
-      bmilgar_ss <<"Create superficial wetting front? "<< flag << "\n";
-      LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+      std::cerr<<"Is top wetting front saturated? "<< flag_top_wf  << "\n";
+      std::cerr<<"Create superficial wetting front? "<< flag << "\n";
     }
 
     /*----------------------------------------------------------------------*/
@@ -344,7 +335,7 @@ Update()
 				      state->head, state->soil_properties);
 
       if (verbosity.compare("high") == 0) {
-        Logger::debug_log("State before moving creating new WF...\n");
+        printf("State before moving creating new WF...\n");
         listPrint(state->head);
       }
       
@@ -353,7 +344,7 @@ Update()
 				  state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
 
       if (verbosity.compare("high") == 0) {
-        Logger::debug_log("State after moving creating new WF...\n");
+        printf("State after moving creating new WF...\n");
         listPrint(state->head);
       }
 
@@ -366,7 +357,7 @@ Update()
       volin_timestep_cm += volin_subtimestep_cm;
 
       if (verbosity.compare("high") == 0) {
-	Logger::debug_log("New wetting front created...\n");
+	std::cerr<<"New wetting front created...\n";
 	listPrint(state->head);
       }
     }
@@ -456,14 +447,14 @@ Update()
     volQ_gw_timestep_cm += volQ_gw_subtimestep_cm;
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      Logger::debug_log("Printing wetting fronts at this subtimestep... \n");
+      printf("Printing wetting fronts at this subtimestep... \n");
       listPrint(state->head);
     }
 
     bool unexpected_local_error = fabs(local_mb) > 1.0E-4 ? true : false;
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0 || unexpected_local_error) {
-      Logger::debug_log("\nLocal mass balance at this timestep... \n\
+      printf("\nLocal mass balance at this timestep... \n\
       Error         = %14.10f \n\
       Initial water = %14.10f \n\
       Water added   = %14.10f \n\
@@ -477,7 +468,7 @@ Update()
 	     volend_subtimestep_cm);
 
       if (unexpected_local_error) {
-	Logger::debug_log("Local mass balance (in this timestep) is %14.10f, larger than expected, needs some debugging...\n ",local_mb);
+	printf("Local mass balance (in this timestep) is %14.10f, larger than expected, needs some debugging...\n ",local_mb);
 	abort();
       }
 
@@ -522,11 +513,10 @@ Update()
     state->lgar_bmi_params.soil_depth_wetting_fronts[i] = current->depth_cm * state->units.cm_to_m;
     current = current->next;
     if (verbosity.compare("high") == 0)
-      bmilgar_ss <<"Wetting fronts (bmi outputs) (depth in meters, theta)= "
+      std::cerr<<"Wetting fronts (bmi outputs) (depth in meters, theta)= "
 	       <<state->lgar_bmi_params.soil_depth_wetting_fronts[i]
 	       <<" "<<state->lgar_bmi_params.soil_moisture_wetting_fronts[i]<<"\n";
-      LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
-}
+  }
   
   // add to mass balance timestep variables
   state->lgar_mass_balance.volprecip_timestep_cm  = precip_timestep_cm;
@@ -607,15 +597,14 @@ update_calibratable_parameters()
     assert (current != NULL);
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      bmilgar_ss <<"----------- Calibratable parameters depending on soil layer (initial values) ----------- \n";
-      bmilgar_ss <<"| soil_type = "<< soil <<", layer = "<<layer_num
+      std::cerr<<"----------- Calibratable parameters depending on soil layer (initial values) ----------- \n";
+      std::cerr<<"| soil_type = "<< soil <<", layer = "<<layer_num
 	       <<", smcmax = "   << state->soil_properties[soil].theta_e
 	       <<", smcmin = "   << state->soil_properties[soil].theta_r
 	       <<", vg_n = "     << state->soil_properties[soil].vg_n
 	       <<", vg_alpha = " << state->soil_properties[soil].vg_alpha_per_cm
 	       <<", Ksat = "     << state->soil_properties[soil].Ksat_cm_per_h
 	       <<", theta = "    << current->theta <<"\n";
-        LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
     }
     
     state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e[layer_num-1];
@@ -630,15 +619,14 @@ update_calibratable_parameters()
 				       state->soil_properties[soil].theta_e, state->soil_properties[soil].theta_r);
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      bmilgar_ss <<"----------- Calibratable parameters depending on soil layer (updated values) ----------- \n";
-      bmilgar_ss <<"| soil_type = "<< soil <<", layer = "<<layer_num
+      std::cerr<<"----------- Calibratable parameters depending on soil layer (updated values) ----------- \n";
+      std::cerr<<"| soil_type = "<< soil <<", layer = "<<layer_num
 	       <<", smcmax = "   << state->soil_properties[soil].theta_e
 	       <<", smcmin = "   << state->soil_properties[soil].theta_r
 	       <<", vg_n = "     << state->soil_properties[soil].vg_n
 	       <<", vg_alpha = " << state->soil_properties[soil].vg_alpha_per_cm
 	       <<", Ksat = "     << state->soil_properties[soil].Ksat_cm_per_h
 	       <<", theta = "    << current->theta <<"\n";
-        LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
     }
     
     current = current->next;
@@ -646,20 +634,18 @@ update_calibratable_parameters()
 
   //next we update the parameters that apply to the whole model domain and do not depend on soil layer
   if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-    bmilgar_ss <<"----------- Calibratable parameters independent of soil layer (initial values) ----------- \n";
-    bmilgar_ss <<"field_capacity_psi = "   << state->lgar_bmi_params.field_capacity_psi_cm
+    std::cerr<<"----------- Calibratable parameters independent of soil layer (initial values) ----------- \n";
+    std::cerr<<"field_capacity_psi = "   << state->lgar_bmi_params.field_capacity_psi_cm
       <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm <<"\n";
-    LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
   }
 
   state->lgar_bmi_params.field_capacity_psi_cm = state->lgar_calib_params.field_capacity_psi;
   state->lgar_bmi_params.ponded_depth_max_cm   = state->lgar_calib_params.ponded_depth_max;
 
   if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-    bmilgar_ss <<"----------- Calibratable parameters independent of soil layer (updated values) ----------- \n";
-    bmilgar_ss <<"field_capacity_psi = "   << state->lgar_bmi_params.field_capacity_psi_cm
+    std::cerr<<"----------- Calibratable parameters independent of soil layer (updated values) ----------- \n";
+    std::cerr<<"field_capacity_psi = "   << state->lgar_bmi_params.field_capacity_psi_cm
       <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm <<"\n";
-    LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
   }
   
   if (verbosity.compare("high") == 0)
@@ -667,10 +653,8 @@ update_calibratable_parameters()
   
   double volstart_after = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
 
-  if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-    bmilgar_ss <<"Mass of water (before and after) = "<< volstart_before<<", "<< volstart_after <<"\n";
-    LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
-  }
+  if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0)
+    std::cerr<<"Mass of water (before and after) = "<< volstart_before<<", "<< volstart_after <<"\n";
   
   return volstart_after - volstart_before;
 }
@@ -1113,8 +1097,7 @@ void BmiLGAR::
 GetGridX(const int grid, double *x)
 {
   // this is not needed but printing here to avoid compiler warnings
-  bmilgar_ss <<"GetGridX: "<<grid<<" "<<x[0]<<"\n";
-  LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+  std::cerr<<"GetGridX: "<<grid<<" "<<x[0]<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 
@@ -1123,8 +1106,7 @@ void BmiLGAR::
 GetGridY(const int grid, double *y)
 {
   // this is not needed but printing here to avoid compiler warnings
-  bmilgar_ss <<"GetGridY: "<<grid<<" "<<y[0]<<"\n";
-  LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+  std::cerr<<"GetGridY: "<<grid<<" "<<y[0]<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 
@@ -1133,8 +1115,7 @@ void BmiLGAR::
 GetGridZ(const int grid, double *z)
 {
   // this is not needed but printing here to avoid compiler warnings
-  bmilgar_ss <<"GetGridZ: "<<grid<<" "<<z[0]<<"\n";
-  LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+  std::cerr<<"GetGridZ: "<<grid<<" "<<z[0]<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 
@@ -1143,8 +1124,7 @@ int BmiLGAR::
 GetGridNodeCount(const int grid)
 {
   // this is not needed but printing here to avoid compiler warnings
-  bmilgar_ss <<"GetGridNodeCount: "<<grid<<"\n";
-  LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+  std::cerr<<"GetGridNodeCount: "<<grid<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 
@@ -1153,8 +1133,7 @@ int BmiLGAR::
 GetGridEdgeCount(const int grid)
 {
   // this is not needed but printing here to avoid compiler warnings
-  bmilgar_ss <<"GetGridEdgeCount: "<<grid<<"\n";
-  LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+  std::cerr<<"GetGridEdgeCount: "<<grid<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 
@@ -1163,8 +1142,7 @@ int BmiLGAR::
 GetGridFaceCount(const int grid)
 {
   // this is not needed but printing here to avoid compiler warnings
-  bmilgar_ss <<"GetGridFaceCount: "<<grid<<"\n";
-  LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+  std::cerr<<"GetGridFaceCount: "<<grid<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 
@@ -1173,8 +1151,7 @@ void BmiLGAR::
 GetGridEdgeNodes(const int grid, int *edge_nodes)
 {
   // this is not needed but printing here to avoid compiler warnings
-  bmilgar_ss <<"GetGridEdgeNodes: "<<grid<<" "<<edge_nodes[0]<<"\n";
-  LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+  std::cerr<<"GetGridEdgeNodes: "<<grid<<" "<<edge_nodes[0]<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 
@@ -1183,8 +1160,7 @@ void BmiLGAR::
 GetGridFaceEdges(const int grid, int *face_edges)
 {
   // this is not needed but printing here to avoid compiler warnings
-  bmilgar_ss <<"GetGridFaceNodes: "<<grid<<" "<<face_edges[0]<<"\n";
-  LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+  std::cerr<<"GetGridFaceNodes: "<<grid<<" "<<face_edges[0]<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 
@@ -1193,8 +1169,7 @@ void BmiLGAR::
 GetGridFaceNodes(const int grid, int *face_nodes)
 {
   // this is not needed but printing here to avoid compiler warnings
-  bmilgar_ss <<"GetGridFaceNodes: "<<grid<<" "<<face_nodes[0]<<"\n";
-  LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+  std::cerr<<"GetGridFaceNodes: "<<grid<<" "<<face_nodes[0]<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 
@@ -1203,8 +1178,7 @@ void BmiLGAR::
 GetGridNodesPerFace(const int grid, int *nodes_per_face)
 {
   // this is not needed but printing here to avoid compiler warnings
-  bmilgar_ss <<"GetGridNodesPerFace: "<<grid<<" "<<nodes_per_face[0]<<"\n";
-  LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+  std::cerr<<"GetGridNodesPerFace: "<<grid<<" "<<nodes_per_face[0]<<"\n";
   throw bmi_lgar::NotImplemented();
 }
 

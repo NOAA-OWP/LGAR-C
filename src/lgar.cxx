@@ -6,9 +6,6 @@
 #include <fstream>
 #include <string.h>
 #include <sstream>
-#include "../include/Logger.hpp"
-
-std::stringstream lgar_ss("");
 
 using namespace std;
 
@@ -197,12 +194,10 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     param_value = line.substr(loc_eq,loc_u - loc_eq);
 
     if (param_key == "verbosity") {
-//      verbosity = param_value;
-      verbosity = "high";
+      verbosity = param_value;
       if (verbosity.compare("none") != 0) {
-	      lgar_ss <<"Verbosity is set to \' "<<verbosity<<"\' \n";
-	      lgar_ss <<"          *****         \n";
-        LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+	std::cerr<<"Verbosity is set to \' "<<verbosity<<"\' \n";
+	std::cerr<<"          *****         \n";
       }
 
       fp.clear();
@@ -215,8 +210,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   fp.seekg(0, fp.beg);
 
   if (verbosity.compare("none") != 0) {
-    lgar_ss <<"------------- Initialization from config file ---------------------- \n";
-    LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+    std::cerr<<"------------- Initialization from config file ---------------------- \n";
   }
 
   // setting these options to false (defualt) 
@@ -284,13 +278,11 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       is_layer_thickness_set = true;
 
       if (verbosity.compare("high") == 0) {
-	      lgar_ss <<"Number of layers : "<<state->lgar_bmi_params.num_layers<<"\n";
-	      for (int i=1; i<=state->lgar_bmi_params.num_layers; i++) {
-	        lgar_ss <<"Thickness, cum. depth : "<<state->lgar_bmi_params.layer_thickness_cm[i]<<" , "
-		      <<state->lgar_bmi_params.cum_layer_thickness_cm[i]<<"\n";
-        }
-	      lgar_ss <<"          *****         \n";
-        LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+	std::cerr<<"Number of layers : "<<state->lgar_bmi_params.num_layers<<"\n";
+	for (int i=1; i<=state->lgar_bmi_params.num_layers; i++)
+	  std::cerr<<"Thickness, cum. depth : "<<state->lgar_bmi_params.layer_thickness_cm[i]<<" , "
+		   <<state->lgar_bmi_params.cum_layer_thickness_cm[i]<<"\n";
+	std::cerr<<"          *****         \n";
       }
 
       continue;
@@ -318,11 +310,10 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       is_giuh_ordinates_set = true;
 
       if (verbosity.compare("high") == 0) {
-	      for (int i=1; i <= vec.size(); i++)
-	        lgar_ss <<"GIUH ordinates (hourly) : "<<giuh_ordinates_temp[i]<<"\n";
+	for (int i=1; i <= vec.size(); i++)
+	  std::cerr<<"GIUH ordinates (hourly) : "<<giuh_ordinates_temp[i]<<"\n";
 
-	        lgar_ss <<"          *****         \n";
-          LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+	std::cerr<<"          *****         \n";
       }
 
       continue;
@@ -340,11 +331,10 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       is_soil_z_set = true;
 
       if (verbosity.compare("high") == 0) {
-	      for (int i=0; i<state->lgar_bmi_params.num_cells_temp; i++)
-	        lgar_ss <<"Soil z (temperature resolution) : "<<state->lgar_bmi_params.soil_temperature_z[i]<<"\n";
+	for (int i=0; i<state->lgar_bmi_params.num_cells_temp; i++)
+	  std::cerr<<"Soil z (temperature resolution) : "<<state->lgar_bmi_params.soil_temperature_z[i]<<"\n";
 
-	      lgar_ss <<"          *****         \n";
-        LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+	std::cerr<<"          *****         \n";
       }
 
       continue;
@@ -354,9 +344,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       is_initial_psi_set = true;
 
       if (verbosity.compare("high") == 0) {
-	      lgar_ss <<"Initial Psi : "<<state->lgar_bmi_params.initial_psi_cm<<"\n";
-	      lgar_ss <<"          *****         \n";
-        LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+	std::cerr<<"Initial Psi : "<<state->lgar_bmi_params.initial_psi_cm<<"\n";
+	std::cerr<<"          *****         \n";
       }
 
       continue;
@@ -371,9 +360,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       is_soil_params_file_set = true;
 
       if (verbosity.compare("high") == 0) {
-	      lgar_ss <<"Soil paramaters file : "<<soil_params_file<<"\n";
-	      lgar_ss <<"          *****         \n";
-        LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+	std::cerr<<"Soil paramaters file : "<<soil_params_file<<"\n";
+	std::cerr<<"          *****         \n";
       }
 
       continue;
@@ -383,9 +371,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       is_wilting_point_psi_cm_set = true;
 
       if (verbosity.compare("high") == 0) {
-	      lgar_ss <<"Wilting point Psi [cm] : "<<state->lgar_bmi_params.wilting_point_psi_cm<<"\n";
-	      lgar_ss <<"          *****         \n";
-        LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+	std::cerr<<"Wilting point Psi [cm] : "<<state->lgar_bmi_params.wilting_point_psi_cm<<"\n";
+	std::cerr<<"          *****         \n";
       }
 
       continue;
@@ -395,9 +382,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       is_field_capacity_psi_cm_set = true;
 
       if (verbosity.compare("high") == 0) {
-	      lgar_ss <<"Field capacity Psi [cm] : "<<state->lgar_bmi_params.field_capacity_psi_cm<<"\n";
-	      lgar_ss <<"          *****         \n";
-        LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+	std::cerr<<"Field capacity Psi [cm] : "<<state->lgar_bmi_params.field_capacity_psi_cm<<"\n";
+	std::cerr<<"          *****         \n";
       }
 
       continue;
@@ -410,8 +396,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
         state->lgar_bmi_params.use_closed_form_G = true;
       }
       else {
-	      lgar_ss <<"Invalid option: use_closed_form_G must be true or false. \n";
-        LOG(lgar_ss.str(), LogLevel::ERROR); lgar_ss.str("");  
+	std::cerr<<"Invalid option: use_closed_form_G must be true or false. \n";
         abort();
       }
 
@@ -425,8 +410,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
         state->lgar_bmi_params.adaptive_timestep = true;
       }
       else {
-	      lgar_ss <<"Invalid option: adaptive_timestep must be true or false. \n";
-        LOG(lgar_ss.str(), LogLevel::ERROR); lgar_ss.str("");  
+	std::cerr<<"Invalid option: adaptive_timestep must be true or false. \n";
         abort();
       }
 
@@ -448,10 +432,9 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       state->lgar_bmi_params.minimum_timestep_h = state->lgar_bmi_params.timestep_h;
 
       if (verbosity.compare("high") == 0) {
-	      lgar_ss <<"Model timestep [hours,seconds]: "<<state->lgar_bmi_params.timestep_h<<" , "
-		    <<state->lgar_bmi_params.timestep_h*3600<<"\n";
-	      lgar_ss <<"          *****         \n";
-        LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+	std::cerr<<"Model timestep [hours,seconds]: "<<state->lgar_bmi_params.timestep_h<<" , "
+		 <<state->lgar_bmi_params.timestep_h*3600<<"\n";
+	std::cerr<<"          *****         \n";
       }
 
       continue;
@@ -471,10 +454,9 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       is_endtime_set = true;
 
       if (verbosity.compare("high") == 0) {
-	      lgar_ss <<"Endtime [days, hours]: "<< state->lgar_bmi_params.endtime_s/86400.0 <<" , "
-		    << state->lgar_bmi_params.endtime_s/3600.0<<"\n";
-	      lgar_ss <<"          *****         \n";
-        LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+	std::cerr<<"Endtime [days, hours]: "<< state->lgar_bmi_params.endtime_s/86400.0 <<" , "
+		 << state->lgar_bmi_params.endtime_s/3600.0<<"\n";
+	std::cerr<<"          *****         \n";
       }
 
       continue;
@@ -493,9 +475,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       is_forcing_resolution_set = true;
 
       if (verbosity.compare("high") == 0) {
-	      lgar_ss <<"Forcing resolution [hours]: "<<state->lgar_bmi_params.forcing_resolution_h<<"\n";
-	      lgar_ss <<"          *****         \n";
-        LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+	std::cerr<<"Forcing resolution [hours]: "<<state->lgar_bmi_params.forcing_resolution_h<<"\n";
+	std::cerr<<"          *****         \n";
       }
 
       continue;
@@ -508,8 +489,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 	state->lgar_bmi_params.sft_coupled = 0; // false
       }
       else {
-	      lgar_ss <<"Invalid option: sft_coupled must be true or false. \n";
-        LOG(lgar_ss.str(), LogLevel::ERROR); lgar_ss.str("");  
+	std::cerr<<"Invalid option: sft_coupled must be true or false. \n";
         abort();
       }
       
@@ -520,9 +500,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       is_ponded_depth_max_cm_set = true;
 
       if (verbosity.compare("high") == 0) {
-	      lgar_ss <<"Maximum ponded depth [cm] : "<<state->lgar_bmi_params.ponded_depth_max_cm<<"\n";
-	      lgar_ss <<"          *****         \n";
-        LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+	std::cerr<<"Maximum ponded depth [cm] : "<<state->lgar_bmi_params.ponded_depth_max_cm<<"\n";
+	std::cerr<<"          *****         \n";
       }
 
       continue;
@@ -535,8 +514,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 	state->lgar_bmi_params.calib_params_flag = 0; // false
       }
       else {
-	      lgar_ss <<"Invalid option: calib_params must be true or false. \n";
-        LOG(lgar_ss.str(), LogLevel::ERROR); lgar_ss.str("");  
+	std::cerr<<"Invalid option: calib_params must be true or false. \n";
         abort();
       }
       
@@ -548,31 +526,27 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
   if (verbosity.compare("high") == 0) {
     std::string flag = state->lgar_bmi_params.use_closed_form_G == true ? "Yes" : "No";
-    lgar_ss <<"Using closed_form_G? "<< flag <<"\n";
-    lgar_ss <<"          *****         \n";
-    LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+    std::cerr<<"Using closed_form_G? "<< flag <<"\n";
+    std::cerr<<"          *****         \n";
   }
 
   if (verbosity.compare("high") == 0) {
     std::string flag = state->lgar_bmi_params.sft_coupled == true ? "Yes" : "No";
-    lgar_ss <<"Coupled to SoilFreezeThaw? "<< flag <<"\n";
-    lgar_ss <<"          *****         \n";
-    LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+    std::cerr<<"Coupled to SoilFreezeThaw? "<< flag <<"\n";
+    std::cerr<<"          *****         \n";
   }
   
   if(!is_max_valid_soil_types_set)
      state->lgar_bmi_params.num_soil_types = MAX_NUM_SOIL_TYPES;     // maximum number of valid soil types defaults to 15
 
   if (verbosity.compare("high") == 0) {
-    lgar_ss <<"Maximum number of soil types: "<<state->lgar_bmi_params.num_soil_types<<"\n";
-    lgar_ss <<"          *****         \n";
-    LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+    std::cerr<<"Maximum number of soil types: "<<state->lgar_bmi_params.num_soil_types<<"\n";
+    std::cerr<<"          *****         \n";
   }
 
   if (!is_layer_soil_type_set) {
     stringstream errMsg;
     errMsg << "The configuration file \'" << config_file <<"\' does not set layer_soil_type. \n";
-    LOG(errMsg.str(), LogLevel::ERROR); 
     throw runtime_error(errMsg.str());
   }
     
@@ -596,10 +570,9 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       if (state->lgar_bmi_params.layer_soil_type[layer] > state->lgar_bmi_params.num_soil_types) {
 	state->lgar_bmi_params.is_invalid_soil_type = true;
 	if (verbosity.compare("high") == 0) {
-	  lgar_ss  << "Invalid soil type: "
+	  std::cerr << "Invalid soil type: "
 		    << state->lgar_bmi_params.layer_soil_type[layer]
 		    <<". Model returns input_precip = ouput_Qout. \n";
-    LOG(lgar_ss.str(), LogLevel::ERROR); lgar_ss.str("");  
 	}
 	break;
       }
@@ -607,67 +580,58 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
     if (verbosity.compare("high") == 0) {
       for (int layer=1; layer<=state->lgar_bmi_params.num_layers; layer++) {
-	      int soil = state->lgar_bmi_params.layer_soil_type[layer];
-	      lgar_ss <<"Soil type/name : "<<state->lgar_bmi_params.layer_soil_type[layer]
-		    <<" "<<state->soil_properties[soil].soil_name<<"\n";
+	int soil = state->lgar_bmi_params.layer_soil_type[layer];
+	std::cerr<<"Soil type/name : "<<state->lgar_bmi_params.layer_soil_type[layer]
+		 <<" "<<state->soil_properties[soil].soil_name<<"\n";
       }
-      lgar_ss <<"          *****         \n";
-      LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+      std::cerr<<"          *****         \n";
     }
   }
   else {
     stringstream errMsg;
     errMsg << "The configuration file \'" << config_file <<"\' does not set soil_params_file. \n";
-    LOG(errMsg.str(), LogLevel::ERROR); 
     throw runtime_error(errMsg.str());
   }
   
   if (!is_layer_thickness_set) {
     stringstream errMsg;
     errMsg << "The configuration file \'" << config_file <<"\' does not set layer_thickness. \n";
-    LOG(errMsg.str(), LogLevel::ERROR); 
     throw runtime_error(errMsg.str());
   }
 
   if (!is_initial_psi_set) {
     stringstream errMsg;
     errMsg << "The configuration file \'" << config_file <<"\' does not set initial_psi. \n";
-    LOG(errMsg.str(), LogLevel::ERROR); 
     throw runtime_error(errMsg.str());
   }
 
   if (!is_timestep_set) {
     stringstream errMsg;
     errMsg << "The configuration file \'" << config_file <<"\' does not set timestep. \n";
-    LOG(errMsg.str(), LogLevel::ERROR); 
     throw runtime_error(errMsg.str());
   }
 
   if (!is_endtime_set) {
     stringstream errMsg;
     errMsg << "The configuration file \'" << config_file <<"\' does not set endtime. \n";
-    LOG(errMsg.str(), LogLevel::ERROR); 
     throw runtime_error(errMsg.str());
   }
 
   if(!is_wilting_point_psi_cm_set) {
     stringstream errMsg;
     errMsg << "The configuration file \'" << config_file <<"\' does not set wilting_point_psi. \n Recommended value of 15495.0[cm], corresponding to 15 atm. \n";
-    LOG(errMsg.str(), LogLevel::ERROR); 
     throw runtime_error(errMsg.str());
   }
 
   if(!is_field_capacity_psi_cm_set) {
     stringstream errMsg;
     errMsg << "The configuration file \'" << config_file <<"\' does not set field_capacity_psi. \n Recommended value of 340.9[cm] for most soils, corresponding to 1/3 atm, or 103.3[cm] for sands, corresponding to 1/10 atm. \n";
-    LOG(errMsg.str(), LogLevel::ERROR); 
     throw runtime_error(errMsg.str());
   }
 
   if (!is_forcing_resolution_set) {
     stringstream errMsg;
     errMsg << "The configuration file \'" << config_file <<"\' does not set forcing_resolution. \n";
-    LOG(errMsg.str(), LogLevel::ERROR); 
     throw runtime_error(errMsg.str());
   }
 
@@ -686,10 +650,9 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     
     if (verbosity.compare("high") == 0) {
       for (int i=1; i<=state->lgar_bmi_params.num_giuh_ordinates; i++)
-	      lgar_ss <<"GIUH ordinates (scaled) : "<<state->lgar_bmi_params.giuh_ordinates[i]<<"\n";
+	      std::cerr<<"GIUH ordinates (scaled) : "<<state->lgar_bmi_params.giuh_ordinates[i]<<"\n";
       
-      lgar_ss <<"          *****         \n";
-      LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+      std::cerr<<"          *****         \n";
     }
     giuh_ordinates_temp.clear();
   }
@@ -697,7 +660,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   else if (!is_giuh_ordinates_set) {
     stringstream errMsg;
     errMsg << "The configuration file \'" << config_file <<"\' does not set giuh_ordinates. \n";
-    LOG(errMsg.str(), LogLevel::ERROR); 
     throw runtime_error(errMsg.str());
   }
 
@@ -706,7 +668,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     if (!is_soil_z_set) {
       stringstream errMsg;
       errMsg << "The configuration file \'" << config_file <<"\' does not set soil_z. \n";
-      LOG(errMsg.str(), LogLevel::ERROR); 
       throw runtime_error(errMsg.str());
     }
   }
@@ -733,9 +694,9 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 			  state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
   
   if (verbosity.compare("none") != 0) {
-    Logger::debug_log("--- Initial state/conditions --- \n");
+    std::cerr<<"--- Initial state/conditions --- \n";
     listPrint(state->head);
-    Logger::debug_log("          *****         \n");
+    std::cerr<<"          *****         \n";
   }
 
   // initial mass in the system
@@ -748,9 +709,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   assert (state->lgar_bmi_params.num_layers == listLength(state->head));
 
   if (verbosity.compare("high") == 0) {
-    lgar_ss <<"Initial ponded depth is set to zero. \n";
-    lgar_ss <<"No. of spatial intervals used in trapezoidal integration to compute G : "<<state->lgar_bmi_params.nint<<"\n";
-    LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+    std::cerr<<"Initial ponded depth is set to zero. \n";
+    std::cerr<<"No. of spatial intervals used in trapezoidal integration to compute G : "<<state->lgar_bmi_params.nint<<"\n";
   }
 
   state->lgar_bmi_input_params     = new lgar_bmi_input_parameters;
@@ -758,9 +718,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   state->lgar_bmi_params.timesteps = 0.0;
 
   if (verbosity.compare("none") != 0) {
-    lgar_ss <<"------------- Initialization done! ---------------------- \n";
-    lgar_ss <<"--------------------------------------------------------- \n";
-    LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+    std::cerr<<"------------- Initialization done! ---------------------- \n";
+    std::cerr<<"--------------------------------------------------------- \n";
   }
 
 }
@@ -790,7 +749,7 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
 				   soil_properties[soil].theta_e,soil_properties[soil].theta_r);
 
     if (verbosity.compare("high") == 0) {
-      Logger::debug_log("layer, theta, psi, alpha, m, n, theta_e, theta_r = %d, %6.6f, %6.6f, %6.6f, %6.6f, %6.6f, %6.6f, %6.6f \n",
+      printf("layer, theta, psi, alpha, m, n, theta_e, theta_r = %d, %6.6f, %6.6f, %6.6f, %6.6f, %6.6f, %6.6f, %6.6f \n",
 	     layer, theta_init, initial_psi_cm, soil_properties[soil].vg_alpha_per_cm, soil_properties[soil].vg_m,
 	     soil_properties[soil].vg_n,soil_properties[soil].theta_e,soil_properties[soil].theta_r);
     }
@@ -891,8 +850,7 @@ extern void frozen_factor_hydraulic_conductivity(struct lgar_bmi_parameters lgar
 
   if (verbosity.compare("high") == 0) {
     for (int i=1; i <= lgar_bmi_params.num_layers; i++)
-      lgar_ss <<"frozen factor = "<< lgar_bmi_params.frozen_factor[i]<<"\n";
-    LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+      std::cerr<<"frozen factor = "<< lgar_bmi_params.frozen_factor[i]<<"\n";
   }
 
 }
@@ -931,24 +889,24 @@ extern void lgar_global_mass_balance(struct model_state *state, double *giuh_run
 
   double global_error_cm = volstart + volprecip - volrunoff - volAET - volon - volrech - volend + volchange_calib_cm;
   
-  Logger::debug_log("\n********************************************************* \n");
-  Logger::debug_log("-------------------- Simulation Summary ----------------- \n");
-  //Logger::debug_log("Time (sec)                 = %6.10f \n", elapsed);
-  Logger::debug_log("------------------------ Mass balance ------------------- \n");
-  Logger::debug_log("Initial water in soil     = %14.10f cm\n", volstart);
-  Logger::debug_log("Total precipitation       = %14.10f cm\n", volprecip);
-  Logger::debug_log("Total infiltration        = %14.10f cm\n", volin);
-  Logger::debug_log("Final water in soil       = %14.10f cm\n", volend);
-  Logger::debug_log("Surface ponded water      = %14.10f cm\n", volon);
-  Logger::debug_log("Surface runoff            = %14.10f cm\n", volrunoff);
-  Logger::debug_log("GIUH runoff               = %14.10f cm\n", volrunoff_giuh);
-  Logger::debug_log("GIUH water (in array)     = %14.10f cm\n", volend_giuh_cm);
-  Logger::debug_log("Total percolation         = %14.10f cm\n", volrech);
-  Logger::debug_log("Total AET                 = %14.10f cm\n", volAET);
-  Logger::debug_log("Total PET                 = %14.10f cm\n", volPET);
-  Logger::debug_log("Total discharge (Q)       = %14.10f cm\n", total_Q_cm);
-  Logger::debug_log("Vol change (calibration)  = %14.10f cm\n", volchange_calib_cm);
-  Logger::debug_log("Global balance            =   %.6e cm\n", global_error_cm);
+  printf("\n********************************************************* \n");
+  printf("-------------------- Simulation Summary ----------------- \n");
+  //printf("Time (sec)                 = %6.10f \n", elapsed);
+  printf("------------------------ Mass balance ------------------- \n");
+  printf("Initial water in soil     = %14.10f cm\n", volstart);
+  printf("Total precipitation       = %14.10f cm\n", volprecip);
+  printf("Total infiltration        = %14.10f cm\n", volin);
+  printf("Final water in soil       = %14.10f cm\n", volend);
+  printf("Surface ponded water      = %14.10f cm\n", volon);
+  printf("Surface runoff            = %14.10f cm\n", volrunoff);
+  printf("GIUH runoff               = %14.10f cm\n", volrunoff_giuh);
+  printf("GIUH water (in array)     = %14.10f cm\n", volend_giuh_cm);
+  printf("Total percolation         = %14.10f cm\n", volrech);
+  printf("Total AET                 = %14.10f cm\n", volAET);
+  printf("Total PET                 = %14.10f cm\n", volPET);
+  printf("Total discharge (Q)       = %14.10f cm\n", total_Q_cm);
+  printf("Vol change (calibration)  = %14.10f cm\n", volchange_calib_cm);
+  printf("Global balance            =   %.6e cm\n", global_error_cm);
 
 }
 
@@ -984,7 +942,7 @@ extern int wetting_front_free_drainage(struct wetting_front* head) {
     wf_that_supplies_free_drainage_demand--;
 
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log("wetting_front_free_drainage = %d \n", wf_that_supplies_free_drainage_demand);
+    printf("wetting_front_free_drainage = %d \n", wf_that_supplies_free_drainage_demand);
   }
 
   return  wf_that_supplies_free_drainage_demand;
@@ -1010,7 +968,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 {
 
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log("State before moving wetting fronts...\n");
+    printf("State before moving wetting fronts...\n");
     listPrint(*head);
   }
 
@@ -1049,7 +1007,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
   for (int wf = number_of_wetting_fronts; wf != 0; wf--) {
 
     if (verbosity.compare("high") == 0) {
-      Logger::debug_log("Moving |******** Wetting Front = %d *********| \n", wf);
+      printf("Moving |******** Wetting Front = %d *********| \n", wf);
     }
 
     if (wf == 1 && number_of_wetting_fronts >0) {
@@ -1090,7 +1048,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
     layer_num_below = (wf == last_wetting_front_index) ? layer_num + 1 : next->layer_num;
 
     if (verbosity.compare("high") == 0) {
-       Logger::debug_log ("Layers (current, above, below) == %d %d %d \n", layer_num, layer_num_above, layer_num_below);
+       printf ("Layers (current, above, below) == %d %d %d \n", layer_num, layer_num_above, layer_num_below);
        listPrint(*head);
     }
 
@@ -1116,7 +1074,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
     if ( (wf < last_wetting_front_index) && (layer_num_below != layer_num) ) {
       
       if (verbosity.compare("high") == 0) {
-	Logger::debug_log("case (deepest wetting front within layer) : layer_num (%d) != layer_num_below (%d) \n", layer_num, layer_num_below);
+	printf("case (deepest wetting front within layer) : layer_num (%d) != layer_num_below (%d) \n", layer_num, layer_num_below);
       }
 
       current->theta = calc_theta_from_h(next->psi_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
@@ -1140,7 +1098,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
     if (wf == number_of_wetting_fronts && layer_num_below != layer_num && number_of_wetting_fronts == num_layers) {
 
       if (verbosity.compare("high") == 0) {
-	Logger::debug_log("case (number_of_wetting_fronts equal to num_layers) : l (%d) == num_layers (%d) == num_wetting_fronts(%d) \n", wf, num_layers,number_of_wetting_fronts);
+	printf("case (number_of_wetting_fronts equal to num_layers) : l (%d) == num_layers (%d) == num_wetting_fronts(%d) \n", wf, num_layers,number_of_wetting_fronts);
       }
 
       // local variables
@@ -1227,7 +1185,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 
 
       if (verbosity.compare("high") == 0) {
-	Logger::debug_log("case (wetting front within a layer) : layer_num (%d) == layer_num_below (%d) \n", layer_num,layer_num_below);
+	printf("case (wetting front within a layer) : layer_num (%d) == layer_num_below (%d) \n", layer_num,layer_num_below);
       }
 
       // if wetting front is the most surficial wetting front
@@ -1464,7 +1422,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 
 
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log("State after moving but before merging wetting fronts...\n");
+    printf("State after moving but before merging wetting fronts...\n");
     listPrint(*head);
   }
 
@@ -1525,7 +1483,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
     lgar_fix_dry_over_wet_wetting_fronts(&mass_change, cum_layer_thickness_cm, soil_type, head, soil_properties);
 
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log ("mass change/adjustment (dry_over_wet case) = %lf \n", mass_change);
+    printf ("mass change/adjustment (dry_over_wet case) = %lf \n", mass_change);
   }
 
   /* sometimes merging can cause a slight mass balance error, to close the mass balance, the tiny error is
@@ -1571,7 +1529,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 
 
   if (verbosity.compare("high") == 0)
-    Logger::debug_log("Moving/merging wetting fronts done... \n");
+    printf("Moving/merging wetting fronts done... \n");
 
 
   //Just a check to make sure that, when there is only 1 layer, than the existing wetting front is at the correct depth.
@@ -1602,9 +1560,9 @@ extern void lgar_merge_wetting_fronts(int *soil_type, double *frozen_factor, str
   current = *head;
 
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log("State before merging wetting fronts...\n");
+    printf("State before merging wetting fronts...\n");
     listPrint(*head);
-    Logger::debug_log("Merging wetting fronts... \n");
+    printf("Merging wetting fronts... \n");
   }
 
   // local variables
@@ -1616,7 +1574,7 @@ extern void lgar_merge_wetting_fronts(int *soil_type, double *frozen_factor, str
   for (int wf=1; wf != listLength(*head); wf++) {
     
     if (verbosity.compare("high") == 0) {
-      Logger::debug_log("Merge | ********* Wetting Front = %d *********\n", wf);
+      printf("Merge | ********* Wetting Front = %d *********\n", wf);
     }
 
 
@@ -1650,14 +1608,14 @@ extern void lgar_merge_wetting_fronts(int *soil_type, double *frozen_factor, str
       current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m);
       
       if (verbosity.compare("high") == 0) {
-        Logger::debug_log ("Deleting wetting front (before)... \n");
+        printf ("Deleting wetting front (before)... \n");
         listPrint(*head);
       }
       
       listDeleteFront(next->front_num, head);
       
       if (verbosity.compare("high") == 0) {
-        Logger::debug_log ("Deleting wetting front (after) ... \n");
+        printf ("Deleting wetting front (after) ... \n");
         listPrint(*head);
       }
     }
@@ -1666,7 +1624,7 @@ extern void lgar_merge_wetting_fronts(int *soil_type, double *frozen_factor, str
   }
 
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log("State after merging wetting fronts...\n");
+    printf("State after merging wetting fronts...\n");
     listPrint(*head);
   }
 
@@ -1691,13 +1649,13 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
   current = *head; 
 
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log("Layer boundary crossing... \n");
+    printf("Layer boundary crossing... \n");
   }
 
   for (int wf=1; wf != listLength(*head); wf++) {
     
     if (verbosity.compare("high") == 0) {
-      Logger::debug_log("Boundary Crossing | ******* Wetting Front = %d ****** \n", wf);
+      printf("Boundary Crossing | ******* Wetting Front = %d ****** \n", wf);
     }
     
     // local variables
@@ -1762,7 +1720,7 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
     }
     
     if (verbosity.compare("high") == 0) {
-      Logger::debug_log("States after wetting fronts cross layer boundary...\n");
+      printf("States after wetting fronts cross layer boundary...\n");
       listPrint(*head);
     }
     current = current->next;
@@ -1789,7 +1747,7 @@ extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, i
   int length = listLength(*head);
   
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log("Domain boundary crossing (bottom flux calc.) \n");
+    printf("Domain boundary crossing (bottom flux calc.) \n");
   }
 
   // local variables
@@ -1801,7 +1759,7 @@ extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, i
   for (int wf=1; wf != length; wf++) {
 
     if (verbosity.compare("high") == 0) {
-      Logger::debug_log("Domain boundary crossing | ***** Wetting Front = %d ****** \n", wf);
+      printf("Domain boundary crossing | ***** Wetting Front = %d ****** \n", wf);
     }
 
     // ensure that loop iterations never exceed the total number of wetting fronts after altering the list
@@ -1845,9 +1803,9 @@ extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, i
   }
 
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log("State after lowest wetting front contributes to flux through the bottom boundary...\n");
+    printf("State after lowest wetting front contributes to flux through the bottom boundary...\n");
     listPrint(*head);
-    Logger::debug_log("Bottom boundary flux = %lf \n",bottom_flux_cm);
+    printf("Bottom boundary flux = %lf \n",bottom_flux_cm);
   }
 
   return bottom_flux_cm;
@@ -1864,7 +1822,7 @@ extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cu
 					 struct wetting_front** head, struct soil_properties_ *soil_properties)
 {
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log("Fix Dry over Wet Wetting Front... \n");
+    printf("Fix Dry over Wet Wetting Front... \n");
   }
 
   struct wetting_front *current;
@@ -2086,7 +2044,7 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
   }
 
   // if ( (current_mass)/max_storage > 0.99 ){
-  //   Logger::debug_log("warning: vadose zone is 99 percent full or greater. If you are using the model in an environment with more precipitation than PET, LGAR is not an appropriate model because its lower boundary condition is no flow. \n ");
+  //   printf("warning: vadose zone is 99 percent full or greater. If you are using the model in an environment with more precipitation than PET, LGAR is not an appropriate model because its lower boundary condition is no flow. \n ");
   // } //turning off for now; should really print like once per model run or so, not every time step 
 
   double ponded_depth_temp = *ponded_depth_cm;
@@ -2321,8 +2279,7 @@ extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_
 {
 
   if (verbosity.compare("high") == 0) {
-    lgar_ss <<"Reading van Genuchten parameters files...\n";
-    LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+    std::cerr<<"Reading van Genuchten parameters files...\n";
   }
 
   // local vars
@@ -2338,7 +2295,7 @@ extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_
 
   // open the file
   if((in_vG_params_fptr=fopen(vG_param_file_name,"r"))==NULL) {
-    Logger::debug_log("Can't open input file named %s. Program stopped.\n",vG_param_file_name); exit(-1);
+    printf("Can't open input file named %s. Program stopped.\n",vG_param_file_name); exit(-1);
   }
 
   fgets(jstr,255,in_vG_params_fptr);   // read the header line and ignore
@@ -2350,9 +2307,9 @@ extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_
     length=strlen(soil_name);
 
     if(length>MAX_SOIL_NAME_CHARS) {
-      Logger::debug_log("While reading vG soil parameter file: %s, soil name longer than allowed.  Increase MAX_SOIL_NAME_CHARS\n",
+      printf("While reading vG soil parameter file: %s, soil name longer than allowed.  Increase MAX_SOIL_NAME_CHARS\n",
 	     vG_param_file_name);
-      Logger::debug_log("Program stopped.\n");
+      printf("Program stopped.\n");
       exit(0);
     }
 
@@ -2406,8 +2363,7 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *so
 			   double *frozen_factor, struct wetting_front* head, struct soil_properties_ *soil_properties)
 {
   if (verbosity.compare("high") == 0) {
-    lgar_ss <<"Calculating dz/dt .... \n";
-    LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+    std::cerr<<"Calculating dz/dt .... \n";
   }
 
   struct wetting_front* current;
@@ -2428,7 +2384,6 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *so
   if(head == NULL) {
     stringstream errMsg;
     errMsg << "lgar derivative function called for empty list (no wetting front exists) \n";
-    LOG(errMsg.str(), LogLevel::ERROR); 
     throw runtime_error(errMsg.str());
   }
 
@@ -2445,9 +2400,9 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *so
     K_cm_per_h   = current->K_cm_per_h;   // K(theta)
 
     if (K_cm_per_h < 0) {
-      Logger::debug_log("K is negative (layer_num, wf_num, K): %d %d %lf \n", layer_num, current->front_num, K_cm_per_h);
+      printf("K is negative (layer_num, wf_num, K): %d %d %lf \n", layer_num, current->front_num, K_cm_per_h);
       listPrint(head);
-      Logger::debug_log("Is your n value very close to 1? Very small n values can cause K to become 0. \n");
+      printf("Is your n value very close to 1? Very small n values can cause K to become 0. \n");
       //The parameter n must physically attain a value greater than 1. However, when n is small, and apparently less than 1.02, sometimes n can make K evaluate to 0, for larger values of psi.
       //So, checking for K_cm_per_h <= 0 has been replaced by checking if K_cm_per_h is negative. K_cm_per_h should never be negative (although perhaps machine precision could make this occur, although we haven't seen it yet), but mathematically can be 0 in some rare cases. 
       abort();
@@ -2490,7 +2445,7 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *so
     }
 
     if(theta1 > theta2) {
-      Logger::debug_log("Calculating dzdt : theta1 > theta2 = (%lf, %lf) ... aborting \n", theta1, theta2);  // this should never happen
+      printf("Calculating dzdt : theta1 > theta2 = (%lf, %lf) ... aborting \n", theta1, theta2);  // this should never happen
       exit(0);
     }
 
@@ -2649,7 +2604,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
     // 1. enough accuracy, 2. the algorithm can't improve the error further,
     // 3. avoid infinite loop, 4. handles case where theta is very close to theta_r and convergence might be possible but would be extremely slow
     // 5. handles a corner case when prior mass is tiny (e.g., <1.E-5)
-    // Logger::debug_log("A1 = %.20f, %.18f %.18f %.18f %.18f \n ",fabs(psi_cm_loc - psi_cm_loc_prev) , psi_cm_loc, psi_cm_loc_prev, factor, delta_mass);
+    // printf("A1 = %.20f, %.18f %.18f %.18f %.18f \n ",fabs(psi_cm_loc - psi_cm_loc_prev) , psi_cm_loc, psi_cm_loc_prev, factor, delta_mass);
     
     if (fabs(psi_cm_loc - psi_cm_loc_prev) < 1E-15 && factor < 1E-13) break;
 
