@@ -2,7 +2,6 @@
 #define AET_CXX_INCLUDE
 
 #include "../include/all.hxx"
-#include "../include/Logger.hpp"
 
 //################################################################################
 /* authors : Fred Ogden and Ahmad Jan and Peter La Follette
@@ -13,7 +12,7 @@
    h is the capillary head at the surface and
    h_50 is the capillary head at which AET = 0.5 * PET. */
 //################################################################################
-char aet_buf[256] = "";
+
 
 extern double calc_aet(double PET_timestep_cm, double time_step_h, double wilting_point_psi_cm, double field_capacity_psi_cm,
 		       int *soil_type, double AET_thresh_Theta, double AET_expon,
@@ -21,8 +20,8 @@ extern double calc_aet(double PET_timestep_cm, double time_step_h, double wiltin
 {
 
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log("Computing AET... \n");
-    Logger::debug_log("Note: AET_thresh_theta = %lf and AET_expon = %lf are not used in the computation of the current AET model. \n", AET_thresh_Theta, AET_expon);
+    printf("Computing AET... \n");
+    printf("Note: AET_thresh_theta = %lf and AET_expon = %lf are not used in the computation of the current AET model. \n", AET_thresh_Theta, AET_expon);
   }
   
   double actual_ET_demand = 0.0;
@@ -67,7 +66,7 @@ extern double calc_aet(double PET_timestep_cm, double time_step_h, double wiltin
     actual_ET_demand = PET_timestep_cm*time_step_h;
 
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log("AET =  %14.10f \n",actual_ET_demand);
+    printf("AET =  %14.10f \n",actual_ET_demand);
   }
   
   return actual_ET_demand;

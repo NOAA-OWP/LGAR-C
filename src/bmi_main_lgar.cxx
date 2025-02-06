@@ -39,9 +39,9 @@ int main(int argc, char *argv[])
   bool is_IO_supress = false; // if true no output files will be written
 
   if (argc != 2) {
-    Logger::debug_log("Usage: ./build/xlgar CONFIGURATION_FILE \n");
-    Logger::debug_log("Run the LASAM (Lumped Arid/semi-aric Model through its BMI with a configuration file.\n");
-    Logger::debug_log("Outputs are written to files `variables_data.csv and layers_data.csv`.\n");
+    printf("Usage: ./build/xlgar CONFIGURATION_FILE \n");
+    printf("Run the LASAM (Lumped Arid/semi-aric Model through its BMI with a configuration file.\n");
+    printf("Outputs are written to files `variables_data.csv and layers_data.csv`.\n");
     return SUCCESS;
   }
 

@@ -8,7 +8,6 @@
 #include <sstream>
 #include <fstream>
 #include <ctime>
-#include <stdarg.h> // for variable args: va_list
 
 #define LOG (Logger::GetInstance())->Log
 
@@ -53,7 +52,6 @@ class Logger {
 	std::string createTimestamp();
 	static void setup_logger(void);
 	std::string getLogFilePath();
-	static void debug_log(const char* message, ...);
 
   private:
 	LogLevel logLevel;
