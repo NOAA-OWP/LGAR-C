@@ -19,7 +19,6 @@
 #include "../bmi/bmi.hxx"
 #include "../include/all.hxx"
 #include "../include/bmi_lgar.hxx"
-#include "../include/Logger.hpp"
 
 // module finds forcing file name in the config file
 std::string GetForcingFile(std::string config_file);
@@ -27,7 +26,6 @@ std::string GetForcingFile(std::string config_file);
 // module read forcings (precipitation and PET)
 void ReadForcingData(std::string config_file, std::vector<std::string>& time, std::vector<double>& precip, std::vector<double>& pet);
 
-std::stringstream bmimain_ss("");
 
 #define SUCCESS 0
 
@@ -90,9 +88,8 @@ int main(int argc, char *argv[])
   assert (nsteps <= int(PET.size()) ); // assertion to ensure that nsteps are less or equal than the input data
   
   if (verbosity.compare("high") == 0 && !is_IO_supress) {
-    bmimain_ss <<"Variables are written to file           : \'data_variables.csv\' \n";
-    bmimain_ss <<"Wetting fronts state is written to file : \'data_layers.csv\' \n";
-    LOG(bmimain_ss.str(), LogLevel::INFO); bmimain_ss.str("");  
+    std::cout<<"Variables are written to file           : \'data_variables.csv\' \n";
+    std::cout<<"Wetting fronts state is written to file : \'data_layers.csv\' \n";
   }
 
   FILE *outdata_fptr = NULL;
@@ -119,10 +116,9 @@ int main(int argc, char *argv[])
   for (int i = 0; i < nsteps; i++) {
 
     if (verbosity.compare("none") != 0) {
-      bmimain_ss <<"===============================================================\n";
-      bmimain_ss <<"Real time | "<<time[i]<<"\n";
-      bmimain_ss <<"Rainfall [mm/h], PET [mm/h] = "<<precipitation[i]<<" , "<<PET[i]<<"\n";
-      LOG(bmimain_ss.str(), LogLevel::INFO); bmimain_ss.str("");  
+      std::cout<<"===============================================================\n";
+      std::cout<<"Real time | "<<time[i]<<"\n";
+      std::cout<<"Rainfall [mm/h], PET [mm/h] = "<<precipitation[i]<<" , "<<PET[i]<<"\n";
     }
 
     model_state.SetValue(var_name_precip, &precipitation[i]);
@@ -176,9 +172,8 @@ int main(int argc, char *argv[])
 
   elapsed = (double)(end_time - start_time) / CLOCKS_PER_SEC;
 
-  bmimain_ss <<setprecision(4);
-  bmimain_ss <<"Time                      =   "<< elapsed <<" sec \n";
-  LOG(bmimain_ss.str(), LogLevel::INFO); bmimain_ss.str("");  
+  std::cout<<setprecision(4);
+  std::cout<<"Time                      =   "<< elapsed <<" sec \n";
 
   return SUCCESS;
 }
@@ -228,8 +223,7 @@ ReadForcingData(std::string config_file, std::vector<std::string>& time, std::ve
   std::ifstream fp;
   fp.open(forcing_file);
   if (!fp) {
-    bmimain_ss <<"file "<<forcing_file<<" doesn't exist. \n";
-    LOG(bmimain_ss.str(), LogLevel::ERROR); bmimain_ss.str("");  
+    cout<<"file "<<forcing_file<<" doesn't exist. \n";
     abort();
   }
 
