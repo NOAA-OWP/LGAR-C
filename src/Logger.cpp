@@ -204,12 +204,17 @@ void Logger::debug_log(const char* message, ...) {
     va_start(arglist, message);
 
     size_t length = vsnprintf(NULL, 0, message, arglist) * sizeof(char);
-    char *buffer = (char *) malloc(length); 
-    vsnprintf(buffer, length, message, arglist);
-    va_end(arglist);
-	std::string buf_str = buffer;
-	
-	LOG(buf_str, LogLevel::DEBUG);
+	if (length>0) {
+    	char *buffer = (char *) malloc(length); 
+    	vsnprintf(buffer, length, message, arglist);
+    	va_end(arglist);
+		std::string buf_str = buffer;
 
-	free(buffer);
+		LOG(buf_str, LogLevel::DEBUG);
+
+		free(buffer);
+	}
+	else {
+		va_end(arglist);
+	}
 }
