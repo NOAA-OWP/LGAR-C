@@ -197,8 +197,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     param_value = line.substr(loc_eq,loc_u - loc_eq);
 
     if (param_key == "verbosity") {
-//      verbosity = param_value;
-      verbosity = "high";
+      verbosity = param_value;
       if (verbosity.compare("none") != 0) {
 	      lgar_ss <<"Verbosity is set to \' "<<verbosity<<"\' \n";
 	      lgar_ss <<"          *****         \n";
