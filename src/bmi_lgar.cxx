@@ -17,7 +17,7 @@
 std::stringstream bmilgar_ss("");
 
 // default verbosity is set to 'none' other option 'high' or 'low' needs to be specified in the config file
-string verbosity="high";
+string verbosity="none";
 
 /**
  * @brief Delete dynamic arrays allocated in Initialize() and held by this object
