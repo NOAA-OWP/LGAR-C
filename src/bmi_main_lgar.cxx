@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
     for (int j = 0; j < num_output_var; j++) {
       fprintf(outdata_fptr,"%s",output_var_names[j].c_str());
       if (j == num_output_var-1)
-	fprintf(outdata_fptr,"\n");
+	    fprintf(outdata_fptr,"\n");
       else
       fprintf(outdata_fptr,",");
     }
