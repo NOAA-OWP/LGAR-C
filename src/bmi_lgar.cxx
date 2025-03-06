@@ -521,11 +521,12 @@ Update()
     state->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
     state->lgar_bmi_params.soil_depth_wetting_fronts[i] = current->depth_cm * state->units.cm_to_m;
     current = current->next;
-    if (verbosity.compare("high") == 0)
+    if (verbosity.compare("high") == 0) {
       bmilgar_ss <<"Wetting fronts (bmi outputs) (depth in meters, theta)= "
 	       <<state->lgar_bmi_params.soil_depth_wetting_fronts[i]
 	       <<" "<<state->lgar_bmi_params.soil_moisture_wetting_fronts[i]<<"\n";
-      LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
+      LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");
+    }
 }
   
   // add to mass balance timestep variables
