@@ -200,7 +200,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       verbosity = param_value;
       if (verbosity.compare("none") != 0) {
 	      lgar_ss <<"Verbosity is set to \' "<<verbosity<<"\' \n";
-	      lgar_ss <<"          *****         \n";
         LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
       }
 
@@ -274,7 +273,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       for (unsigned int layer=1; layer <= vec.size(); layer++) {
       	state->lgar_bmi_params.layer_thickness_cm[layer] = vec[layer-1];
-	state->lgar_bmi_params.cum_layer_thickness_cm[layer] = state->lgar_bmi_params.cum_layer_thickness_cm[layer-1] + vec[layer-1];
+	      state->lgar_bmi_params.cum_layer_thickness_cm[layer] = state->lgar_bmi_params.cum_layer_thickness_cm[layer-1] + vec[layer-1];
       }
 
       state->lgar_bmi_params.num_layers = vec.size();
@@ -285,11 +284,10 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       if (verbosity.compare("high") == 0) {
 	      lgar_ss <<"Number of layers : "<<state->lgar_bmi_params.num_layers<<"\n";
 	      for (int i=1; i<=state->lgar_bmi_params.num_layers; i++) {
-	        lgar_ss <<"Thickness, cum. depth : "<<state->lgar_bmi_params.layer_thickness_cm[i]<<" , "
+	        lgar_ss <<"Thickness, cum. depth [" << i << "]: "<<state->lgar_bmi_params.layer_thickness_cm[i]<<" , "
 		      <<state->lgar_bmi_params.cum_layer_thickness_cm[i]<<"\n";
+          LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
         }
-	      lgar_ss <<"          *****         \n";
-        LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
       }
 
       continue;
@@ -312,16 +310,15 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       giuh_ordinates_temp.resize(vec.size()+1);
  
       for (unsigned int i=1; i <= vec.size(); i++)
-	giuh_ordinates_temp[i] = vec[i-1];
+	      giuh_ordinates_temp[i] = vec[i-1];
 
       is_giuh_ordinates_set = true;
 
       if (verbosity.compare("high") == 0) {
-	      for (int i=1; i <= vec.size(); i++)
-	        lgar_ss <<"GIUH ordinates (hourly) : "<<giuh_ordinates_temp[i]<<"\n";
-
-	        lgar_ss <<"          *****         \n";
-          LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+	      for (int i=1; i <= vec.size(); i++) {
+	        lgar_ss <<"GIUH ordinates (hourly) [" << i << "]: "<<giuh_ordinates_temp[i]<<"\n";
+          LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");
+        }
       }
 
       continue;
@@ -339,11 +336,10 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       is_soil_z_set = true;
 
       if (verbosity.compare("high") == 0) {
-	      for (int i=0; i<state->lgar_bmi_params.num_cells_temp; i++)
-	        lgar_ss <<"Soil z (temperature resolution) : "<<state->lgar_bmi_params.soil_temperature_z[i]<<"\n";
-
-	      lgar_ss <<"          *****         \n";
-        LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+	      for (int i=0; i<state->lgar_bmi_params.num_cells_temp; i++) {
+	        lgar_ss <<"Soil z (temperature resolution) [" << i << "]: "<<state->lgar_bmi_params.soil_temperature_z[i]<<"\n";
+          LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");
+        }
       }
 
       continue;
@@ -354,7 +350,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       if (verbosity.compare("high") == 0) {
 	      lgar_ss <<"Initial Psi : "<<state->lgar_bmi_params.initial_psi_cm<<"\n";
-	      lgar_ss <<"          *****         \n";
         LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
       }
 
@@ -371,7 +366,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       if (verbosity.compare("high") == 0) {
 	      lgar_ss <<"Soil paramaters file : "<<soil_params_file<<"\n";
-	      lgar_ss <<"          *****         \n";
         LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
       }
 
@@ -383,7 +377,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       if (verbosity.compare("high") == 0) {
 	      lgar_ss <<"Wilting point Psi [cm] : "<<state->lgar_bmi_params.wilting_point_psi_cm<<"\n";
-	      lgar_ss <<"          *****         \n";
         LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
       }
 
@@ -395,7 +388,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       if (verbosity.compare("high") == 0) {
 	      lgar_ss <<"Field capacity Psi [cm] : "<<state->lgar_bmi_params.field_capacity_psi_cm<<"\n";
-	      lgar_ss <<"          *****         \n";
         LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
       }
 
@@ -435,11 +427,11 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       state->lgar_bmi_params.timestep_h = stod(param_value);
 
       if (param_unit == "[s]" || param_unit == "[sec]" || param_unit == "") // defalut time unit is seconds
-	state->lgar_bmi_params.timestep_h /= 3600; // convert to hours
+    	  state->lgar_bmi_params.timestep_h /= 3600; // convert to hours
       else if (param_unit == "[min]" || param_unit == "[minute]")
-	state->lgar_bmi_params.timestep_h /= 60; // convert to hours
+      	state->lgar_bmi_params.timestep_h /= 60; // convert to hours
       else if (param_unit == "[h]" || param_unit == "[hr]")
-	state->lgar_bmi_params.timestep_h /= 1.0; // convert to hours
+	      state->lgar_bmi_params.timestep_h /= 1.0; // convert to hours
 
       assert (state->lgar_bmi_params.timestep_h > 0);
       is_timestep_set = true;
@@ -449,7 +441,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       if (verbosity.compare("high") == 0) {
 	      lgar_ss <<"Model timestep [hours,seconds]: "<<state->lgar_bmi_params.timestep_h<<" , "
 		    <<state->lgar_bmi_params.timestep_h*3600<<"\n";
-	      lgar_ss <<"          *****         \n";
         LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
       }
 
@@ -458,13 +449,13 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     else if (param_key == "endtime") {
 
       if (param_unit == "[s]" || param_unit == "[sec]" || param_unit == "") // defalut time unit is seconds
-	state->lgar_bmi_params.endtime_s = stod(param_value);
+	      state->lgar_bmi_params.endtime_s = stod(param_value);
       else if (param_unit == "[min]" || param_unit == "[minute]")
-	state->lgar_bmi_params.endtime_s = stod(param_value) * 60.0;
+	      state->lgar_bmi_params.endtime_s = stod(param_value) * 60.0;
       else if (param_unit == "[h]" || param_unit == "[hr]")
-	state->lgar_bmi_params.endtime_s = stod(param_value) * 3600.0;
+	      state->lgar_bmi_params.endtime_s = stod(param_value) * 3600.0;
       else if (param_unit == "[d]" || param_unit == "[day]")
-	state->lgar_bmi_params.endtime_s = stod(param_value) * 86400.0;
+	      state->lgar_bmi_params.endtime_s = stod(param_value) * 86400.0;
 
       assert (state->lgar_bmi_params.endtime_s > 0);
       is_endtime_set = true;
@@ -472,7 +463,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       if (verbosity.compare("high") == 0) {
 	      lgar_ss <<"Endtime [days, hours]: "<< state->lgar_bmi_params.endtime_s/86400.0 <<" , "
 		    << state->lgar_bmi_params.endtime_s/3600.0<<"\n";
-	      lgar_ss <<"          *****         \n";
         LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
       }
 
@@ -482,18 +472,17 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       state->lgar_bmi_params.forcing_resolution_h = stod(param_value);
 
       if (param_unit == "[s]" || param_unit == "[sec]" || param_unit == "") // defalut time unit is seconds
-	state->lgar_bmi_params.forcing_resolution_h /= 3600;                // convert to hours
+	      state->lgar_bmi_params.forcing_resolution_h /= 3600;                // convert to hours
       else if (param_unit == "[min]" || param_unit == "[minute]")
-	state->lgar_bmi_params.forcing_resolution_h /= 60;                 // convert to hours
+	      state->lgar_bmi_params.forcing_resolution_h /= 60;                 // convert to hours
       else if (param_unit == "[h]" || param_unit == "[hr]")
-	state->lgar_bmi_params.forcing_resolution_h /= 1.0;               // convert to hours
+	      state->lgar_bmi_params.forcing_resolution_h /= 1.0;               // convert to hours
 
       assert (state->lgar_bmi_params.forcing_resolution_h > 0);
       is_forcing_resolution_set = true;
 
       if (verbosity.compare("high") == 0) {
 	      lgar_ss <<"Forcing resolution [hours]: "<<state->lgar_bmi_params.forcing_resolution_h<<"\n";
-	      lgar_ss <<"          *****         \n";
         LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
       }
 
@@ -501,10 +490,10 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     }
     else if (param_key == "sft_coupled") {
       if (param_value == "true") {
-	state->lgar_bmi_params.sft_coupled = 1;
+	      state->lgar_bmi_params.sft_coupled = 1;
       }
       else if (param_value == "false") {
-	state->lgar_bmi_params.sft_coupled = 0; // false
+	      state->lgar_bmi_params.sft_coupled = 0; // false
       }
       else {
 	      lgar_ss <<"Invalid option: sft_coupled must be true or false. \n";
@@ -520,7 +509,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       if (verbosity.compare("high") == 0) {
 	      lgar_ss <<"Maximum ponded depth [cm] : "<<state->lgar_bmi_params.ponded_depth_max_cm<<"\n";
-	      lgar_ss <<"          *****         \n";
         LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
       }
 
@@ -528,10 +516,10 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     }
     else if (param_key == "calib_params") {
       if (param_value == "true") {
-	state->lgar_bmi_params.calib_params_flag = 1;
+	      state->lgar_bmi_params.calib_params_flag = 1;
       }
       else if (param_value == "false") {
-	state->lgar_bmi_params.calib_params_flag = 0; // false
+	      state->lgar_bmi_params.calib_params_flag = 0; // false
       }
       else {
 	      lgar_ss <<"Invalid option: calib_params must be true or false. \n";
@@ -548,14 +536,12 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   if (verbosity.compare("high") == 0) {
     std::string flag = state->lgar_bmi_params.use_closed_form_G == true ? "Yes" : "No";
     lgar_ss <<"Using closed_form_G? "<< flag <<"\n";
-    lgar_ss <<"          *****         \n";
     LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
   }
 
   if (verbosity.compare("high") == 0) {
     std::string flag = state->lgar_bmi_params.sft_coupled == true ? "Yes" : "No";
     lgar_ss <<"Coupled to SoilFreezeThaw? "<< flag <<"\n";
-    lgar_ss <<"          *****         \n";
     LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
   }
   
@@ -564,7 +550,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
   if (verbosity.compare("high") == 0) {
     lgar_ss <<"Maximum number of soil types: "<<state->lgar_bmi_params.num_soil_types<<"\n";
-    lgar_ss <<"          *****         \n";
     LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
   }
 
@@ -593,14 +578,14 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       //assert (state->lgar_bmi_params.layer_soil_type[layer] <= state->lgar_bmi_params.num_soil_types);
       //assert (state->lgar_bmi_params.layer_soil_type[layer] <= max_num_soil_in_file);
       if (state->lgar_bmi_params.layer_soil_type[layer] > state->lgar_bmi_params.num_soil_types) {
-	state->lgar_bmi_params.is_invalid_soil_type = true;
-	if (verbosity.compare("high") == 0) {
-	  lgar_ss  << "Invalid soil type: "
-		    << state->lgar_bmi_params.layer_soil_type[layer]
-		    <<". Model returns input_precip = ouput_Qout. \n";
-    LOG(lgar_ss.str(), LogLevel::ERROR); lgar_ss.str("");  
-	}
-	break;
+        state->lgar_bmi_params.is_invalid_soil_type = true;
+        if (verbosity.compare("high") == 0) {
+          lgar_ss  << "Invalid soil type: "
+              << state->lgar_bmi_params.layer_soil_type[layer]
+              <<". Model returns input_precip = ouput_Qout. \n";
+          LOG(lgar_ss.str(), LogLevel::ERROR); lgar_ss.str("");  
+        }
+        break;
       }
     }
 
@@ -609,9 +594,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 	      int soil = state->lgar_bmi_params.layer_soil_type[layer];
 	      lgar_ss <<"Soil type/name : "<<state->lgar_bmi_params.layer_soil_type[layer]
 		    <<" "<<state->soil_properties[soil].soil_name<<"\n";
+        LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
       }
-      lgar_ss <<"          *****         \n";
-      LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
     }
   }
   else {
@@ -684,11 +668,10 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     }
     
     if (verbosity.compare("high") == 0) {
-      for (int i=1; i<=state->lgar_bmi_params.num_giuh_ordinates; i++)
-	      lgar_ss <<"GIUH ordinates (scaled) : "<<state->lgar_bmi_params.giuh_ordinates[i]<<"\n";
-      
-      lgar_ss <<"          *****         \n";
-      LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+      for (int i=1; i<=state->lgar_bmi_params.num_giuh_ordinates; i++) {
+	      lgar_ss <<"GIUH ordinates (scaled) ["<<i<<"]: "<<state->lgar_bmi_params.giuh_ordinates[i]<<"\n";
+        LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+      }    
     }
     giuh_ordinates_temp.clear();
   }
@@ -889,9 +872,10 @@ extern void frozen_factor_hydraulic_conductivity(struct lgar_bmi_parameters lgar
   }
 
   if (verbosity.compare("high") == 0) {
-    for (int i=1; i <= lgar_bmi_params.num_layers; i++)
-      lgar_ss <<"frozen factor = "<< lgar_bmi_params.frozen_factor[i]<<"\n";
-    LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");  
+    for (int i=1; i <= lgar_bmi_params.num_layers; i++) {
+      lgar_ss <<"frozen factor ["<<i<<"]: "<< lgar_bmi_params.frozen_factor[i]<<"\n";
+      LOG(lgar_ss.str(), LogLevel::INFO); lgar_ss.str("");
+    }  
   }
 
 }
