@@ -31,7 +31,7 @@ int  i,frows,fcols;
 
 if ((rows==0)||(cols==0))
   {
-  Logger::debug_log("Error: Attempting to allocate array of size 0\n");
+  LOG(LogLevel::DEBUG,"Error: Attempting to allocate array of size 0\n");
   exit(0);
   }
 
@@ -67,7 +67,7 @@ int  i,frows,fcols;
 
 if ((rows==0)||(cols==0))
   {
-  Logger::debug_log("Error: Attempting to allocate array of size 0\n");
+  LOG(LogLevel::DEBUG,"Error: Attempting to allocate array of size 0\n");
   exit(0);
   }
 
@@ -102,7 +102,7 @@ void d_alloc(double **var,int size)
    *var = (double *)malloc(size * sizeof(double));
    if (*var == NULL)
       {
-      Logger::debug_log("Problem allocating memory for array in d_alloc.\n");
+      LOG(LogLevel::DEBUG,"Problem allocating memory for array in d_alloc.\n");
       return;
       }
    else memset(*var,0,size*sizeof(double));
@@ -119,7 +119,7 @@ void i_alloc(int **var,int size)
    *var = (int *)malloc(size * sizeof(int));
    if (*var == NULL)
       {
-      Logger::debug_log("Problem allocating memory in i_alloc\n");
+      LOG(LogLevel::DEBUG,"Problem allocating memory in i_alloc\n");
       return; 
       }
    else memset(*var,0,size*sizeof(int));
@@ -136,7 +136,7 @@ void f_alloc(float **var,int size)
    *var = (float *)malloc(size * sizeof(float));
    if (*var == NULL)
       {
-      Logger::debug_log("Problem allocating memory for array in f_alloc.\n");
+      LOG(LogLevel::DEBUG,"Problem allocating memory for array in f_alloc.\n");
       return;
       }
    else memset(*var,0,size*sizeof(float));
