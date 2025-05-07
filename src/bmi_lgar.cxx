@@ -34,7 +34,6 @@ BmiLGAR::~BmiLGAR(){
 void BmiLGAR::
 Initialize (std::string config_file)
 {
-  Logger::setup_logger();
   LOG("Inside BmiLGAR::Initialize \n", LogLevel::INFO);  
   if (config_file.compare("") != 0 ) {
     this->state = new model_state;
@@ -210,7 +209,7 @@ Update()
   subcycles = state->lgar_bmi_params.forcing_interval;
 
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log("time step size in hours: %lf \n", state->lgar_bmi_params.timestep_h);
+    LOG(LogLevel::DEBUG,"time step size in hours: %lf \n", state->lgar_bmi_params.timestep_h);
   }
   
   // subcycling loop (loop over model's timestep)
@@ -344,7 +343,7 @@ Update()
 				      state->head, state->soil_properties);
 
       if (verbosity.compare("high") == 0) {
-        Logger::debug_log("State before moving creating new WF...\n");
+        LOG(LogLevel::DEBUG,"State before moving creating new WF...\n");
         listPrint(state->head);
       }
       
@@ -353,7 +352,7 @@ Update()
 				  state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
 
       if (verbosity.compare("high") == 0) {
-        Logger::debug_log("State after moving creating new WF...\n");
+        LOG(LogLevel::DEBUG,"State after moving creating new WF...\n");
         listPrint(state->head);
       }
 
@@ -366,7 +365,7 @@ Update()
       volin_timestep_cm += volin_subtimestep_cm;
 
       if (verbosity.compare("high") == 0) {
-	Logger::debug_log("New wetting front created...\n");
+	LOG(LogLevel::DEBUG,"New wetting front created...\n");
 	listPrint(state->head);
       }
     }
@@ -456,14 +455,14 @@ Update()
     volQ_gw_timestep_cm += volQ_gw_subtimestep_cm;
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      Logger::debug_log("Printing wetting fronts at this subtimestep... \n");
+      LOG(LogLevel::DEBUG,"Printing wetting fronts at this subtimestep... \n");
       listPrint(state->head);
     }
 
     bool unexpected_local_error = fabs(local_mb) > 1.0E-4 ? true : false;
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0 || unexpected_local_error) {
-      Logger::debug_log("\nLocal mass balance at this timestep... \n\
+      LOG(LogLevel::DEBUG,"\nLocal mass balance at this timestep... \n\
       Error         = %14.10f \n\
       Initial water = %14.10f \n\
       Water added   = %14.10f \n\
@@ -477,7 +476,7 @@ Update()
 	     volend_subtimestep_cm);
 
       if (unexpected_local_error) {
-	Logger::debug_log("Local mass balance (in this timestep) is %14.10f, larger than expected, needs some debugging...\n ",local_mb);
+	LOG(LogLevel::DEBUG,"Local mass balance (in this timestep) is %14.10f, larger than expected, needs some debugging...\n ",local_mb);
 	abort();
       }
 
