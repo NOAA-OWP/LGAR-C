@@ -232,7 +232,7 @@ AET_thresh_Theta = 0.85;    // scaled soil moisture (0-1) above which AET=PET
 AET_expon = 1.0;            // exponent that allows curvature of the rising portion of the Budyko curve
 // check? wilting_point_psi_cm=initial_psi_cm*101325.0/9810.0*100.0;  // assumed 15 atm.
 wilting_point_psi_cm = 154950/10.; // AJ-correction
-//Logger::debug_log("wilting::: %lf \n", wilting_point_psi_cm);
+//LOG(LogLevel::DEBUG,"wilting::: %lf \n", wilting_point_psi_cm);
 load_ICs=FALSE;      // set to false iff initial conditions are not specified TODO fixeme iff TRUE
 
 /*## EXAMPLE ##*/
@@ -257,9 +257,9 @@ soil_type_by_layer[3]=15;  // clay
 //########################################################################################
 // option sanity checks.  Detect nonsensical or infeasible options or initializations here
 if(num_soil_types > (MAX_NUM_SOIL_TYPES -1))
-  {Logger::debug_log("Too many soil types specified.  Increase MAX_NUM_SOIL_TYPES in all.h .  Program stopped.\n");exit(0);}
+  {LOG(LogLevel::DEBUG,"Too many soil types specified.  Increase MAX_NUM_SOIL_TYPES in all.h .  Program stopped.\n");exit(0);}
 if(num_soil_layers > (MAX_NUM_SOIL_LAYERS -1))
-  {Logger::debug_log("Too many soil types specified.  Increase MAX_NUM_SOIL_LAYERS in code.  Program stopped.\n");exit(0);}
+  {LOG(LogLevel::DEBUG,"Too many soil types specified.  Increase MAX_NUM_SOIL_LAYERS in code.  Program stopped.\n");exit(0);}
 
 
 //##########################################################################################
@@ -323,16 +323,16 @@ ymax=cum_layer_thickness_cm[num_soil_layers];
 
 if(debug_flag==TRUE)   // this stuff is all demo/test code.
   {
-   Logger::debug_log("Initial linked list of wetting fronts:\n"); 
-    //Logger::debug_log("depth,theta,layer,front,to_bottom,dzdt ");
+   LOG(LogLevel::DEBUG,"Initial linked list of wetting fronts:\n"); 
+    //LOG(LogLevel::DEBUG,"depth,theta,layer,front,to_bottom,dzdt ");
     //listPrint();
   // note in the next line, using the file print function (fprintf), with arg. "stdout" causes write to screen
   fprintf(stdout,"Initial depth of water stored in soil: %lf cm\n",volstart);
   fprintf(stdout,"Should be equal to:                    %lf cm\n",39.1658320808);  // a kind of unit test.
   fprintf(stdout,"difference:                            %e cm\n",volstart-39.1658320808);
- Logger::debug_log("Initial linked list of wetting fronts:\n");
- Logger::debug_log("after calculating dzdt for %d fronts.\n",num_dzdt_calculated); 
- Logger::debug_log("depth,theta,layer,front,to_bottom,dzdt ");
+ LOG(LogLevel::DEBUG,"Initial linked list of wetting fronts:\n");
+ LOG(LogLevel::DEBUG,"after calculating dzdt for %d fronts.\n",num_dzdt_calculated); 
+ LOG(LogLevel::DEBUG,"depth,theta,layer,front,to_bottom,dzdt ");
   listPrint();
   }
 
@@ -340,9 +340,9 @@ if(illiterate_flag==FALSE)
   {
   // open the output file ffor writing
   if((outl_fptr=fopen("data_layers.out","w"))==NULL)
-    {Logger::debug_log("Problem opening output file. Program stopped.\n"); exit(0);}
+    {LOG(LogLevel::DEBUG,"Problem opening output file. Program stopped.\n"); exit(0);}
   if((outd_fptr=fopen("data_variables.out","w"))==NULL)
-    {Logger::debug_log("Problem opening output file. Program stopped.\n"); exit(0);}
+    {LOG(LogLevel::DEBUG,"Problem opening output file. Program stopped.\n"); exit(0);}
   // add headings to variables forcing file
   fprintf(outd_fptr,"precip(mm),AET(mm),runoff(mm),ponded_depth(mm),storage(mm),bottom_flux(mm),mass_bal_err(mm)\n");
   }
@@ -353,7 +353,7 @@ if(illiterate_flag==FALSE)
 //if((in_forcing_fptr=fopen("Phillipsburg_data1.txt","r"))==NULL)
  if((in_forcing_fptr=fopen("forcing/Phillipsburg_data2_PET.txt","r"))==NULL)
 
-  {Logger::debug_log("Problem opening forcing_data_syn.txt input file. Program stopped.\n"); exit(0);}
+  {LOG(LogLevel::DEBUG,"Problem opening forcing_data_syn.txt input file. Program stopped.\n"); exit(0);}
 
 forcing_interval=(int) (forcing_resolution_s/(time_step_s)+1.0e-08); // add 1.0e-08 to prevent truncation error
  if(debug_flag)
@@ -363,7 +363,7 @@ forcing_interval=(int) (forcing_resolution_s/(time_step_s)+1.0e-08); // add 1.0e
  
  if( ((forcing_interval) % (int)(time_step_s+1.0e-08)) != 0) // here % is the remainder operator
   {
-    //Logger::debug_log("forcing data interval (s) must be integer divisible by the time step (s).  Program stopped.\n");
+    //LOG(LogLevel::DEBUG,"forcing data interval (s) must be integer divisible by the time step (s).  Program stopped.\n");
     //exit(-1);  // -1 is arbitrary, and can be targeted.  Usually int functions return 0 if successful.
   }
 
@@ -413,7 +413,7 @@ volstart=lgar_calc_mass_bal(num_soil_layers,cum_layer_thickness_cm);
 ponded_depth_cm=0.0;   // always start simulation with no ponded depth
 
 if(debug_flag)
- Logger::debug_log("\n ************ ************ TIME STEPPING NOW ****************** \n");
+ LOG(LogLevel::DEBUG,"\n ************ ************ TIME STEPPING NOW ****************** \n");
 double mm_s_to_cm_hr = 1. * (1.0/10.); // mm per sec to cm per hour conversion
 
 double volend_timestep_cm;
@@ -432,15 +432,15 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
   {
 
     if(debug_flag) {
-     Logger::debug_log("\n-------------------------------TS start----------------------------------------------- \n");
-     Logger::debug_log(" ************ time step %d ******** \n",time_step_num);
+     LOG(LogLevel::DEBUG,"\n-------------------------------TS start----------------------------------------------- \n");
+     LOG(LogLevel::DEBUG," ************ time step %d ******** \n",time_step_num);
     }
     
     listDelete(state_previous);
     state_previous = listCopy(head);
     
     if(debug_flag) {
-      //Logger::debug_log("Previous state : \n");
+      //LOG(LogLevel::DEBUG,"Previous state : \n");
       //listPrintC(*state_previous);
     }
      
@@ -464,7 +464,7 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
 
      
     if (debug_flag)
-     Logger::debug_log("per timestep (precip, pet) = (%lf, %lf) \n ", precip_timestep_cm,PET_timestep_cm );
+     LOG(LogLevel::DEBUG,"per timestep (precip, pet) = (%lf, %lf) \n ", precip_timestep_cm,PET_timestep_cm );
     double AET_timestep_temp_cm = 0.0;
     
     // ------------------ iff raining, take some or all of the PET from rainfall depending on rain rate --------------
@@ -495,26 +495,26 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
       AET_timestep_cm = calc_aet(PET_timestep_cm, time_step_h, wilting_point_psi_cm, soil_properties, soil_type_by_layer, AET_thresh_Theta, AET_expon);
       
       // this part needs to be tested....
-     //Logger::debug_log("AET = %lf %lf %0.6e \n", PET_mm_per_15min, PET_timestep_cm, AET_timestep_cm);
+     //LOG(LogLevel::DEBUG,"AET = %lf %lf %0.6e \n", PET_mm_per_15min, PET_timestep_cm, AET_timestep_cm);
      //abort();
     }
     else
       AET_timestep_cm = 0.0;
 
-    //Logger::debug_log("AET = %lf %lf %6.10f \n", PET_mm_per_15min, PET_timestep_cm, AET_timestep_cm);
+    //LOG(LogLevel::DEBUG,"AET = %lf %lf %6.10f \n", PET_mm_per_15min, PET_timestep_cm, AET_timestep_cm);
     // mass balance
     volprecip += precip_timestep_cm * time_step_h;
     volstart_timestep_cm = lgar_calc_mass_bal(num_soil_layers,cum_layer_thickness_cm);
     volprecip_timestep_cm = precip_timestep_cm * time_step_h;
     
     // -------------------- add incoming precip to ponded_depth_cm ---------------------------
-    //   Logger::debug_log("---- Ponded depth = %lf %lf \n ", ponded_depth_cm, precip_timestep_cm * time_step_h);
+    //   LOG(LogLevel::DEBUG,"---- Ponded depth = %lf %lf \n ", ponded_depth_cm, precip_timestep_cm * time_step_h);
     //if (ponded_depth_cm>0) abort();
     ponded_depth_cm += precip_timestep_cm * time_step_h;
      
     int wf_free_drainage_demand = wetting_front_free_drainage();
 
-    //Logger::debug_log("wf_free_drainage_demand = %d \n", wf_free_drainage_demand);
+    //LOG(LogLevel::DEBUG,"wf_free_drainage_demand = %d \n", wf_free_drainage_demand);
     //bool surficial_wf_created = false;
     
     volin_timestep_cm =0.0;
@@ -528,7 +528,7 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
     bool create_surficial_front = (precip_previous_timestep_cm == 0.0 && precip_timestep_cm >0.0);
     
     double mass_source_to_soil_timestep = 0.0;
-    //Logger::debug_log("__**___Surficial front create? = %d %d %lf %lf \n ",  create_surficial_front, is_top_wf_saturated, head->theta, theta_e);
+    //LOG(LogLevel::DEBUG,"__**___Surficial front create? = %d %d %lf %lf \n ",  create_surficial_front, is_top_wf_saturated, head->theta, theta_e);
     
     if(create_surficial_front && !is_top_wf_saturated)  
       //  This means that there is no wetting front in the top layer to accept the water, must create one.
@@ -538,7 +538,7 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
 	lgar_move_wetting_fronts(&temp_pd,time_step_h, wf_free_drainage_demand, volend_timestep_cm, num_soil_layers, &AET_timestep_cm, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
 	//listPrint();
 	dry_depth = lgar_calc_dry_depth(nint, time_step_h, soil_type_by_layer, soil_properties, cum_layer_thickness_cm,&delta_theta);
-	//Logger::debug_log("SF = %lf %lf ",AET_timestep_cm, dry_depth);
+	//LOG(LogLevel::DEBUG,"SF = %lf %lf ",AET_timestep_cm, dry_depth);
 	theta1 = head->theta;
 	lgar_create_surfacial_front(&ponded_depth_cm, &volin_timestep_cm, dry_depth, theta1, soil_type_by_layer, soil_properties, cum_layer_thickness_cm, nint, time_step_h);
 	
@@ -549,7 +549,7 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
 	
 	volin += volin_timestep_cm;
 	//volrunoff += ponded_depth_cm;
-	//Logger::debug_log("surfical front created and ponded depth = %lf %lf %lf \n", ponded_depth_cm, volrunoff, volin_timestep_cm);
+	//LOG(LogLevel::DEBUG,"surfical front created and ponded depth = %lf %lf %lf \n", ponded_depth_cm, volrunoff, volin_timestep_cm);
 	//if (ponded_depth_cm >0)
 	//listPrint();
 	// abort();
@@ -558,7 +558,7 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
 
     //     if (time_step_num >= 0 && precip_this_timestep_cm >0 && precip_previous_timestep_cm >0) {
     if (ponded_depth_cm > 0 && !create_surficial_front) {
-      //Logger::debug_log("--- LGAR MAIN **** insert water........ %lf, %d \n", ponded_depth_cm, create_surficial_front);
+      //LOG(LogLevel::DEBUG,"--- LGAR MAIN **** insert water........ %lf, %d \n", ponded_depth_cm, create_surficial_front);
       volrunoff_timestep_cm = lgar_insert_water(&ponded_depth_cm, &volin_timestep_cm, precip_timestep_cm, dry_depth, nint, time_step_h, wf_free_drainage_demand, soil_type_by_layer, soil_properties, cum_layer_thickness_cm);
       
       //volin_this_timestep = ponded_depth_cm;
@@ -566,13 +566,13 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
       volrunoff += volrunoff_timestep_cm;
       volrech_timestep_cm = volin_timestep_cm; // water leaving thru the bottom
       volon = ponded_depth_cm;
-      //Logger::debug_log("Mass in = %lf %lf %lf \n", volin, ponded_depth_cm, runoff_timestep);
+      //LOG(LogLevel::DEBUG,"Mass in = %lf %lf %lf \n", volin, ponded_depth_cm, runoff_timestep);
       if (volrunoff_timestep_cm < 0)
 	abort();
       
     }
     else {
-      //Logger::debug_log("wetting front created = %lf %d \n", ponded_depth_cm ,!create_surficial_front );
+      //LOG(LogLevel::DEBUG,"wetting front created = %lf %d \n", ponded_depth_cm ,!create_surficial_front );
       double hp_cm_max = 0.0; //h_p_max = 0.0;
       
       if (ponded_depth_cm < hp_cm_max) {
@@ -589,12 +589,12 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
 	
       }
      }
-    //Logger::debug_log("Runoff = %6.12f \n",volrunoff_timestep_cm);
-    //Logger::debug_log("LGAR MAIN ******************* potential infiltration ........%lf \n", ponded_depth_cm);
+    //LOG(LogLevel::DEBUG,"Runoff = %6.12f \n",volrunoff_timestep_cm);
+    //LOG(LogLevel::DEBUG,"LGAR MAIN ******************* potential infiltration ........%lf \n", ponded_depth_cm);
     //lgar_potential_infiltration(time_step_s, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
     
     if (!create_surficial_front) {
-      //Logger::debug_log("LGAR MAIN ******************* move wetting front ........%lf %lf \n", ponded_depth_cm, volin_this_timestep);
+      //LOG(LogLevel::DEBUG,"LGAR MAIN ******************* move wetting front ........%lf %lf \n", ponded_depth_cm, volin_this_timestep);
       //lgar_move_fronts(&ponded_depth_cm,time_step_h, wf_free_drainage_demand, volend_timestep, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
       
       lgar_move_wetting_fronts(&volin_timestep_cm,time_step_h, wf_free_drainage_demand, volend_timestep_cm, num_soil_layers, &AET_timestep_cm, cum_layer_thickness_cm, soil_type_by_layer, soil_properties);
@@ -622,7 +622,7 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
      //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #endif
 
-     //Logger::debug_log("Calling dz/dt from main.... \n");
+     //LOG(LogLevel::DEBUG,"Calling dz/dt from main.... \n");
      // calculate dzdt for each front : derivs in python
      
      //listPrint();
@@ -646,8 +646,8 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
      volend_timestep_cm = lgar_calc_mass_bal(num_soil_layers,cum_layer_thickness_cm);
      // volstart+volprecip-volAET-volin-volrunoff-volon-volrech-volend = 0.0
      //volend+= volend_timestep;
-     //Logger::debug_log("mass balance = %lf %lf %lf %lf %lf \n", volstart, volin, volin_timestep_cm, volstart+volin, volend_timestep_cm);
-     //Logger::debug_log("mass balance = %lf %lf \n ", volrech, volrech_timestep_cm);
+     //LOG(LogLevel::DEBUG,"mass balance = %lf %lf %lf %lf %lf \n", volstart, volin, volin_timestep_cm, volstart+volin, volend_timestep_cm);
+     //LOG(LogLevel::DEBUG,"mass balance = %lf %lf \n ", volrech, volrech_timestep_cm);
      precip_previous_timestep_cm = precip_timestep_cm;
      //fprintf(out_fptr,"#TS = %5d %7.6f %7.6f\n",time_step_num, precip_mm_per_15min, PET_mm_per_15min);
      
@@ -662,10 +662,10 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
 	 double local_mb = volstart_timestep_cm + volprecip_timestep_cm - volin_timestep_cm*0 - volrunoff_timestep_cm - AET_timestep_cm - volon -volrech_timestep_cm -volend_timestep_cm;
 
      if(debug_flag) {
-      Logger::debug_log("local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_timestep_cm,volprecip_timestep_cm, volrunoff_timestep_cm,AET_timestep_cm, volend_timestep_cm);
+      LOG(LogLevel::DEBUG,"local mass balance = %0.10e %0.10e %0.10e %0.10e %0.10e %0.10e \n", local_mb, volstart_timestep_cm,volprecip_timestep_cm, volrunoff_timestep_cm,AET_timestep_cm, volend_timestep_cm);
      }
      if (fabs(local_mb) >1e-7) {
-      Logger::debug_log("Local mass balance (in this timestep) is %.6e, larger than expected, needs some debugging...\n ",local_mb);
+      LOG(LogLevel::DEBUG,"Local mass balance (in this timestep) is %.6e, larger than expected, needs some debugging...\n ",local_mb);
        abort();
      }
      //if (volrech_timestep_cm > 0)
@@ -696,32 +696,32 @@ for(time_step_num=0;time_step_num<num_time_steps;time_step_num++)
  double global_error_cm = volstart + volprecip - volrunoff - volAET - volon -volrech -volend;
 
 
-Logger::debug_log("\n---------------------- Simulation Summary  ------------------------ \n");
-Logger::debug_log("Time (sec)                 = %6.10f \n", elapsed);
-Logger::debug_log("-------------------------- Mass balance ------------------- \n");
-Logger::debug_log("initial water in soil      = %14.10f cm\n", volstart);
-Logger::debug_log("total precipitation input  = %14.10f cm\n", volprecip);
-Logger::debug_log("total infiltration         = %14.10f cm\n", volin);
-Logger::debug_log("final water in soil        = %14.10f cm\n", volend);
-Logger::debug_log("water remaining on surface = %14.10f cm\n", volon);
-Logger::debug_log("surface runoff             = %14.10f cm\n", volrunoff);
-Logger::debug_log("total percolation          = %14.10f cm\n", volrech);
-Logger::debug_log("total AET                  = %14.10f cm\n", volAET);
-Logger::debug_log("total PET                  = %14.10f cm\n", volPET);
-Logger::debug_log("global balance             =   %.6e cm\n", global_error_cm);
+LOG(LogLevel::DEBUG,"\n---------------------- Simulation Summary  ------------------------ \n");
+LOG(LogLevel::DEBUG,"Time (sec)                 = %6.10f \n", elapsed);
+LOG(LogLevel::DEBUG,"-------------------------- Mass balance ------------------- \n");
+LOG(LogLevel::DEBUG,"initial water in soil      = %14.10f cm\n", volstart);
+LOG(LogLevel::DEBUG,"total precipitation input  = %14.10f cm\n", volprecip);
+LOG(LogLevel::DEBUG,"total infiltration         = %14.10f cm\n", volin);
+LOG(LogLevel::DEBUG,"final water in soil        = %14.10f cm\n", volend);
+LOG(LogLevel::DEBUG,"water remaining on surface = %14.10f cm\n", volon);
+LOG(LogLevel::DEBUG,"surface runoff             = %14.10f cm\n", volrunoff);
+LOG(LogLevel::DEBUG,"total percolation          = %14.10f cm\n", volrech);
+LOG(LogLevel::DEBUG,"total AET                  = %14.10f cm\n", volAET);
+LOG(LogLevel::DEBUG,"total PET                  = %14.10f cm\n", volPET);
+LOG(LogLevel::DEBUG,"global balance             =   %.6e cm\n", global_error_cm);
  /*
-Logger::debug_log("\n---------------------- Simulation Summary  ------------------------ \n");
-Logger::debug_log("Time (sec)               = %6.10f \n", elapsed);
-Logger::debug_log("-------------------------- Mass balance ------------------- \n");
-Logger::debug_log("vol start                = %6.10f \n", volstart);
-Logger::debug_log("total_mass_added         = %6.10f \n", volprecip);
-Logger::debug_log("vol added (to soil)      = %6.10f \n", volin);
-Logger::debug_log("vol end   (in soil)      = %6.10f \n", volend);
-Logger::debug_log("vol ponded (on surface)  = %6.10f \n", volon);
-Logger::debug_log("vol runoff (surface)     = %6.10f \n", volrunoff);
-Logger::debug_log("vol runoff (bottom)      = %6.10f \n",  volrech);
-Logger::debug_log("vol AET                  = %6.10f \n", volET);
-Logger::debug_log("Global balance           = %.6e \n", global_mb);
+LOG(LogLevel::DEBUG,"\n---------------------- Simulation Summary  ------------------------ \n");
+LOG(LogLevel::DEBUG,"Time (sec)               = %6.10f \n", elapsed);
+LOG(LogLevel::DEBUG,"-------------------------- Mass balance ------------------- \n");
+LOG(LogLevel::DEBUG,"vol start                = %6.10f \n", volstart);
+LOG(LogLevel::DEBUG,"total_mass_added         = %6.10f \n", volprecip);
+LOG(LogLevel::DEBUG,"vol added (to soil)      = %6.10f \n", volin);
+LOG(LogLevel::DEBUG,"vol end   (in soil)      = %6.10f \n", volend);
+LOG(LogLevel::DEBUG,"vol ponded (on surface)  = %6.10f \n", volon);
+LOG(LogLevel::DEBUG,"vol runoff (surface)     = %6.10f \n", volrunoff);
+LOG(LogLevel::DEBUG,"vol runoff (bottom)      = %6.10f \n",  volrech);
+LOG(LogLevel::DEBUG,"vol AET                  = %6.10f \n", volET);
+LOG(LogLevel::DEBUG,"Global balance           = %.6e \n", global_mb);
  */
  // double global_mb = volstart + (volin+volrunoff) - volET - volon-volrech-volend;
 
@@ -740,11 +740,11 @@ Logger::debug_log("Global balance           = %.6e \n", global_mb);
 //while(!listIsEmpty())
 //  {            
 //  struct wetting_front *temp = listDeleteFirst();
-// Logger::debug_log("\nDeleted value:");
-// Logger::debug_log("(%d,%d) ",temp->front_num, temp->layer_num);
+// LOG(LogLevel::DEBUG,"\nDeleted value:");
+// LOG(LogLevel::DEBUG,"(%d,%d) ",temp->front_num, temp->layer_num);
 //  }  
 //
-//Logger::debug_log("\nList after deleting all items: ");
+//LOG(LogLevel::DEBUG,"\nList after deleting all items: ");
 //listPrint();
 
 //-------------------------------------------------
@@ -754,38 +754,38 @@ Logger::debug_log("Global balance           = %.6e \n", global_mb);
 //
 //if(foundLink != NULL)
 //  {
-// Logger::debug_log("Element found: ");
-// Logger::debug_log("(front: %d in layer: %d  at Z=%8.4lf with theta=%8.7lf) ",foundLink->front_num,foundLink->layer_num,
+// LOG(LogLevel::DEBUG,"Element found: ");
+// LOG(LogLevel::DEBUG,"(front: %d in layer: %d  at Z=%8.4lf with theta=%8.7lf) ",foundLink->front_num,foundLink->layer_num,
 //                                                                    foundLink->depth,foundLink->theta);
-// Logger::debug_log("\n");  
+// LOG(LogLevel::DEBUG,"\n");  
 //  }
 //else
 //  {
-// Logger::debug_log("Element not found.");
+// LOG(LogLevel::DEBUG,"Element not found.");
 //  }
 
 //----------------------------------
 // EXAMPLE how to delete a front 
 //
 //listDeleteFront(3);  // argument here is wetting front number
-//Logger::debug_log("List after deleting wetting front 3: ");
+//LOG(LogLevel::DEBUG,"List after deleting wetting front 3: ");
 //listPrint();
-//Logger::debug_log("\n");
+//LOG(LogLevel::DEBUG,"\n");
 
 //--------------------------------------------------------------------------------------------
 // EXAMPLE how to sort a linked list of fronts by depth from surface down to the wetting front
 //
-//Logger::debug_log("\n");
+//LOG(LogLevel::DEBUG,"\n");
 // listSortFrontsByDepth();
 //
-//Logger::debug_log("List after sorting the layer depth: ");
+//LOG(LogLevel::DEBUG,"List after sorting the layer depth: ");
 // listPrint();
 
 //-----------------------------------------------------------------
 // EXAMPLE how to sort a linked list in terms of decreasing depth
 //
 // listReverseOrder(&head);
-//Logger::debug_log("\nList after reversing the list: ");
+//LOG(LogLevel::DEBUG,"\nList after reversing the list: ");
 // listPrint();
 
 // EXAMPLE how to delete all fronts 
@@ -794,11 +794,11 @@ Logger::debug_log("Global balance           = %.6e \n", global_mb);
 // while(!listIsEmpty())
 //   {            
 //   struct wetting_front *temp = listDeleteFirst();
-//  Logger::debug_log("\nDeleted value:");
-//  Logger::debug_log("(%d,%d) ",temp->front_num,temp->layer_num);
+//  LOG(LogLevel::DEBUG,"\nDeleted value:");
+//  LOG(LogLevel::DEBUG,"(%d,%d) ",temp->front_num,temp->layer_num);
 //   }  
 //
-//Logger::debug_log("\nList after deleting all items: ");
+//LOG(LogLevel::DEBUG,"\nList after deleting all items: ");
 // listPrint();   
 
 //--------------------------------------
@@ -859,7 +859,7 @@ extern double calc_aet(double PET_timestep_cm, double time_step_h, double wiltin
   
   //PET_timestep_cm = PET_mm_per_15min*time_step_s/forcing_resolution_s/10.0;  // 10 converts from mm to cm
   
-  //Logger::debug_log("PET_timestep = %lf %lf \n", PET_timestep_cm, wilting_point_psi_cm);
+  //LOG(LogLevel::DEBUG,"PET_timestep = %lf %lf \n", PET_timestep_cm, wilting_point_psi_cm);
   
 
   
@@ -876,28 +876,28 @@ extern double calc_aet(double PET_timestep_cm, double time_step_h, double wiltin
   theta = current->theta;
     
   double theta_fc = (theta_e-theta_r)*relative_moisture_at_which_PET_equals_AET+theta_r;
-  //Logger::debug_log("theta_fc = %lf \n", theta_fc);
+  //LOG(LogLevel::DEBUG,"theta_fc = %lf \n", theta_fc);
   double wp_head_theta = calc_theta_from_h(wilting_point_psi_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
   
   theta_wp = (theta_fc-wp_head_theta)*1/2+wp_head_theta; // theta_50 in python
-  //Logger::debug_log("theta_50 = %lf %lf %lf \n", theta_wp, wilting_point_psi_cm,wp_head_theta);
+  //LOG(LogLevel::DEBUG,"theta_50 = %lf %lf %lf \n", theta_wp, wilting_point_psi_cm,wp_head_theta);
 
   Se = calc_Se_from_theta(theta_wp,theta_e,theta_r);
   double psi_wp_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
-  //Logger::debug_log("psi_50 = %lf %lf \n", psi_wp_cm,current->psi_cm);
+  //LOG(LogLevel::DEBUG,"psi_50 = %lf %lf \n", psi_wp_cm,current->psi_cm);
 
   double h_ratio = 1+pow(current->psi_cm/psi_wp_cm, 3.0);
 
   actual_ET_demand = PET_timestep_cm*(1/h_ratio)*time_step_h;
   
-  //Logger::debug_log("AET.. = %lf %lf %lf \n", PET_timestep_cm, actual_ET_demand,(1/h_ratio), time_step_h);
+  //LOG(LogLevel::DEBUG,"AET.. = %lf %lf %lf \n", PET_timestep_cm, actual_ET_demand,(1/h_ratio), time_step_h);
 
   if (actual_ET_demand<0)
     actual_ET_demand=0.0;
   else if (actual_ET_demand>(PET_timestep_cm*time_step_h))
     actual_ET_demand = PET_timestep_cm*time_step_h;
 
-  //Logger::debug_log("AET.... = %0.6e %lf %lf \n", actual_ET_demand,(1/h_ratio), time_step_h);		  
+  //LOG(LogLevel::DEBUG,"AET.... = %0.6e %lf %lf \n", actual_ET_demand,(1/h_ratio), time_step_h);		  
   return actual_ET_demand;
   /*
 do
@@ -906,12 +906,12 @@ do
     {
     wettest_theta_in_root_zone = current->theta;
     layer = current->layer_num;
-    if(layer<=0) {Logger::debug_log("problem in calc_aet.  Program stopped.\n"); exit(-1);}  // should never happen
+    if(layer<=0) {LOG(LogLevel::DEBUG,"problem in calc_aet.  Program stopped.\n"); exit(-1);}  // should never happen
     soil = soil_type[layer];
     }
   current = current->next;
   } while (current != NULL);
-Logger::debug_log("wettest theta = %lf %d \n", wettest_theta_in_root_zone, root_zone_bottom_layer);
+LOG(LogLevel::DEBUG,"wettest theta = %lf %d \n", wettest_theta_in_root_zone, root_zone_bottom_layer);
 // calculate AET from PET and soil moisture
 Se    = calc_Se_from_theta(wettest_theta_in_root_zone, soil_props[soil].theta_e, soil_props[soil].theta_r);
 

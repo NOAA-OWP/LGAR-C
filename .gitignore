@@ -79,3 +79,6 @@ bower_components/
 .grunt/
 src/vendor/
 dist/
+
+# CMake artifact generation directory
+/cmake_build

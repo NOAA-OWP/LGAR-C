@@ -39,9 +39,9 @@ int main(int argc, char *argv[])
   bool is_IO_supress = false; // if true no output files will be written
 
   if (argc != 2) {
-    Logger::debug_log("Usage: ./build/xlgar CONFIGURATION_FILE \n");
-    Logger::debug_log("Run the LASAM (Lumped Arid/semi-aric Model through its BMI with a configuration file.\n");
-    Logger::debug_log("Outputs are written to files `variables_data.csv and layers_data.csv`.\n");
+    LOG(LogLevel::DEBUG,"Usage: ./build/xlgar CONFIGURATION_FILE \n");
+    LOG(LogLevel::DEBUG,"Run the LASAM (Lumped Arid/semi-aric Model through its BMI with a configuration file.\n");
+    LOG(LogLevel::DEBUG,"Outputs are written to files `variables_data.csv and layers_data.csv`.\n");
     return SUCCESS;
   }
 
@@ -229,7 +229,7 @@ ReadForcingData(std::string config_file, std::vector<std::string>& time, std::ve
   fp.open(forcing_file);
   if (!fp) {
     bmimain_ss <<"file "<<forcing_file<<" doesn't exist. \n";
-    LOG(bmimain_ss.str(), LogLevel::ERROR); bmimain_ss.str("");  
+    LOG(bmimain_ss.str(), LogLevel::WARNING); bmimain_ss.str("");  
     abort();
   }
 

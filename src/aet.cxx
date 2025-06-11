@@ -21,8 +21,8 @@ extern double calc_aet(double PET_timestep_cm, double time_step_h, double wiltin
 {
 
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log("Computing AET... \n");
-    Logger::debug_log("Note: AET_thresh_theta = %lf and AET_expon = %lf are not used in the computation of the current AET model. \n", AET_thresh_Theta, AET_expon);
+    LOG(LogLevel::DEBUG,"Computing AET... \n");
+    LOG(LogLevel::DEBUG,"Note: AET_thresh_theta = %lf and AET_expon = %lf are not used in the computation of the current AET model. \n", AET_thresh_Theta, AET_expon);
   }
   
   double actual_ET_demand = 0.0;
@@ -67,7 +67,7 @@ extern double calc_aet(double PET_timestep_cm, double time_step_h, double wiltin
     actual_ET_demand = PET_timestep_cm*time_step_h;
 
   if (verbosity.compare("high") == 0) {
-    Logger::debug_log("AET =  %14.10f \n",actual_ET_demand);
+    LOG(LogLevel::DEBUG,"AET =  %14.10f \n",actual_ET_demand);
   }
   
   return actual_ET_demand;
