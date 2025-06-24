@@ -177,6 +177,8 @@ Update()
   double spf_factor = state->lgar_bmi_params.spf_factor;
   bool use_closed_form_G = state->lgar_bmi_params.use_closed_form_G; 
   bool adaptive_timestep = state->lgar_bmi_params.adaptive_timestep;
+  bool PET_affects_precip = state->lgar_bmi_params.PET_affects_precip;
+  double mbal_tol = state->lgar_bmi_params.mbal_tol;
 
   // constant value used in the AET function
   double AET_thresh_Theta = 0.85;    // scaled soil moisture (0-1) above which AET=PET (fix later!)
@@ -211,6 +213,26 @@ Update()
   if (verbosity.compare("high") == 0) {
     printf("time step size in hours: %lf \n", state->lgar_bmi_params.timestep_h);
   }
+
+  // ensure precip and PET are non-negative
+  state->lgar_bmi_input_params->precipitation_mm_per_h = fmax(state->lgar_bmi_input_params->precipitation_mm_per_h, 0.0);
+  state->lgar_bmi_input_params->PET_mm_per_h           = fmax(state->lgar_bmi_input_params->PET_mm_per_h, 0.0);
+
+  if (PET_affects_precip){ // if the user wants PET subtracted from precip
+    if (state->lgar_bmi_input_params->precipitation_mm_per_h > state->lgar_bmi_input_params->PET_mm_per_h){
+      state->lgar_bmi_input_params->precipitation_mm_per_h = state->lgar_bmi_input_params->precipitation_mm_per_h - state->lgar_bmi_input_params->PET_mm_per_h;
+      state->lgar_bmi_input_params->PET_mm_per_h = 0.0;
+    }
+    else{
+      state->lgar_bmi_input_params->PET_mm_per_h = state->lgar_bmi_input_params->PET_mm_per_h - state->lgar_bmi_input_params->precipitation_mm_per_h;
+      state->lgar_bmi_input_params->precipitation_mm_per_h = 0.0;
+    }
+  }
+
+  if ( (verbosity.compare("high") == 0) && (PET_affects_precip)) {
+    std::cerr<<"Pr  [cm/h] (timestep), after PET is subtracted from precip = "<<state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<"\n";
+    std::cerr<<"PET [cm/h] (timestep), after PET is subtracted from precip = "<<state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<"\n"; 
+  }
   
   // subcycling loop (loop over model's timestep)
   for (int cycle=1; cycle <= subcycles; cycle++) {
@@ -232,10 +254,6 @@ Update()
       state->state_previous = NULL;
     }
     state->state_previous = listCopy(state->head);
-
-    // ensure precip and PET are non-negative
-    state->lgar_bmi_input_params->precipitation_mm_per_h = fmax(state->lgar_bmi_input_params->precipitation_mm_per_h, 0.0);
-    state->lgar_bmi_input_params->PET_mm_per_h           = fmax(state->lgar_bmi_input_params->PET_mm_per_h, 0.0);
 
     // allocates some water to conceptual reservoir storage via conditional preferential flow
     if (state->lgar_bmi_params.runoff_in_prev_step){
@@ -484,7 +502,10 @@ Update()
       listPrint(state->head);
     }
 
-    bool unexpected_local_error = fabs(local_mb) > 1.0E-4 ? true : false;
+    bool unexpected_local_error = fabs(local_mb) > mbal_tol ? true : false; //1.0E-4 was the default for LASAM stability testing 
+    if (isinf(local_mb)){
+      unexpected_local_error = true;
+    }
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0 || unexpected_local_error) {
       printf("\nLocal mass balance at this timestep... \n\

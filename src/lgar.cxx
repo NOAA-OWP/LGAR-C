@@ -218,9 +218,13 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   }
 
   // setting these options to false (defualt) 
-  state->lgar_bmi_params.sft_coupled       = false;
-  state->lgar_bmi_params.use_closed_form_G = false;
-  state->lgar_bmi_params.adaptive_timestep = false;
+  state->lgar_bmi_params.sft_coupled           = false;
+  state->lgar_bmi_params.use_closed_form_G     = false;
+  state->lgar_bmi_params.adaptive_timestep     = false;
+  state->lgar_bmi_params.runoff_in_prev_step   = false;
+  state->lgar_bmi_params.PET_affects_precip    = false;
+  // setting mass balance tolerance to be large by default; this can be specified in the config file
+  state->lgar_bmi_params.mbal_tol = 1.E1;
   
   bool is_layer_thickness_set       = false;
   bool is_initial_psi_set           = false;
@@ -450,6 +454,30 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       continue;
     }
+    else if (param_key == "PET_affects_precip") { 
+      if (param_value == "false") {
+        state->lgar_bmi_params.PET_affects_precip = false;
+      }
+      else if (param_value == "true") {
+        state->lgar_bmi_params.PET_affects_precip = true;
+      }
+      else {
+	std::cerr<<"Invalid option: PET_affects_precip must be true or false, or left unspecified (defaulting to false). \n";
+        abort();
+      }
+
+      continue;
+    }
+    else if (param_key == "mbal_tol") {
+      state->lgar_bmi_params.mbal_tol = stod(param_value);
+
+      if (verbosity.compare("high") == 0) {
+	std::cerr<<"Mass balance tolerance [cm] : "<<state->lgar_bmi_params.mbal_tol<<"\n";
+	std::cerr<<"          *****         \n";
+      }
+
+      continue;
+    }
     else if (param_key == "adaptive_timestep") { 
       if ((param_value == "false") || (param_value == "0")) {
         state->lgar_bmi_params.adaptive_timestep = false;
@@ -575,6 +603,12 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   if (verbosity.compare("high") == 0) {
     std::string flag = state->lgar_bmi_params.use_closed_form_G == true ? "Yes" : "No";
     std::cerr<<"Using closed_form_G? "<< flag <<"\n";
+    std::cerr<<"          *****         \n";
+  }
+
+  if (verbosity.compare("high") == 0) {
+    std::string flag = state->lgar_bmi_params.PET_affects_precip == true ? "Yes" : "No";
+    std::cerr<<"Does AET reduce precip? "<< flag <<"\n";
     std::cerr<<"          *****         \n";
   }
 
