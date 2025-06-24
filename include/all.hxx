@@ -36,7 +36,7 @@ extern string verbosity;
 #define use_bmi_flag FALSE       // TODO set to TRUE to run in BMI environment
 
 #define MAX_NUM_SOIL_LAYERS 4
-#define MAX_NUM_SOIL_TYPES 15
+#define MAX_NUM_SOIL_TYPES 25 //changed back to 25 from 15, because the file that loads soil types for Bushland relies on entries 16, 17, and 18 in the .dat file.
 #define MAX_SOIL_NAME_CHARS 25
 #define MAX_NUM_WETTING_FRONTS 300
 
@@ -135,6 +135,10 @@ struct lgar_bmi_parameters
   bool   adaptive_timestep = false;      // if set to true, model uses adaptive timestep. In this case, the minimum timestep is the timestep specified in the config file. The maximum time step will be equal to the forcing resolution.
   double ponded_depth_cm;                // amount of water on the surface unavailable for surface runoff
   double ponded_depth_max_cm;            // maximum amount of water on the surface unavailable for surface runoff
+  double a = 0.0;                        // parameter for nonlinear reservoir
+  double b = 0.0;                        // parameter for nonlinear reservoir
+  double frac_to_GW = 0.0;               // parameter for nonlinear reservoir 
+  double spf_factor = 0.98;              // parameter that controls the theta value above which contributions to the nonlinear reservoir will be made
   double precip_previous_timestep_cm;    // amount of rainfall (previous time step)
 
   int    nint = 120;            // number of trapezoids used in integrating the Geff function
@@ -148,6 +152,8 @@ struct lgar_bmi_parameters
 
   int  calib_params_flag = 0;  // flag for calibratable parameters; if true, then calibratable params are updated otherwise not
   bool is_invalid_soil_type  = true;  // checks if the provided soil type is valid for the model, if not then return Q_out = precip
+
+  bool   runoff_in_prev_step = false; // true if there was there runoff in the previous time step. Used for simple preferential flow
 };
 
 // Define a data structure for local (timestep) and global mass balance parameters
@@ -178,6 +184,9 @@ struct lgar_mass_balance_variables
   double volAET_cm;           // volume of AET
   double volPET_cm;           // volume of PET
 
+  double CR_storage_cm = 0.0;    //water stored in the conceptual reservoir
+  double volrunoff_CR_cm = 0.0;  //discharge to stream from conceptual reservoir
+
   double volrech_cm;          // volume of water leaving soil through the bottom of the domain (ground water recharge)
   double volrunoff_giuh_cm;   // volume of giuh runoff
   double volQ_cm;             // total outgoing water
@@ -197,6 +206,10 @@ struct lgar_calib_parameters
   double *Ksat;                  // Hydraulic conductivity [cm/hr]
   double field_capacity_psi;    // field capacity in capillary head [cm]
   double ponded_depth_max;      // maximum ponded depth of surface water [cm]
+  double a;                      // parameter for nonlinear reservoir
+  double b;                      // parameter for nonlinear reservoir
+  double frac_to_GW;             // parameter for nonlinear reservoir
+  double spf_factor;             // parameter for nonlinear reservoir
 
 };
 
@@ -374,5 +387,8 @@ extern void f_alloc(float **var,int size);
 /*   utility function prototypes */
 /*###############################*/
 extern bool is_epsilon_less_than(double a, double eps);
+
+//function for contribtion to streamflow from conceptual reservoir
+extern double calc_CR_Q(double subtimestep_h, double a, double b, double precip_for_CR_subtimestep_cm, double *CR_storage_cm);
 
 #endif  // _ALL_HXX

@@ -148,6 +148,7 @@ Update()
   double volrunoff_giuh_timestep_cm = 0.0;
   double volQ_timestep_cm           = 0.0;
   double volQ_gw_timestep_cm        = 0.0;
+  double CR_Q_timestep_cm           = 0.0;
   
   // local variables for a subtimestep (i.e., timestep of the model)
   double precip_subtimestep_cm;
@@ -170,6 +171,10 @@ Update()
   int nint = state->lgar_bmi_params.nint;
   double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
   double field_capacity_psi_cm = state->lgar_bmi_params.field_capacity_psi_cm;
+  double a = state->lgar_bmi_params.a;
+  double b = state->lgar_bmi_params.b;
+  double frac_to_GW = state->lgar_bmi_params.frac_to_GW;
+  double spf_factor = state->lgar_bmi_params.spf_factor;
   bool use_closed_form_G = state->lgar_bmi_params.use_closed_form_G; 
   bool adaptive_timestep = state->lgar_bmi_params.adaptive_timestep;
 
@@ -210,8 +215,12 @@ Update()
   // subcycling loop (loop over model's timestep)
   for (int cycle=1; cycle <= subcycles; cycle++) {
 
+    bool top_near_sat = false;
     this->state->lgar_bmi_params.time_s    += subtimestep_h * state->units.hr_to_sec;
     this->state->lgar_bmi_params.timesteps ++;
+
+    double precip_for_CR_subtimestep_cm_per_h = 0.0;
+    precip_subtimestep_cm_per_h = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm; // rate [cm/hour]
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
       std::cerr<<"BMI Update |---------------------------------------------------------------|\n";
@@ -228,6 +237,13 @@ Update()
     state->lgar_bmi_input_params->precipitation_mm_per_h = fmax(state->lgar_bmi_input_params->precipitation_mm_per_h, 0.0);
     state->lgar_bmi_input_params->PET_mm_per_h           = fmax(state->lgar_bmi_input_params->PET_mm_per_h, 0.0);
 
+    // allocates some water to conceptual reservoir storage via conditional preferential flow
+    if (state->lgar_bmi_params.runoff_in_prev_step){
+      double precip_subtimestep_cm_per_h_total = precip_subtimestep_cm_per_h;
+      precip_for_CR_subtimestep_cm_per_h = frac_to_GW * precip_subtimestep_cm_per_h_total;
+      precip_subtimestep_cm_per_h = (1.0 - frac_to_GW) * precip_subtimestep_cm_per_h_total;
+    }
+
     /* Note unit conversion:
        Pr and PET are rates (fluxes) in mm/h
        Pr [mm/h] * 1h/3600sec = Pr [mm/3600sec]
@@ -236,8 +252,6 @@ Update()
        Pr [mm/3600sec] * dt [300 sec] = Pr[mm] * 300/3600.
        in the code below, subtimestep_h is this 300/3600 factor (see initialize from config in lgar.cxx)
     */
-
-    precip_subtimestep_cm_per_h = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm; // rate [cm/hour]
 
     PET_subtimestep_cm_per_h = state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm;
 
@@ -277,7 +291,8 @@ Update()
     }
 
 
-    precip_timestep_cm += precip_subtimestep_cm;
+    // precip_timestep_cm += precip_subtimestep_cm;
+    precip_timestep_cm += precip_subtimestep_cm + precip_for_CR_subtimestep_cm_per_h*subtimestep_h;
     PET_timestep_cm += fmax(PET_subtimestep_cm,0.0); // ensures non-negative PET
 
     volstart_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
@@ -293,6 +308,8 @@ Update()
     int soil_num = state->lgar_bmi_params.layer_soil_type[state->head->layer_num];
     double theta_e = state->soil_properties[soil_num].theta_e;
     bool is_top_wf_saturated = (state->head->theta+1.0E-12) >= theta_e ? true : false; //sometimes a machine precision error would erroneously create a new wetting front during saturated conditions. The + 1.0E-12 seems to prevent this.
+    double theta_above_which_precip_contribs_to_GW = theta_e * spf_factor;
+    top_near_sat = state->head->theta > theta_above_which_precip_contribs_to_GW ? true : false; //is the top WF near saturation, thus triggering simple preferential flow if enabled
 
     // checks on creatign a new surficial front
     // 1. check current and previous timestep precipitation
@@ -428,10 +445,26 @@ Update()
     volend_timestep_cm = volend_subtimestep_cm;
     state->lgar_bmi_params.precip_previous_timestep_cm = precip_subtimestep_cm;
 
+    double CR_storage_start_cm = state->lgar_mass_balance.CR_storage_cm;
+    double CR_Q_subtimestep_cm = calc_CR_Q(subtimestep_h, a, b, precip_for_CR_subtimestep_cm_per_h, &state->lgar_mass_balance.CR_storage_cm);
+    state->lgar_mass_balance.volrunoff_CR_cm += CR_Q_subtimestep_cm;
+    CR_Q_timestep_cm += CR_Q_subtimestep_cm;
+
+    // set runoff_in_prev_step for next step
+    if ((volrunoff_subtimestep_cm > 1.E-9) || (top_near_sat)){
+      state->lgar_bmi_params.runoff_in_prev_step = true;
+    }
+    else {
+      state->lgar_bmi_params.runoff_in_prev_step = false;
+    }
+
+    //add precip_for_CR_subtimestep_cm_per_h back into precip for mass balance
+    precip_subtimestep_cm += precip_for_CR_subtimestep_cm_per_h * subtimestep_h;
+
     /*----------------------------------------------------------------------*/
     // mass balance at the subtimestep (local mass balance)
 
-    double local_mb = volstart_subtimestep_cm + precip_subtimestep_cm + volon_timestep_cm - volrunoff_subtimestep_cm
+    double local_mb = volstart_subtimestep_cm + precip_subtimestep_cm + volon_timestep_cm - volrunoff_subtimestep_cm - CR_Q_subtimestep_cm - state->lgar_mass_balance.CR_storage_cm + CR_storage_start_cm 
                       - AET_subtimestep_cm - volon_subtimestep_cm - volrech_subtimestep_cm - volend_subtimestep_cm;
 
     AET_timestep_cm += AET_subtimestep_cm;
@@ -490,7 +523,7 @@ Update()
   } // end of subcycling
 
   //update giuh at the time step level (was previously updated at the sub time step level)
-  volrunoff_giuh_timestep_cm = giuh_convolution_integral(volrunoff_timestep_cm, num_giuh_ordinates, giuh_ordinates, giuh_runoff_queue);
+  volrunoff_giuh_timestep_cm = giuh_convolution_integral(volrunoff_timestep_cm + CR_Q_timestep_cm , num_giuh_ordinates, giuh_ordinates, giuh_runoff_queue);
 
   // total mass of water leaving the system, at this time it is the giuh-only, but later will add groundwater component as well.
   // when groundwater component is added, it should probably happen inside of the subcycling loop.
@@ -636,16 +669,30 @@ update_calibratable_parameters()
   if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
     std::cerr<<"----------- Calibratable parameters independent of soil layer (initial values) ----------- \n";
     std::cerr<<"field_capacity_psi = "   << state->lgar_bmi_params.field_capacity_psi_cm
-      <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm <<"\n";
+      <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm
+      <<", a = "     << state->lgar_bmi_params.a
+      <<", b = "     << state->lgar_bmi_params.b
+      <<", frac_to_GW = "     << state->lgar_bmi_params.frac_to_GW
+      <<", spf_factor = "     << state->lgar_bmi_params.spf_factor <<
+      "\n";
   }
 
   state->lgar_bmi_params.field_capacity_psi_cm = state->lgar_calib_params.field_capacity_psi;
   state->lgar_bmi_params.ponded_depth_max_cm   = state->lgar_calib_params.ponded_depth_max;
+  state->lgar_bmi_params.a                     = state->lgar_calib_params.a;
+  state->lgar_bmi_params.b                     = state->lgar_calib_params.b;
+  state->lgar_bmi_params.frac_to_GW            = state->lgar_calib_params.frac_to_GW;
+  state->lgar_bmi_params.spf_factor            = state->lgar_calib_params.spf_factor;
 
   if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
     std::cerr<<"----------- Calibratable parameters independent of soil layer (updated values) ----------- \n";
     std::cerr<<"field_capacity_psi = "   << state->lgar_bmi_params.field_capacity_psi_cm
-      <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm <<"\n";
+      <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm
+      <<", a = "     << state->lgar_bmi_params.a
+      <<", b = "     << state->lgar_bmi_params.b
+      <<", frac_to_GW = "     << state->lgar_bmi_params.frac_to_GW
+      <<", spf_factor = "     << state->lgar_bmi_params.spf_factor <<
+      "\n";
   }
   
   if (verbosity.compare("high") == 0)
@@ -701,7 +748,7 @@ GetVarGrid(std::string name)
 	   || name.compare("potential_evapotranspiration") == 0
 	   || name.compare("actual_evapotranspiration") == 0) // double
     return 1;
-  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
+  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("a") == 0 || name.compare("b") == 0 || name.compare("frac_to_GW") == 0 || name.compare("spf_factor") == 0
 	   || name.compare("soil_storage") == 0 || name.compare("field_capacity") == 0 || name.compare("ponded_depth_max") == 0)// double
     return 1;
   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
@@ -758,7 +805,7 @@ GetVarUnits(std::string name)
   else if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0
 	   || name.compare("actual_evapotranspiration") == 0) // double
     return "m";
-  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
+  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 
 	   || name.compare("soil_storage") == 0) // double
     return "m";
   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
@@ -797,7 +844,7 @@ GetVarLocation(std::string name)
       name.compare("potential_evapotranspiration") == 0 || name.compare("potential_evapotranspiration_rate") == 0
       || name.compare("actual_evapotranspiration") == 0) // double
     return "node";
-  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
+  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("a") == 0 || name.compare("b") == 0 || name.compare("frac_to_GW") == 0 || name.compare("spf_factor") == 0
 	   || name.compare("soil_storage") == 0) // double
     return "node";
    else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
@@ -937,6 +984,14 @@ GetValuePtr (std::string name)
     return (void*)&this->state->lgar_calib_params.ponded_depth_max;
   else if (name.compare("field_capacity") == 0)
     return (void*)&this->state->lgar_calib_params.field_capacity_psi;
+  else if (name.compare("a") == 0)
+    return (void*)&this->state->lgar_calib_params.a;
+  else if (name.compare("b") == 0)
+    return (void*)&this->state->lgar_calib_params.b;
+  else if (name.compare("frac_to_GW") == 0)
+    return (void*)&this->state->lgar_calib_params.frac_to_GW;
+  else if (name.compare("spf_factor") == 0)
+    return (void*)&this->state->lgar_calib_params.spf_factor;
   else {
     std::stringstream errMsg;
     errMsg << "variable "<< name << " does not exist";
