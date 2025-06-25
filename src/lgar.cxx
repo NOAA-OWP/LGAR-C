@@ -223,6 +223,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   state->lgar_bmi_params.adaptive_timestep     = false;
   state->lgar_bmi_params.runoff_in_prev_step   = false;
   state->lgar_bmi_params.PET_affects_precip    = false;
+  state->lgar_bmi_params.allow_flux_caching    = false;
   // setting mass balance tolerance to be large by default; this can be specified in the config file
   state->lgar_bmi_params.mbal_tol = 1.E1;
   
@@ -468,6 +469,20 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       continue;
     }
+    else if (param_key == "allow_flux_caching") { 
+      if (param_value == "false") {
+        state->lgar_bmi_params.allow_flux_caching = false;
+      }
+      else if (param_value == "true") {
+        state->lgar_bmi_params.allow_flux_caching = true;
+      }
+      else {
+	std::cerr<<"Invalid option: allow_flux_caching must be true or false, or left unspecified (defaulting to false). \n";
+        abort();
+      }
+
+      continue;
+    }
     else if (param_key == "mbal_tol") {
       state->lgar_bmi_params.mbal_tol = stod(param_value);
 
@@ -609,6 +624,12 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   if (verbosity.compare("high") == 0) {
     std::string flag = state->lgar_bmi_params.PET_affects_precip == true ? "Yes" : "No";
     std::cerr<<"Does AET reduce precip? "<< flag <<"\n";
+    std::cerr<<"          *****         \n";
+  }
+
+  if (verbosity.compare("high") == 0) {
+    std::string flag = state->lgar_bmi_params.allow_flux_caching == true ? "Yes" : "No";
+    std::cerr<<"Will fluxes be cached and used for subsequent time steps rather than computed during dry conditions? "<< flag <<"\n";
     std::cerr<<"          *****         \n";
   }
 
@@ -2455,7 +2476,7 @@ extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_
    equations with full description are provided in the lgar paper (currently under review) */
 // ############################################################################################
 extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *soil_type, double *cum_layer_thickness_cm,
-			   double *frozen_factor, struct wetting_front* head, struct soil_properties_ *soil_properties)
+			   double *frozen_factor, struct wetting_front* head, struct soil_properties_ *soil_properties, bool switch_caching, int cache_count, int new_front)
 {
   if (verbosity.compare("high") == 0) {
     std::cerr<<"Calculating dz/dt .... \n";
@@ -2590,6 +2611,12 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *so
 
     if (dzdt>1e4){//insanity check
       dzdt = 1e4;
+    }
+
+    if (switch_caching){
+      if (current->front_num!=new_front){
+        dzdt = dzdt*(cache_count);
+      }
     }
 
     current->dzdt_cm_per_h = dzdt;

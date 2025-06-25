@@ -18,3 +18,4 @@ a=0.001
 b=3.0
 frac_to_GW=0.1
 spf_factor=0.9
+allow_flux_caching=true

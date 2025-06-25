@@ -156,6 +156,8 @@ struct lgar_bmi_parameters
   bool is_invalid_soil_type  = true;  // checks if the provided soil type is valid for the model, if not then return Q_out = precip
 
   bool   runoff_in_prev_step = false; // true if there was there runoff in the previous time step. Used for simple preferential flow
+  bool   allow_flux_caching = false; //if set to true, allows for the use of cached fluxes rather than computing new ones when internal states are changing slowly. 
+  int    cache_count = 1;            //used for caching to accumulate fluxes
 };
 
 // Define a data structure for local (timestep) and global mass balance parameters
@@ -188,6 +190,12 @@ struct lgar_mass_balance_variables
 
   double CR_storage_cm = 0.0;    //water stored in the conceptual reservoir
   double volrunoff_CR_cm = 0.0;  //discharge to stream from conceptual reservoir
+
+  double previous_AET = 0.0;  // used to determine if fluxes can be cached rather than computed
+  double previous_PET = 0.0;  // used to determine if fluxes can be cached rather than computed
+  double previous_recharge = 0.0;  // used to determine if fluxes can be cached rather than computed
+  bool cache_fluxes = FALSE;
+  double accumulated_PET = 0.0;
 
   double volrech_cm;          // volume of water leaving soil through the bottom of the domain (ground water recharge)
   double volrunoff_giuh_cm;   // volume of giuh runoff
@@ -282,7 +290,7 @@ extern double lgar_calc_mass_bal(double *cum_layer_thickness, struct wetting_fro
 
 // computes derivatives; called derivs() in Python code
 extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *soil_type, double *cum_layer_thickness,
-			   double *frozen_factor, struct wetting_front* head, struct soil_properties_ *soil_properties);
+			   double *frozen_factor, struct wetting_front* head, struct soil_properties_ *soil_properties, bool switch_caching, int cache_count, int new_front);
 
 // computes dry depth
 extern double lgar_calc_dry_depth(bool use_closed_form_G, int nint, double timestep_h, double *deltheta, int *soil_type,

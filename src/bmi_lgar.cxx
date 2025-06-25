@@ -207,6 +207,45 @@ Update()
     state->lgar_bmi_params.timestep_h = subtimestep_h;
   }
 
+  bool caching_at_start = state->lgar_mass_balance.cache_fluxes;
+  bool switch_caching = FALSE;
+
+  int num_timesteps_before_reset_cache = 24;
+
+  if (state->lgar_bmi_params.allow_flux_caching){
+    //The idea here is that, during dry periods, AET will become a small fraction of PET and wetting fronts will be very slow moving. In these cases, it is not necessary to compute fluxes for every time step.
+    //To save on runtime, and if allow_flux_caching is set to true in the config file, we simply cache cmputed fluxes to be used for subsequent time steps rather than recomputing them.
+    //The current implementation is to not move the wetting fronts under these conditions, but then move them more rapidly once it is time to calculate fluxes again. Also, during these periods, PET will be 0 but made to be larger to conserve mass when it is time to recalculate fluxes.
+    //Recharge is copied from the last time step. If free drainage is enabled, this will technically result in a small mass balance error. 
+    //There is very little change to the simulation when this is enabled.
+    //Note that for NextGen models, it is ultimately desirable that there is technically output for every hour, so simply relaxing the adaptive time step to be coarser than 1 hour isn't the best solution
+    if (subtimestep_h == state->lgar_bmi_params.forcing_resolution_h){
+      if ( (state->lgar_bmi_input_params->precipitation_mm_per_h < 1.E-6) && ( (state->lgar_mass_balance.previous_AET / (state->lgar_mass_balance.previous_PET + 1.E-8 )) < 0.75) && (state->lgar_bmi_params.cache_count!=num_timesteps_before_reset_cache) && (volon_timestep_cm<1.E-16) && (state->lgar_mass_balance.previous_recharge<1.E-4) ){
+        state->lgar_mass_balance.cache_fluxes = TRUE;
+      }
+      if ( state->lgar_mass_balance.previous_PET<1.E-10 && state->head->dzdt_cm_per_h<1.E-1 && (state->lgar_mass_balance.previous_recharge<1.E-4) ){
+        state->lgar_mass_balance.cache_fluxes = TRUE;
+      }
+      if (volon_timestep_cm>=1.E-16){
+        state->lgar_mass_balance.cache_fluxes = FALSE;
+      }
+      if ( (state->lgar_bmi_params.cache_count==num_timesteps_before_reset_cache ) || (state->lgar_bmi_input_params->precipitation_mm_per_h >= 1.E-6) ){
+        state->lgar_mass_balance.cache_fluxes = FALSE;
+      }
+    }
+    else {
+      state->lgar_mass_balance.cache_fluxes = FALSE;
+    }
+  }
+
+  if (caching_at_start && !state->lgar_mass_balance.cache_fluxes){
+    switch_caching = TRUE;//if you switch from cached to not, you need to add the "missing" PET back into the mass balance and AET calculation 
+  }
+
+  if (state->lgar_mass_balance.cache_fluxes){
+    state->lgar_bmi_params.cache_count ++;
+  }
+
   state->lgar_bmi_params.forcing_interval = int(state->lgar_bmi_params.forcing_resolution_h/state->lgar_bmi_params.timestep_h+1.0e-08); // add 1.0e-08 to prevent truncation error
   subcycles = state->lgar_bmi_params.forcing_interval;
 
@@ -271,6 +310,13 @@ Update()
        in the code below, subtimestep_h is this 300/3600 factor (see initialize from config in lgar.cxx)
     */
 
+    AET_subtimestep_cm            = 0.0;
+    volstart_subtimestep_cm       = 0.0;
+    volin_subtimestep_cm          = 0.0;
+    volrunoff_subtimestep_cm      = 0.0;
+    volrech_subtimestep_cm        = 0.0;
+    surface_runoff_subtimestep_cm = 0.0;
+
     PET_subtimestep_cm_per_h = state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm;
 
     ponded_depth_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h; // the amount of water on the surface before any infiltration and runoff
@@ -280,184 +326,205 @@ Update()
     precip_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h; // rate x dt = amount (portion of the water on the suface for model's timestep [cm])
     PET_subtimestep_cm = PET_subtimestep_cm_per_h * subtimestep_h;      // potential ET for this subtimestep [cm]
 
-    //using cerr instead of cout due to some cout buffering issues when running in the ngen framework, cerr doesn't buffer so it prints immediately to the sreeen.
-    if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-
-      std::cerr<<"Pr [cm/h], Pr [cm] (subtimestep), subtimestep [h] = "<<state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<", "<< precip_subtimestep_cm <<", "<< subtimestep_h<<" ("<<subtimestep_h*3600<<" sec)"<<"\n";
-      std::cerr<<"PET [cm/h], PET [cm] (subtimestep) = "<<state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<", "<< PET_subtimestep_cm<<"\n";
-    }
-
-    AET_subtimestep_cm            = 0.0;
-    volstart_subtimestep_cm       = 0.0;
-    volin_subtimestep_cm          = 0.0;
-    volrunoff_subtimestep_cm      = 0.0;
-    volrech_subtimestep_cm        = 0.0;
-    surface_runoff_subtimestep_cm = 0.0;
-
-    precip_previous_subtimestep_cm = state->lgar_bmi_params.precip_previous_timestep_cm; // creation of a new wetting front depends on previous timestep's rainfall
-
-    num_layers = state->lgar_bmi_params.num_layers;
-    double delta_theta;   // the width of a front, such that its volume=depth*delta_theta
-    double dry_depth;
-
-
-    // Calculate AET from PET if PET is non-zero
-    if (PET_subtimestep_cm_per_h > 0.0) {
-      AET_subtimestep_cm = calc_aet(PET_subtimestep_cm_per_h, subtimestep_h, wilting_point_psi_cm, field_capacity_psi_cm,
-                                    state->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon,
-                                    state->head, state->soil_properties);
-    }
-
-
-    // precip_timestep_cm += precip_subtimestep_cm;
-    precip_timestep_cm += precip_subtimestep_cm + precip_for_CR_subtimestep_cm_per_h*subtimestep_h;
-    PET_timestep_cm += fmax(PET_subtimestep_cm,0.0); // ensures non-negative PET
-
     volstart_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
 
-    //addressed machine precision issues where volon_timestep_error could be for example -1E-17 or 1.E-20 or smaller
-    volon_timestep_cm = fmax(volon_timestep_cm,0.0);
-    volon_timestep_cm = volon_timestep_cm > 1.0E-12 ? volon_timestep_cm : 0.0;
+    if (!state->lgar_mass_balance.cache_fluxes){
 
-    int wf_free_drainage_demand = wetting_front_free_drainage(state->head);
-
-     /*----------------------------------------------------------------------*/
-    // Should a new wetting front be created?
-    int soil_num = state->lgar_bmi_params.layer_soil_type[state->head->layer_num];
-    double theta_e = state->soil_properties[soil_num].theta_e;
-    bool is_top_wf_saturated = (state->head->theta+1.0E-12) >= theta_e ? true : false; //sometimes a machine precision error would erroneously create a new wetting front during saturated conditions. The + 1.0E-12 seems to prevent this.
-    double theta_above_which_precip_contribs_to_GW = theta_e * spf_factor;
-    top_near_sat = state->head->theta > theta_above_which_precip_contribs_to_GW ? true : false; //is the top WF near saturation, thus triggering simple preferential flow if enabled
-
-    // checks on creatign a new surficial front
-    // 1. check current and previous timestep precipitation
-    bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0);
-    
-    // 2. check soil top wetting front condition (saturated/unsaturated), and surface ponded water
-    if (is_top_wf_saturated || volon_timestep_cm > 0.0)
-      create_surficial_front = false;
-
-    if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::string flag        = (create_surficial_front && !is_top_wf_saturated) == true ? "Yes" : "No";
-      std::string flag_top_wf = is_top_wf_saturated == true ? "Yes" : "No";
-      std::cerr<<"Is top wetting front saturated? "<< flag_top_wf  << "\n";
-      std::cerr<<"Create superficial wetting front? "<< flag << "\n";
-    }
-
-    /*----------------------------------------------------------------------*/
-    /* create a new wetting front if the following is true. Meaning there is no
-       wetting front in the top layer to accept the water, must create one. */
-    if(create_surficial_front) {
-
-      double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
-
-      // move the wetting fronts without adding any water; this is done to close the mass balance
-      // and also to merge / cross if necessary 
-      lgar_move_wetting_fronts(subtimestep_h, &temp_pd, wf_free_drainage_demand, volend_subtimestep_cm,
-			       num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
-			       state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
-			       &state->head, state->state_previous, state->soil_properties);
-
-      if (temp_pd != 0.0){ //if temp_pd != 0.0, that means that some water left the model through the lower model bdy
-        volrech_subtimestep_cm = temp_pd;
-        volrech_timestep_cm += volrech_subtimestep_cm;
-        temp_pd = 0.0;
+      if (switch_caching){
+        PET_subtimestep_cm_per_h += state->lgar_mass_balance.accumulated_PET;
+        state->lgar_mass_balance.accumulated_PET = 0.0;
       }
+
+      //using cerr instead of cout due to some cout buffering issues when running in the ngen framework, cerr doesn't buffer so it prints immediately to the sreeen.
+      if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
+
+        std::cerr<<"Pr [cm/h], Pr [cm] (subtimestep), subtimestep [h] = "<<state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<", "<< precip_subtimestep_cm <<", "<< subtimestep_h<<" ("<<subtimestep_h*3600<<" sec)"<<"\n";
+        std::cerr<<"PET [cm/h], PET [cm] (subtimestep) = "<<state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<", "<< PET_subtimestep_cm<<"\n";
+      }
+
+      precip_previous_subtimestep_cm = state->lgar_bmi_params.precip_previous_timestep_cm; // creation of a new wetting front depends on previous timestep's rainfall
+
+      num_layers = state->lgar_bmi_params.num_layers;
+      double delta_theta;   // the width of a front, such that its volume=depth*delta_theta
+      double dry_depth;
+
+
+      // Calculate AET from PET if PET is non-zero
+      if (PET_subtimestep_cm_per_h > 0.0) {
+        AET_subtimestep_cm = calc_aet(PET_subtimestep_cm_per_h, subtimestep_h, wilting_point_psi_cm, field_capacity_psi_cm,
+                                      state->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon,
+                                      state->head, state->soil_properties);
+      }
+
+
+      // precip_timestep_cm += precip_subtimestep_cm;
+      precip_timestep_cm += precip_subtimestep_cm + precip_for_CR_subtimestep_cm_per_h*subtimestep_h;
+      PET_timestep_cm += fmax(PET_subtimestep_cm,0.0); // ensures non-negative PET
+
+      //addressed machine precision issues where volon_timestep_error could be for example -1E-17 or 1.E-20 or smaller
+      volon_timestep_cm = fmax(volon_timestep_cm,0.0);
+      volon_timestep_cm = volon_timestep_cm > 1.0E-12 ? volon_timestep_cm : 0.0;
+
+      int wf_free_drainage_demand = wetting_front_free_drainage(state->head);
+
+      /*----------------------------------------------------------------------*/
+      // Should a new wetting front be created?
+      int soil_num = state->lgar_bmi_params.layer_soil_type[state->head->layer_num];
+      double theta_e = state->soil_properties[soil_num].theta_e;
+      bool is_top_wf_saturated = (state->head->theta+1.0E-12) >= theta_e ? true : false; //sometimes a machine precision error would erroneously create a new wetting front during saturated conditions. The + 1.0E-12 seems to prevent this.
+      double theta_above_which_precip_contribs_to_GW = theta_e * spf_factor;
+      top_near_sat = state->head->theta > theta_above_which_precip_contribs_to_GW ? true : false; //is the top WF near saturation, thus triggering simple preferential flow if enabled
+
+      // checks on creatign a new surficial front
+      // 1. check current and previous timestep precipitation
+      bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0);
       
-      // depth of the surficial front to be created
-      dry_depth = lgar_calc_dry_depth(use_closed_form_G, nint, subtimestep_h, &delta_theta, state->lgar_bmi_params.layer_soil_type,
-				      state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
-				      state->head, state->soil_properties);
+      // 2. check soil top wetting front condition (saturated/unsaturated), and surface ponded water
+      if (is_top_wf_saturated || volon_timestep_cm > 0.0)
+        create_surficial_front = false;
 
-      if (verbosity.compare("high") == 0) {
-        printf("State before moving creating new WF...\n");
-        listPrint(state->head);
-      }
-      
-      lgar_create_surficial_front(num_layers, &ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth, state->head->theta,
-				  state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
-				  state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
-
-      if (verbosity.compare("high") == 0) {
-        printf("State after moving creating new WF...\n");
-        listPrint(state->head);
+      if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
+        std::string flag        = (create_surficial_front && !is_top_wf_saturated) == true ? "Yes" : "No";
+        std::string flag_top_wf = is_top_wf_saturated == true ? "Yes" : "No";
+        std::cerr<<"Is top wetting front saturated? "<< flag_top_wf  << "\n";
+        std::cerr<<"Create superficial wetting front? "<< flag << "\n";
       }
 
-      if(state->state_previous != NULL ){
-        listDelete(state->state_previous);
-        state->state_previous = NULL;
+      /*----------------------------------------------------------------------*/
+      /* create a new wetting front if the following is true. Meaning there is no
+        wetting front in the top layer to accept the water, must create one. */
+      if(create_surficial_front) {
+
+        double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
+
+        // move the wetting fronts without adding any water; this is done to close the mass balance
+        // and also to merge / cross if necessary 
+        lgar_move_wetting_fronts(subtimestep_h, &temp_pd, wf_free_drainage_demand, volend_subtimestep_cm,
+              num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
+              state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
+              &state->head, state->state_previous, state->soil_properties);
+
+        if (temp_pd != 0.0){ //if temp_pd != 0.0, that means that some water left the model through the lower model bdy
+          volrech_subtimestep_cm = temp_pd;
+          // volrech_timestep_cm += volrech_subtimestep_cm;
+          temp_pd = 0.0;
+        }
+        
+        // depth of the surficial front to be created
+        dry_depth = lgar_calc_dry_depth(use_closed_form_G, nint, subtimestep_h, &delta_theta, state->lgar_bmi_params.layer_soil_type,
+                state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
+                state->head, state->soil_properties);
+
+        if (verbosity.compare("high") == 0) {
+          printf("State before moving creating new WF...\n");
+          listPrint(state->head);
+        }
+        
+        lgar_create_surficial_front(num_layers, &ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth, state->head->theta,
+            state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
+            state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
+
+        if (verbosity.compare("high") == 0) {
+          printf("State after moving creating new WF...\n");
+          listPrint(state->head);
+        }
+
+        if(state->state_previous != NULL ){
+          listDelete(state->state_previous);
+          state->state_previous = NULL;
+        }
+        state->state_previous = listCopy(state->head);
+
+        // volin_timestep_cm += volin_subtimestep_cm;
+
+        if (verbosity.compare("high") == 0) {
+    std::cerr<<"New wetting front created...\n";
+    listPrint(state->head);
+        }
       }
-      state->state_previous = listCopy(state->head);
 
-      volin_timestep_cm += volin_subtimestep_cm;
+      /*----------------------------------------------------------------------*/
+      /* infiltrate water based on the infiltration capacity given no new wetting front
+        is created and that there is water on the surface (or raining). */
 
-      if (verbosity.compare("high") == 0) {
-	std::cerr<<"New wetting front created...\n";
-	listPrint(state->head);
-      }
-    }
+      if (ponded_depth_subtimestep_cm > 0 && !create_surficial_front) {
 
-    /*----------------------------------------------------------------------*/
-    /* infiltrate water based on the infiltration capacity given no new wetting front
-       is created and that there is water on the surface (or raining). */
+        volrunoff_subtimestep_cm = lgar_insert_water(use_closed_form_G, nint, subtimestep_h, AET_subtimestep_cm, &ponded_depth_subtimestep_cm,
+                &volin_subtimestep_cm, precip_subtimestep_cm_per_h,
+                wf_free_drainage_demand, num_layers,
+                ponded_depth_max_cm, state->lgar_bmi_params.layer_soil_type,
+                state->lgar_bmi_params.cum_layer_thickness_cm,
+                state->lgar_bmi_params.frozen_factor, state->head,
+                state->soil_properties); 
 
-    if (ponded_depth_subtimestep_cm > 0 && !create_surficial_front) {
-
-      volrunoff_subtimestep_cm = lgar_insert_water(use_closed_form_G, nint, subtimestep_h, AET_subtimestep_cm, &ponded_depth_subtimestep_cm,
-						   &volin_subtimestep_cm, precip_subtimestep_cm_per_h,
-						   wf_free_drainage_demand, num_layers,
-						   ponded_depth_max_cm, state->lgar_bmi_params.layer_soil_type,
-						   state->lgar_bmi_params.cum_layer_thickness_cm,
-						   state->lgar_bmi_params.frozen_factor, state->head,
-						   state->soil_properties); 
-
-      volin_timestep_cm += volin_subtimestep_cm;
-      volrunoff_timestep_cm += volrunoff_subtimestep_cm;
-      volrech_subtimestep_cm = volin_subtimestep_cm; // this gets updated later, probably not needed here
-
-      volon_subtimestep_cm = ponded_depth_subtimestep_cm;
-      if (volrunoff_subtimestep_cm < 0) abort();
-    }
-    else {
-
-      if (ponded_depth_subtimestep_cm < ponded_depth_max_cm) {
-	volrunoff_timestep_cm += 0.0;
-	volon_subtimestep_cm = ponded_depth_subtimestep_cm;
-	ponded_depth_subtimestep_cm = 0.0;
-	volrunoff_subtimestep_cm = 0.0;
+        // volin_timestep_cm += volin_subtimestep_cm;
+        // volrunoff_timestep_cm += volrunoff_subtimestep_cm;
+        
+        volrech_subtimestep_cm = volin_subtimestep_cm;
+        volon_subtimestep_cm = ponded_depth_subtimestep_cm;
+        if (volrunoff_subtimestep_cm < 0) abort();
       }
       else {
-	volrunoff_subtimestep_cm = (ponded_depth_subtimestep_cm - ponded_depth_max_cm);
-	volrunoff_timestep_cm += (ponded_depth_subtimestep_cm - ponded_depth_max_cm);
-	volon_subtimestep_cm = ponded_depth_max_cm;
-	ponded_depth_subtimestep_cm = ponded_depth_max_cm;
+
+        if (ponded_depth_subtimestep_cm < ponded_depth_max_cm) {
+          volrunoff_timestep_cm += 0.0;
+          volon_subtimestep_cm = ponded_depth_subtimestep_cm;
+          ponded_depth_subtimestep_cm = 0.0;
+          volrunoff_subtimestep_cm = 0.0;
+        }
+        else {
+          volrunoff_subtimestep_cm = (ponded_depth_subtimestep_cm - ponded_depth_max_cm);
+          // volrunoff_timestep_cm += (ponded_depth_subtimestep_cm - ponded_depth_max_cm);
+          volon_subtimestep_cm = ponded_depth_max_cm;
+          ponded_depth_subtimestep_cm = ponded_depth_max_cm;
+        }
       }
+      /*----------------------------------------------------------------------*/
+
+      /* move wetting fronts if no new wetting front is created. Otherwise, movement
+        of wetting fronts has already happened at the time of creating surficial front,
+        so no need to move them here. */
+      if (!create_surficial_front) {
+        double volin_subtimestep_cm_temp = volin_subtimestep_cm;  /* passing this for mass balance only, the method modifies it
+                    and returns percolated value, so we need to keep its original
+                    value stored to copy it back*/
+        lgar_move_wetting_fronts(subtimestep_h, &volin_subtimestep_cm, wf_free_drainage_demand, volend_subtimestep_cm,
+              num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
+              state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
+              &state->head, state->state_previous, state->soil_properties);
+
+        // this is the volume of water leaving through the bottom
+        volrech_subtimestep_cm = volin_subtimestep_cm;
+        // volrech_timestep_cm += volrech_subtimestep_cm;
+
+        volin_subtimestep_cm = volin_subtimestep_cm_temp;
+      }
+      /*----------------------------------------------------------------------*/
+      // calculate derivative (dz/dt) for all wetting fronts
+      int new_front = -1;
+      if (switch_caching){
+        if (create_surficial_front){
+          new_front = state->head->front_num;
+        }
+      }
+      lgar_dzdt_calc(use_closed_form_G, nint, ponded_depth_subtimestep_cm, state->lgar_bmi_params.layer_soil_type,
+        state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
+        state->head, state->soil_properties, switch_caching, state->lgar_bmi_params.cache_count, new_front);
+
+      if (switch_caching){
+        state->lgar_bmi_params.cache_count = 1;
+      }
+
     }
-    /*----------------------------------------------------------------------*/
 
-    /* move wetting fronts if no new wetting front is created. Otherwise, movement
-       of wetting fronts has already happened at the time of creating surficial front,
-       so no need to move them here. */
-    if (!create_surficial_front) {
-      double volin_subtimestep_cm_temp = volin_subtimestep_cm;  /* passing this for mass balance only, the method modifies it
-								   and returns percolated value, so we need to keep its original
-								   value stored to copy it back*/
-      lgar_move_wetting_fronts(subtimestep_h, &volin_subtimestep_cm, wf_free_drainage_demand, volend_subtimestep_cm,
-			       num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
-			       state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
-			       &state->head, state->state_previous, state->soil_properties);
+    else {//in this case, we just use cached fluxes in order to save time. No direct computation of fluxes are necessary, and the ones from the last time step are used.
+      //also in this case, there will be no runoff due to precipitation partitioning because there is no precipitation 
+      PET_timestep_cm += fmax(PET_subtimestep_cm,0.0); // ensures non-negative PET
+      state->lgar_mass_balance.accumulated_PET += PET_timestep_cm;
 
-      // this is the volume of water leaving through the bottom
-      volrech_subtimestep_cm = volin_subtimestep_cm;
-      volrech_timestep_cm += volrech_subtimestep_cm;
+      volrech_timestep_cm += state->lgar_mass_balance.previous_recharge;
 
-      volin_subtimestep_cm = volin_subtimestep_cm_temp;
     }
-    /*----------------------------------------------------------------------*/
-    // calculate derivative (dz/dt) for all wetting fronts
-    lgar_dzdt_calc(use_closed_form_G, nint, ponded_depth_subtimestep_cm, state->lgar_bmi_params.layer_soil_type,
-		   state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
-		   state->head, state->soil_properties);
 
     volend_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
     volend_timestep_cm = volend_subtimestep_cm;
@@ -485,9 +552,6 @@ Update()
     double local_mb = volstart_subtimestep_cm + precip_subtimestep_cm + volon_timestep_cm - volrunoff_subtimestep_cm - CR_Q_subtimestep_cm - state->lgar_mass_balance.CR_storage_cm + CR_storage_start_cm 
                       - AET_subtimestep_cm - volon_subtimestep_cm - volrech_subtimestep_cm - volend_subtimestep_cm;
 
-    AET_timestep_cm += AET_subtimestep_cm;
-    volon_timestep_cm = volon_subtimestep_cm; // surface ponded water at the end of the timestep 
-
 
     /*----------------------------------------------------------------------*/
     // increment runoff for the subtimestep
@@ -496,6 +560,18 @@ Update()
 
     // adding groundwater flux to stream channel (note: this will be updated/corrected after adding the groundwater reservoir)
     volQ_gw_timestep_cm += volQ_gw_subtimestep_cm;
+
+
+    ///////
+    //separating code such that most non substep vars (so xxx_timestep and not xxx_subtimestep) are updated in just one place. not all, because some must be set before substepping.
+    volin_timestep_cm += volin_subtimestep_cm;
+    volrech_timestep_cm += volrech_subtimestep_cm;
+
+    volrunoff_timestep_cm += volrunoff_subtimestep_cm;
+
+    AET_timestep_cm += AET_subtimestep_cm;
+    volon_timestep_cm = volon_subtimestep_cm; // surface ponded water at the end of the timestep 
+    ///////
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
       printf("Printing wetting fronts at this subtimestep... \n");
@@ -584,6 +660,11 @@ Update()
   state->lgar_mass_balance.volQ_gw_timestep_cm    = volQ_gw_timestep_cm;
   state->lgar_mass_balance.volPET_timestep_cm     = PET_timestep_cm;
   state->lgar_mass_balance.volrunoff_giuh_timestep_cm = volrunoff_giuh_timestep_cm;
+
+  //for caching
+  state->lgar_mass_balance.previous_AET         = AET_subtimestep_cm;
+  state->lgar_mass_balance.previous_PET         = PET_subtimestep_cm;
+  state->lgar_mass_balance.previous_recharge    = volrech_subtimestep_cm;
 
   // add to mass balance accumulated variables
   state->lgar_mass_balance.volprecip_cm  += precip_timestep_cm;
