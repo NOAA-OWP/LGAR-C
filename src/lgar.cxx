@@ -1548,68 +1548,58 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
      all occur in a loop that happens after wetting fronts have been moved. This prevents the model from crashing,
      as there are rare but possible cases where multiple merging / layer boundary crossing events will happen in
      the same time step. For example, if two wetting fronts cross a layer boundary in the same time step, it will
-     be necessary for merging to occur before layer boundary crossing. So, LGAR-C now approaches merging in the
-     same way as in LGAR-Py, where wetting fronts are moved, then a new loop does merging for all wetting fronts,
-     then a new loop does layer boundary corssing for all wetting fronts, then a new loop does merging again for
-     all wetting fronts, and then a new loop does lower boundary crossing for all wetting fronts. this is a thorough
-     way to deal with these scenarios. */
+     be necessary for merging to occur before layer boundary crossing. LGAR-C iteratively checks for these cases
+     and addresses all until none are left via lgarto_correction_type_surf. */
 
   /* Note: we check for dry over wet case before we call merge_wetting_fronts to avoid negative wetting fronts
      due to unknown corner/rare cases */
 
   double mass_change = 0.0;
-  
-  // *************************** MERGE ************************************
-  // check if dry over wet wetting fronts exist before calling merge
-  bool is_dry_over_wet_wf = lgar_check_dry_over_wet_wetting_fronts(*head);
-  
-  if (is_dry_over_wet_wf)
-    lgar_fix_dry_over_wet_wetting_fronts(&mass_change, cum_layer_thickness_cm, soil_type, head, soil_properties);
 
+  int correction_type_surf =  lgarto_correction_type_surf(num_layers, cum_layer_thickness_cm, head);
 
-  lgar_merge_wetting_fronts(soil_type, frozen_factor, head, soil_properties);
+  while (correction_type_surf!=0){
 
+    if (correction_type_surf==1){
+      lgar_merge_wetting_fronts(soil_type, frozen_factor, head, soil_properties);
+    }
 
-  // ************************ CROSS LAYER *********************************
-  lgar_wetting_fronts_cross_layer_boundary(num_layers, cum_layer_thickness_cm, soil_type, frozen_factor,
-					   head, soil_properties);
+    if (correction_type_surf==2){
+      // double mass_corr_loop_start = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+      // bool close_psis = correct_close_psis(soil_type, soil_properties, head);
+      // if (close_psis){
+      //   bottom_boundary_flux_cm += (mass_corr_loop_start - lgar_calc_mass_bal(cum_layer_thickness_cm, *head));
+      // }
+      lgar_wetting_fronts_cross_layer_boundary(num_layers, cum_layer_thickness_cm, soil_type, frozen_factor, head, soil_properties);
+    }
 
+    if (correction_type_surf==3){
+      // bottom_boundary_flux_cm += lgar_wetting_front_cross_domain_boundary(TO_enabled, cum_layer_thickness_cm, soil_type, frozen_factor, head, soil_properties);
+      bottom_boundary_flux_cm += lgar_wetting_front_cross_domain_boundary(cum_layer_thickness_cm[num_layers], soil_type, frozen_factor, head, soil_properties);
+          if (isnan(bottom_boundary_flux_cm)){
+            bottom_boundary_flux_cm = 0.0;
+          }
+    }
 
-  // *************************** MERGE ************************************
-  // check if dry over wet wetting fronts exist before calling merge
-  is_dry_over_wet_wf = lgar_check_dry_over_wet_wetting_fronts(*head);
-  
-  if (is_dry_over_wet_wf)
-    lgar_fix_dry_over_wet_wetting_fronts(&mass_change, cum_layer_thickness_cm, soil_type, head, soil_properties);
+    if (correction_type_surf==4){
+      lgar_fix_dry_over_wet_wetting_fronts(&mass_change, cum_layer_thickness_cm, soil_type, head, soil_properties);
+      // if (*free_drainage_subtimestep_cm==0.0){
+        *AET_demand_cm = *AET_demand_cm - mass_change; //technically this could be handled in a smoother way, and is in lgarto, but this follows the format of lgar
+      // }
+      // else {
+      //   *free_drainage_subtimestep_cm = *free_drainage_subtimestep_cm - mass_change;
+      //   // *AET_demand_cm = *AET_demand_cm - mass_change;
+      //   if (*free_drainage_subtimestep_cm<0.0){
+      //     *AET_demand_cm = *AET_demand_cm + *free_drainage_subtimestep_cm;
+      //     *free_drainage_subtimestep_cm = 0.0;
+      //   }
+      // }
+    }
 
-  lgar_merge_wetting_fronts(soil_type, frozen_factor, head, soil_properties);
-
-  // ************************ CROSS BOUNDARY ********************************
-  
-  //lower bound
-  bottom_boundary_flux_cm += lgar_wetting_front_cross_domain_boundary(cum_layer_thickness_cm[num_layers], soil_type,
-								      frozen_factor, head, soil_properties);
-
-  *volin_cm = bottom_boundary_flux_cm;
-  
-  // reset current to head to fix any mass balance issues and dry-over-wet wetting fronts conditions
-  is_dry_over_wet_wf = lgar_check_dry_over_wet_wetting_fronts(*head);
-  
-  if (is_dry_over_wet_wf)
-    lgar_fix_dry_over_wet_wetting_fronts(&mass_change, cum_layer_thickness_cm, soil_type, head, soil_properties);
-
-  if (verbosity.compare("high") == 0) {
-    printf ("mass change/adjustment (dry_over_wet case) = %lf \n", mass_change);
-  }
-
-  /* sometimes merging can cause a slight mass balance error, to close the mass balance, the tiny error is
-     swept into AET. This seems to be a reasonable solution rather than considering all possible cases which
-     would probably be hard and time consuming. Some of these cases (e.g., rain or AET on totally saturated
-     soil) are very rare and the error is small is magnitude. For LGARTO development, might have to revisit,
-     but for LGAR this seems to work great.
-  */
-  if (fabs(mass_change) > 1.0E-7) {
-    *AET_demand_cm = *AET_demand_cm - mass_change;
+    correction_type_surf =  lgarto_correction_type_surf(num_layers, cum_layer_thickness_cm, head);
+    if (verbosity.compare("high") == 0) {
+      printf("correction_type_surf at end of iteration in while loop: %d \n", correction_type_surf);
+    }
   }
 
   /***********************************************/
@@ -2773,6 +2763,63 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   
   return theta;
 
+}
+
+// this function handles wetting front merging and layer boundary crossing iteratively, so we no longer need to rely on a predetermined order of these events. Theoretically this is slightly faster and more stable.
+// the function has the name "lgarto" rather than "lgar" because future work will further incorporate lgarto
+extern int lgarto_correction_type_surf(int num_layers, double* cum_layer_thickness_cm, struct wetting_front** head){
+  int correction_type_surf = 0;
+  struct wetting_front *current = *head;
+  struct wetting_front *next = current->next;
+  struct wetting_front *next_to_next = NULL;
+  // // this will be necessary for lgarto
+  // struct wetting_front *top_most_TO_front_below_surfs = NULL;
+  // double top_most_TO_front_below_surfs_psi_cm = 1.E16;
+  // if (listLength(*head)>(listLength_surface(*head)+listLength_TO_WFs_above_surface_WFs(*head))){
+  //   top_most_TO_front_below_surfs = listFindFront(listLength_surface(*head)+listLength_TO_WFs_above_surface_WFs(*head) + 1, *head, NULL);
+  //   top_most_TO_front_below_surfs_psi_cm = top_most_TO_front_below_surfs->psi_cm;
+  // }
+
+  if (next!=NULL){
+    next_to_next = current->next->next;
+  }
+
+  for (int wf = 1; wf != (listLength(*head)); wf++) {
+
+    if (next!=NULL){
+      // if ( (current->is_WF_GW==0) && (next->is_WF_GW==0) && (current->theta>next->theta) && (current->depth_cm > next->depth_cm) && (current->layer_num == next->layer_num) && (!next->to_bottom) ){
+      if ( (current->theta>next->theta) && (current->depth_cm > next->depth_cm) && (current->layer_num == next->layer_num) && (!next->to_bottom) ){
+        correction_type_surf = 1; //this is surface-surface WF merging 
+        break;
+      }
+      // if ( (current->is_WF_GW==0) && (current->depth_cm > cum_layer_thickness_cm[current->layer_num]) && (next->depth_cm == cum_layer_thickness_cm[current->layer_num]) && (current->theta>next->theta) && (current->layer_num!=num_layers) && (current->psi_cm<top_most_TO_front_below_surfs_psi_cm) ){
+      // if ( (current->is_WF_GW==0) && (current->depth_cm > cum_layer_thickness_cm[current->layer_num]) && (next->depth_cm == cum_layer_thickness_cm[current->layer_num]) && (current->theta>next->theta) && (current->layer_num!=num_layers) ){
+      if ( (current->depth_cm > cum_layer_thickness_cm[current->layer_num]) && (next->depth_cm == cum_layer_thickness_cm[current->layer_num]) && (current->theta>next->theta) && (current->layer_num!=num_layers) ){
+        correction_type_surf = 2; //this is surface WF layer bdy crossing 
+        break;
+      }
+    }
+    // if ( (next_to_next == NULL) && (current->depth_cm > cum_layer_thickness_cm[current->layer_num]) && (current->is_WF_GW==0) ){
+    if ( (next_to_next == NULL) && (current->depth_cm > cum_layer_thickness_cm[current->layer_num]) ){
+      correction_type_surf = 3; //this is a surface WF crossing the model lower bdy
+      break;
+    }
+    if (lgar_check_dry_over_wet_wetting_fronts(*head)){
+      correction_type_surf = 4;
+      break;
+    }
+
+    current = next;
+    next = current->next;
+    if (next!=NULL){
+      next_to_next = current->next->next;
+    }
+  }
+
+  if (verbosity.compare("high") == 0){
+    printf("computed correction type for surface WFs: %d \n", correction_type_surf);
+  }
+  return correction_type_surf;
 }
 
 #endif

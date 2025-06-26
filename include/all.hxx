@@ -365,6 +365,9 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
 extern double calc_aet(double PET_timestep_cm, double timestep_h, double wilting_point_psi_cm, double field_capacity_psi_cm, int *soil_type,
 		       double AET_thresh_Theta, double AET_expon, struct wetting_front* head, struct soil_properties_ *soil_props);
 
+//returns an integer that describes which type of layer boundary crossing or WF merging is necessary
+extern int lgarto_correction_type_surf(int num_layers, double* cum_layer_thickness_cm, struct wetting_front** head);
+
 /********************************************************************/
 /* Input/Output functions, etc.  */
 /********************************************************************/
