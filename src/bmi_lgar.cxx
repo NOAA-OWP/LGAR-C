@@ -725,8 +725,16 @@ update_calibratable_parameters()
   
   double volstart_before = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
 
-  for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {//first we update the parameters that depend on soil layer, for each layer
+  // first we update the parameters that depend on soil layer, for each layer. 
+  // This no longer relies on arrays (for compatability with ngen-cal) and instead supports calibration of up to 3 soil layers with scalar parameters.
+  int layer_num_prev = 0;
+  for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
     layer_num  = current->layer_num;
+    if (layer_num_prev==layer_num){
+      continue;
+    }
+    layer_num_prev = layer_num; //prevents the loop from running for each WF -- just has to run once for each soil layer
+
     soil = state->lgar_bmi_params.layer_soil_type[layer_num];
     
     assert (current != NULL);
@@ -742,12 +750,39 @@ update_calibratable_parameters()
 	       <<", theta = "    << current->theta <<"\n";
     }
     
-    state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e[layer_num-1];
-    state->soil_properties[soil].theta_r = state->lgar_calib_params.theta_r[layer_num-1];
-    state->soil_properties[soil].vg_n    = state->lgar_calib_params.vg_n[layer_num-1];
-    state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
-    state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha[layer_num-1];
-    state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat[layer_num-1];
+    // state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e[layer_num-1];
+    // state->soil_properties[soil].theta_r = state->lgar_calib_params.theta_r[layer_num-1];
+    // state->soil_properties[soil].vg_n    = state->lgar_calib_params.vg_n[layer_num-1];
+    // state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
+    // state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha[layer_num-1];
+    // state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat[layer_num-1];
+
+    if (layer_num==1){
+      state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e_1;
+      state->soil_properties[soil].theta_r = state->lgar_calib_params.theta_r_1;
+      state->soil_properties[soil].vg_n    = state->lgar_calib_params.vg_n_1;
+      state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
+      state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha_1;
+      state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat_1;
+    }
+
+    if (layer_num==2){
+      state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e_2;
+      state->soil_properties[soil].theta_r = state->lgar_calib_params.theta_r_2;
+      state->soil_properties[soil].vg_n    = state->lgar_calib_params.vg_n_2;
+      state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
+      state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha_2;
+      state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat_2;
+    }
+
+    if (layer_num==3){
+      state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e_3;
+      state->soil_properties[soil].theta_r = state->lgar_calib_params.theta_r_3;
+      state->soil_properties[soil].vg_n    = state->lgar_calib_params.vg_n_3;
+      state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
+      state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha_3;
+      state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat_3;
+    }
     
     current->theta = calc_theta_from_h(current->psi_cm, state->soil_properties[soil].vg_alpha_per_cm,
 				       state->soil_properties[soil].vg_m, state->soil_properties[soil].vg_n,
@@ -824,11 +859,12 @@ Finalize()
   delete [] state->lgar_bmi_params.soil_temperature_z;
   delete [] state->lgar_bmi_params.layer_soil_type;
 
-  delete [] state->lgar_calib_params.theta_e;
-  delete [] state->lgar_calib_params.theta_r;
-  delete [] state->lgar_calib_params.vg_n;
-  delete [] state->lgar_calib_params.vg_alpha;
-  delete [] state->lgar_calib_params.Ksat;
+  // no longer needed as per layer calibratable parameters are no longer handled with arrays
+  // delete [] state->lgar_calib_params.theta_e;
+  // delete [] state->lgar_calib_params.theta_r;
+  // delete [] state->lgar_calib_params.vg_n;
+  // delete [] state->lgar_calib_params.vg_alpha;
+  // delete [] state->lgar_calib_params.Ksat;
 
   delete [] state->lgar_bmi_params.layer_thickness_cm;
   delete [] state->lgar_bmi_params.cum_layer_thickness_cm;
@@ -858,9 +894,22 @@ GetVarGrid(std::string name)
     return 1;
   else if (name.compare("mass_balance") == 0)
     return 1;
-  else if (name.compare("soil_depth_layers") == 0  || name.compare("smcmax") == 0 || name.compare("smcmin") == 0
-	   || name.compare("van_genuchten_m") == 0 || name.compare("van_genuchten_alpha") == 0 || name.compare("van_genuchten_n") == 0 
-	   || name.compare("hydraulic_conductivity") == 0) // array of doubles (fixed length)
+  else if (name.compare("smcmax_1") == 0 || name.compare("smcmin_1") == 0 // per layer parameters are now handled with scalars and not arrays
+	   || name.compare("van_genuchten_m_1") == 0 || name.compare("van_genuchten_alpha_1") == 0 || name.compare("van_genuchten_n_1") == 0 
+	   || name.compare("hydraulic_conductivity_1") == 0)
+    return 1;
+  else if (name.compare("smcmax_2") == 0 || name.compare("smcmin_2") == 0 // per layer parameters are now handled with scalars and not arrays
+	   || name.compare("van_genuchten_m_2") == 0 || name.compare("van_genuchten_alpha_2") == 0 || name.compare("van_genuchten_n_2") == 0 
+	   || name.compare("hydraulic_conductivity_2") == 0)
+    return 1;
+  else if (name.compare("smcmax_2") == 0 || name.compare("smcmin_2") == 0 // per layer parameters are now handled with scalars and not arrays
+	   || name.compare("van_genuchten_m_2") == 0 || name.compare("van_genuchten_alpha_2") == 0 || name.compare("van_genuchten_n_2") == 0 
+	   || name.compare("hydraulic_conductivity_2") == 0)
+    return 1;
+  // else if (name.compare("soil_depth_layers") == 0  || name.compare("smcmax") == 0 || name.compare("smcmin") == 0
+	//    || name.compare("van_genuchten_m") == 0 || name.compare("van_genuchten_alpha") == 0 || name.compare("van_genuchten_n") == 0 
+	//    || name.compare("hydraulic_conductivity") == 0) // array of doubles (fixed length)
+  else if (name.compare("soil_depth_layers") == 0 )// array of doubles (fixed length)
     return 2;
   else if (name.compare("soil_moisture_wetting_fronts") == 0 || name.compare("soil_depth_wetting_fronts") == 0) // array of doubles (dynamic length)
     return 3;
@@ -1072,16 +1121,49 @@ GetValuePtr (std::string name)
     return (void*)(&state->lgar_bmi_params.num_wetting_fronts);
   else if (name.compare("soil_temperature_profile") == 0)
     return (void*)this->state->lgar_bmi_params.soil_temperature;
-  else if (name.compare("smcmax") == 0)
-    return (void*)this->state->lgar_calib_params.theta_e;
-  else if (name.compare("smcmin") == 0)
-    return (void*)this->state->lgar_calib_params.theta_r;
-  else if (name.compare("van_genuchten_n") == 0)
-    return (void*)this->state->lgar_calib_params.vg_n;
-  else if (name.compare("van_genuchten_alpha") == 0)
-    return (void*)this->state->lgar_calib_params.vg_alpha;
-  else if (name.compare("hydraulic_conductivity") == 0)
-    return (void*)this->state->lgar_calib_params.Ksat;
+  // else if (name.compare("smcmax") == 0)
+  //   return (void*)this->state->lgar_calib_params.theta_e;
+  // else if (name.compare("smcmin") == 0)
+  //   return (void*)this->state->lgar_calib_params.theta_r;
+  // else if (name.compare("van_genuchten_n") == 0)
+  //   return (void*)this->state->lgar_calib_params.vg_n;
+  // else if (name.compare("van_genuchten_alpha") == 0)
+  //   return (void*)this->state->lgar_calib_params.vg_alpha;
+  // else if (name.compare("hydraulic_conductivity") == 0)
+  //   return (void*)this->state->lgar_calib_params.Ksat;
+
+  // per layer calibratable params are now scalars and not arrays
+  else if (name.compare("smcmax_1") == 0)
+    return (void*)&this->state->lgar_calib_params.theta_e_1;
+  else if (name.compare("smcmin_1") == 0)
+    return (void*)&this->state->lgar_calib_params.theta_r_1;
+  else if (name.compare("van_genuchten_n_1") == 0)
+    return (void*)&this->state->lgar_calib_params.vg_n_1;
+  else if (name.compare("van_genuchten_alpha_1") == 0)
+    return (void*)&this->state->lgar_calib_params.vg_alpha_1;
+  else if (name.compare("hydraulic_conductivity_1") == 0)
+    return (void*)&this->state->lgar_calib_params.Ksat_1;
+  else if (name.compare("smcmax_2") == 0)
+    return (void*)&this->state->lgar_calib_params.theta_e_2;
+  else if (name.compare("smcmin_2") == 0)
+    return (void*)&this->state->lgar_calib_params.theta_r_2;
+  else if (name.compare("van_genuchten_n_2") == 0)
+    return (void*)&this->state->lgar_calib_params.vg_n_2;
+  else if (name.compare("van_genuchten_alpha_2") == 0)
+    return (void*)&this->state->lgar_calib_params.vg_alpha_2;
+  else if (name.compare("hydraulic_conductivity_2") == 0)
+    return (void*)&this->state->lgar_calib_params.Ksat_2;
+  else if (name.compare("smcmax_3") == 0)
+    return (void*)&this->state->lgar_calib_params.theta_e_3;
+  else if (name.compare("smcmin_3") == 0)
+    return (void*)&this->state->lgar_calib_params.theta_r_3;
+  else if (name.compare("van_genuchten_n_3") == 0)
+    return (void*)&this->state->lgar_calib_params.vg_n_3;
+  else if (name.compare("van_genuchten_alpha_3") == 0)
+    return (void*)&this->state->lgar_calib_params.vg_alpha_3;
+  else if (name.compare("hydraulic_conductivity_3") == 0)
+    return (void*)&this->state->lgar_calib_params.Ksat_3;
+
   else if (name.compare("ponded_depth_max") == 0)
     return (void*)&this->state->lgar_calib_params.ponded_depth_max;
   else if (name.compare("field_capacity") == 0)

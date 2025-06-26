@@ -158,6 +158,9 @@ struct lgar_bmi_parameters
   bool   runoff_in_prev_step = false; // true if there was there runoff in the previous time step. Used for simple preferential flow
   bool   allow_flux_caching = false; //if set to true, allows for the use of cached fluxes rather than computing new ones when internal states are changing slowly. 
   int    cache_count = 1;            //used for caching to accumulate fluxes
+
+  // bool   log_mode = false; // mode where log-normally distributed parameters must be input as their log_10 values rather than their normal values. This is to ensure the calibration searches the parameter space effectively.
+  //                          // for example, instead if using 0.1 cm/h for a K_s value, we would use -1.0 because 10^-1 = 0.1. Also when log mode is on the parameter names in the soils data file or config file must be updated.
 };
 
 // Define a data structure for local (timestep) and global mass balance parameters
@@ -209,11 +212,32 @@ struct lgar_mass_balance_variables
 // the structure holds pointer bmi output variables
 struct lgar_calib_parameters
 {
-  double *theta_e;               // theta_e = smcmax [-]
-  double *theta_r;               // theta_r = smcmin [-]
-  double *vg_n;                  // Van Genuchten n [-]
-  double *vg_alpha;              // Van Genuchten alpha [1/cm]
-  double *Ksat;                  // Hydraulic conductivity [cm/hr]
+  // // the old approach to calibration was to make arrays for parameters that depend on soil layer. 
+  // // however, I beleive that ngen cal does not handle arrays as parameters.
+  // // therefore, the solution is to support layered soil parameter calibration up to a fixed number of layers where each parameter is not an array.
+  // double *theta_e;               // theta_e = smcmax [-]
+  // double *theta_r;               // theta_r = smcmin [-]
+  // double *vg_n;                  // Van Genuchten n [-]
+  // double *vg_alpha;              // Van Genuchten alpha [1/cm]
+  // double *Ksat;                  // Hydraulic conductivity [cm/hr]
+
+  //supports up to 3 layers in calibration
+  double theta_e_1;               // theta_e = smcmax [-]
+  double theta_r_1;               // theta_r = smcmin [-]
+  double vg_n_1;                  // Van Genuchten n [-]
+  double vg_alpha_1;              // Van Genuchten alpha [1/cm]
+  double Ksat_1;                  // Hydraulic conductivity [cm/hr]
+  double theta_e_2;               // theta_e = smcmax [-]
+  double theta_r_2;               // theta_r = smcmin [-]
+  double vg_n_2;                  // Van Genuchten n [-]
+  double vg_alpha_2;              // Van Genuchten alpha [1/cm]
+  double Ksat_2;                  // Hydraulic conductivity [cm/hr]
+  double theta_e_3;               // theta_e = smcmax [-]
+  double theta_r_3;               // theta_r = smcmin [-]
+  double vg_n_3;                  // Van Genuchten n [-]
+  double vg_alpha_3;              // Van Genuchten alpha [1/cm]
+  double Ksat_3;                  // Hydraulic conductivity [cm/hr]
+
   double field_capacity_psi;    // field capacity in capillary head [cm]
   double ponded_depth_max;      // maximum ponded depth of surface water [cm]
   double a;                      // parameter for nonlinear reservoir

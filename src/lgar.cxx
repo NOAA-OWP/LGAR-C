@@ -84,11 +84,12 @@ extern void lgar_initialize(string config_file, struct model_state *state)
   state->lgar_bmi_params.soil_moisture_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
 
   // initialize array for holding calibratable parameters
-  state->lgar_calib_params.theta_e  = new double[state->lgar_bmi_params.num_layers];
-  state->lgar_calib_params.theta_r  = new double[state->lgar_bmi_params.num_layers];
-  state->lgar_calib_params.vg_n     = new double[state->lgar_bmi_params.num_layers];
-  state->lgar_calib_params.vg_alpha = new double[state->lgar_bmi_params.num_layers];
-  state->lgar_calib_params.Ksat     = new double[state->lgar_bmi_params.num_layers];
+  // calibratabale parameters are scalars now not arrays
+  // state->lgar_calib_params.theta_e  = new double[state->lgar_bmi_params.num_layers];
+  // state->lgar_calib_params.theta_r  = new double[state->lgar_bmi_params.num_layers];
+  // state->lgar_calib_params.vg_n     = new double[state->lgar_bmi_params.num_layers];
+  // state->lgar_calib_params.vg_alpha = new double[state->lgar_bmi_params.num_layers];
+  // state->lgar_calib_params.Ksat     = new double[state->lgar_bmi_params.num_layers];
   
   // initialize thickness/depth and soil moisture of wetting fronts (used for model coupling)
   // also initialize calibratable parameters
@@ -100,7 +101,7 @@ extern void lgar_initialize(string config_file, struct model_state *state)
   state->lgar_calib_params.spf_factor = state->lgar_bmi_params.spf_factor;
 
   struct wetting_front *current = state->head;
-  for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
+  for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) { // note that this only works because at init there is 1 WF per layer, otherwise get soil type from current
     assert (current != NULL);
     
     soil = state->lgar_bmi_params.layer_soil_type[i+1];
@@ -108,11 +109,36 @@ extern void lgar_initialize(string config_file, struct model_state *state)
     state->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
     state->lgar_bmi_params.soil_depth_wetting_fronts[i]    = current->depth_cm * state->units.cm_to_m;
 
-    state->lgar_calib_params.theta_e[i]  = state->soil_properties[soil].theta_e;
-    state->lgar_calib_params.theta_r[i]  = state->soil_properties[soil].theta_r;
-    state->lgar_calib_params.vg_n[i]     = state->soil_properties[soil].vg_n;
-    state->lgar_calib_params.vg_alpha[i] = state->soil_properties[soil].vg_alpha_per_cm;
-    state->lgar_calib_params.Ksat[i]     = state->soil_properties[soil].Ksat_cm_per_h;
+    // // we now handle calibration of layered parameters with scalars
+    // state->lgar_calib_params.theta_e[i]  = state->soil_properties[soil].theta_e;
+    // state->lgar_calib_params.theta_r[i]  = state->soil_properties[soil].theta_r;
+    // state->lgar_calib_params.vg_n[i]     = state->soil_properties[soil].vg_n;
+    // state->lgar_calib_params.vg_alpha[i] = state->soil_properties[soil].vg_alpha_per_cm;
+    // state->lgar_calib_params.Ksat[i]     = state->soil_properties[soil].Ksat_cm_per_h;
+
+    if (i==0){
+      state->lgar_calib_params.theta_e_1  = state->soil_properties[soil].theta_e;
+      state->lgar_calib_params.theta_r_1  = state->soil_properties[soil].theta_r;
+      state->lgar_calib_params.vg_n_1     = state->soil_properties[soil].vg_n;
+      state->lgar_calib_params.vg_alpha_1 = state->soil_properties[soil].vg_alpha_per_cm;
+      state->lgar_calib_params.Ksat_1     = state->soil_properties[soil].Ksat_cm_per_h;
+    }
+
+    if (i==1){
+      state->lgar_calib_params.theta_e_2  = state->soil_properties[soil].theta_e;
+      state->lgar_calib_params.theta_r_2  = state->soil_properties[soil].theta_r;
+      state->lgar_calib_params.vg_n_2     = state->soil_properties[soil].vg_n;
+      state->lgar_calib_params.vg_alpha_2 = state->soil_properties[soil].vg_alpha_per_cm;
+      state->lgar_calib_params.Ksat_2     = state->soil_properties[soil].Ksat_cm_per_h;
+    }
+
+    if (i==2){
+      state->lgar_calib_params.theta_e_3  = state->soil_properties[soil].theta_e;
+      state->lgar_calib_params.theta_r_3  = state->soil_properties[soil].theta_r;
+      state->lgar_calib_params.vg_n_3     = state->soil_properties[soil].vg_n;
+      state->lgar_calib_params.vg_alpha_3 = state->soil_properties[soil].vg_alpha_per_cm;
+      state->lgar_calib_params.Ksat_3     = state->soil_properties[soil].Ksat_cm_per_h;
+    }
     
     current = current->next;
   }
@@ -223,6 +249,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   state->lgar_bmi_params.adaptive_timestep     = false;
   state->lgar_bmi_params.runoff_in_prev_step   = false;
   state->lgar_bmi_params.PET_affects_precip    = false;
+  state->lgar_bmi_params.allow_flux_caching    = false;
   state->lgar_bmi_params.allow_flux_caching    = false;
   // setting mass balance tolerance to be large by default; this can be specified in the config file
   state->lgar_bmi_params.mbal_tol = 1.E1;
@@ -1550,9 +1577,6 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
      the same time step. For example, if two wetting fronts cross a layer boundary in the same time step, it will
      be necessary for merging to occur before layer boundary crossing. LGAR-C iteratively checks for these cases
      and addresses all until none are left via lgarto_correction_type_surf. */
-
-  /* Note: we check for dry over wet case before we call merge_wetting_fronts to avoid negative wetting fronts
-     due to unknown corner/rare cases */
 
   double mass_change = 0.0;
 
