@@ -764,6 +764,10 @@ update_calibratable_parameters()
       state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
       state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha_1;
       state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat_1;
+      if (state->lgar_bmi_params.log_mode){
+        state->soil_properties[soil].vg_alpha_per_cm = pow(10.0, state->lgar_calib_params.vg_alpha_1);
+        state->soil_properties[soil].Ksat_cm_per_h   = pow(10.0, state->lgar_calib_params.Ksat_1);
+      }
     }
 
     if (layer_num==2){
@@ -773,6 +777,10 @@ update_calibratable_parameters()
       state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
       state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha_2;
       state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat_2;
+      if (state->lgar_bmi_params.log_mode){
+        state->soil_properties[soil].vg_alpha_per_cm = pow(10.0, state->lgar_calib_params.vg_alpha_2);
+        state->soil_properties[soil].Ksat_cm_per_h   = pow(10.0, state->lgar_calib_params.Ksat_2);
+      }
     }
 
     if (layer_num==3){
@@ -782,6 +790,10 @@ update_calibratable_parameters()
       state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
       state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha_3;
       state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat_3;
+      if (state->lgar_bmi_params.log_mode){
+        state->soil_properties[soil].vg_alpha_per_cm = pow(10.0, state->lgar_calib_params.vg_alpha_3);
+        state->soil_properties[soil].Ksat_cm_per_h   = pow(10.0, state->lgar_calib_params.Ksat_3);
+      }
     }
     
     current->theta = calc_theta_from_h(current->psi_cm, state->soil_properties[soil].vg_alpha_per_cm,
@@ -820,6 +832,10 @@ update_calibratable_parameters()
   state->lgar_bmi_params.b                     = state->lgar_calib_params.b;
   state->lgar_bmi_params.frac_to_GW            = state->lgar_calib_params.frac_to_GW;
   state->lgar_bmi_params.spf_factor            = state->lgar_calib_params.spf_factor;
+
+  if (state->lgar_bmi_params.log_mode){
+    state->lgar_bmi_params.a = pow(10.0, state->lgar_calib_params.a);
+  }
 
   if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
     std::cerr<<"----------- Calibratable parameters independent of soil layer (updated values) ----------- \n";

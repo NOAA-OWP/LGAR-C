@@ -250,7 +250,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   state->lgar_bmi_params.runoff_in_prev_step   = false;
   state->lgar_bmi_params.PET_affects_precip    = false;
   state->lgar_bmi_params.allow_flux_caching    = false;
-  state->lgar_bmi_params.allow_flux_caching    = false;
+  state->lgar_bmi_params.log_mode              = false;
   // setting mass balance tolerance to be large by default; this can be specified in the config file
   state->lgar_bmi_params.mbal_tol = 1.E1;
   
@@ -510,6 +510,23 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
       continue;
     }
+    else if (param_key == "log_mode") { 
+      if ((param_value == "false") || (param_value == "0")) {
+        state->lgar_bmi_params.log_mode = false;
+      }
+      else if ( (param_value == "true") || (param_value == "1")) {
+        state->lgar_bmi_params.log_mode = true;
+        if (verbosity.compare("high") == 0) {
+          printf("log_mode enabled. So K_s for each layer, alpha for each layer, and a for the nonlinear reservoir will use the log of their input values. \n");
+        }
+      }
+      else {
+	std::cerr<<"Invalid option: log_mode must be true or false. \n";
+        abort();
+      }
+
+      continue;
+    }
     else if (param_key == "mbal_tol") {
       state->lgar_bmi_params.mbal_tol = stod(param_value);
 
@@ -679,6 +696,10 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     errMsg << "The configuration file \'" << config_file <<"\' does not set layer_soil_type. \n";
     throw runtime_error(errMsg.str());
   }
+
+  if (state->lgar_bmi_params.log_mode){
+    state->lgar_bmi_params.a = pow(10.0, state->lgar_bmi_params.a);
+  }
     
   if(is_soil_params_file_set) {
     //allocate memory to create an array of structures to hold the soils properties data.
@@ -690,7 +711,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
     double field_capacity_psi_cm = state->lgar_bmi_params.field_capacity_psi_cm;
     int max_num_soil_in_file = lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types,
-						       wilting_point_psi_cm, state->soil_properties);
+						       wilting_point_psi_cm, state->soil_properties, state->lgar_bmi_params.log_mode);
 
     // check if soil layers provided are within the range
     state->lgar_bmi_params.is_invalid_soil_type = false; // model not valid for soil types = waterbody, glacier, lava, etc.
@@ -2405,7 +2426,7 @@ double lgar_calc_mass_bal(double *cum_layer_thickness, struct wetting_front* hea
    Open file to read in the van Genuchten parameters for standard soil types*/
 // ############################################################################################
 extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_types, double wilting_point_psi_cm,
-				    struct soil_properties_ *soil_properties)
+				    struct soil_properties_ *soil_properties, bool log_mode)
 {
 
   if (verbosity.compare("high") == 0) {
@@ -2444,6 +2465,10 @@ extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_
     }
 
     strcpy(soil_properties[soil].soil_name,soil_name);
+    if (log_mode){
+      vg_alpha_per_cm = pow(10.0, vg_alpha_per_cm);
+      Ksat_cm_per_h   = pow(10.0, Ksat_cm_per_h);
+    }
     soil_properties[soil].theta_r         = theta_r;
     soil_properties[soil].theta_e         = theta_e;
     soil_properties[soil].vg_alpha_per_cm = vg_alpha_per_cm; // cm^(-1)
