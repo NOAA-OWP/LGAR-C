@@ -577,54 +577,178 @@ int main(int argc, char *argv[])
   
 
   // Testing Calibratable parameters
-  double *smcmax   = new double[num_layers];
-  double *vg_n     = new double[num_layers];
-  double *vg_alpha = new double[num_layers];
-  double *Ksat     = new double[num_layers];
+  // double *smcmax   = new double[num_layers];
+  // double *vg_n     = new double[num_layers];
+  // double *vg_alpha = new double[num_layers];
+  // double *Ksat     = new double[num_layers];
+  double smcmax_1;
+  double vg_n_1;
+  double vg_n_2;
+  double vg_alpha_1;
+  double vg_alpha_2;
+  double Ksat_1;
+  double Ksat_2;
   double field_capacity;
-  double ponded_depth_max;
+  double a;
+  double b;
+  double frac_to_GW;
+  double spf_factor;
 
-  double smcmax_set[]   = {0.3513, 0.3773, 0.3617};
-  double vg_n_set[]     = {1.44260592334, 1.14965918354, 1.39051695249};
-  double vg_alpha_set[] = {0.0021297, 0.0073272, 0.0027454};
-  double Ksat_set[]     = {0.446, 0.0743, 0.415};
+  // double smcmax_set[]   = {0.3513, 0.3773, 0.3617};
+  // double vg_n_set[]     = {1.44260592334, 1.14965918354, 1.39051695249};
+  // double vg_alpha_set[] = {0.0021297, 0.0073272, 0.0027454};
+  // double Ksat_set[]     = {0.446, 0.0743, 0.415};
+
+  double smcmax_1_set       = 0.3513;
+  double van_genuchten_n_1_set         = 1.44260592334;
+  double van_genuchten_n_2_set         = 1.14965918354;
+  double van_genuchten_alpha_1_set     = 0.0021297;
+  double van_genuchten_alpha_2_set     = 0.0073272;
+  double hydraulic_conductivity_1_set         = 0.446;
+  double hydraulic_conductivity_2_set         = 0.0743;
   double field_capacity_set = 103.3;
-  double ponded_depth_max_set = 1.0;
- 
+  double a_set              = 0.001; 
+  double b_set              = 3.0;
+  double frac_to_GW_set     = 0.1;
+  double spf_factor_set     = 0.9;
+
   // Get the initial values set through the config file
-  model_calib.GetValue("smcmax", &smcmax[0]);
-  model_calib.GetValue("van_genuchten_n", &vg_n[0]);
-  model_calib.GetValue("van_genuchten_alpha", &vg_alpha[0]);
-  model_calib.GetValue("hydraulic_conductivity", &Ksat[0]);
+  // model_calib.GetValue("smcmax", &smcmax[0]);
+  // model_calib.GetValue("van_genuchten_n", &vg_n[0]);
+  // model_calib.GetValue("van_genuchten_alpha", &vg_alpha[0]);
+  // model_calib.GetValue("hydraulic_conductivity", &Ksat[0]);
+  model_calib.GetValue("smcmax_1", &smcmax_1);
+  model_calib.GetValue("van_genuchten_n_1", &vg_n_1);
+  model_calib.GetValue("van_genuchten_alpha_1", &vg_alpha_1);
+  model_calib.GetValue("hydraulic_conductivity_1", &Ksat_1);
+  model_calib.GetValue("van_genuchten_n_2", &vg_n_2);
+  model_calib.GetValue("van_genuchten_alpha_2", &vg_alpha_2);
+  model_calib.GetValue("hydraulic_conductivity_2", &Ksat_2);
   model_calib.GetValue("field_capacity", &field_capacity);
-  model_calib.GetValue("ponded_depth_max", &ponded_depth_max);
+  model_calib.GetValue("a", &a);
+  model_calib.GetValue("b", &b);
+  model_calib.GetValue("frac_to_GW", &frac_to_GW);
+  model_calib.GetValue("spf_factor", &spf_factor);
   
-  for (int i=0; i < num_layers; i++)
-    std::cout<<"| Initial values: layer = "<< i+1 <<", smcmax = "<< smcmax[i]
-	     <<", vg_n = "<< vg_n[i] <<", vg_alpha = " << vg_alpha[i]
-	     <<", Ksat = "<< Ksat[i] <<"\n";
-  printf("field_capacity: %lf \n", field_capacity);
-  printf("ponded_depth_max: %lf \n", ponded_depth_max);
+  // for (int i=0; i < num_layers; i++)
+  //   std::cout<<"| Initial values: layer = "<< i+1 <<", smcmax = "<< smcmax[i]
+	//      <<", vg_n = "<< vg_n[i] <<", vg_alpha = " << vg_alpha[i]
+	//      <<", Ksat = "<< Ksat[i] <<"\n";
+
+  // printf("field_capacity: %lf \n", smc_max_1);
+  // printf("a: %lf \n", vg_n_1);
+  // printf("a: %lf \n", vg_alpha_1);
+  // printf("a: %lf \n", Ksat_1);
+  // printf("a: %lf \n", vg_n_2);
+  // printf("a: %lf \n", vg_alpha_2);
+  // printf("a: %lf \n", Ksat_2);
+  // printf("field_capacity: %lf \n", field_capacity);
+  // printf("a: %lf \n", a);
+  // printf("a: %lf \n", b);
+  // printf("a: %lf \n", frac_to_GW);
+  // printf("a: %lf \n", spf_factor);
+
 
   // set the new values
-  model_calib.SetValue("smcmax", &smcmax_set[0]);
-  model_calib.SetValue("van_genuchten_n", &vg_n_set[0]);
-  model_calib.SetValue("van_genuchten_alpha", &vg_alpha_set[0]);
-  model_calib.SetValue("hydraulic_conductivity", &Ksat_set[0]);
+  // model_calib.SetValue("smcmax", &smcmax_set[0]);
+  // model_calib.SetValue("van_genuchten_n", &vg_n_set[0]);
+  // model_calib.SetValue("van_genuchten_alpha", &vg_alpha_set[0]);
+  // model_calib.SetValue("hydraulic_conductivity", &Ksat_set[0]);
+  // model_calib.SetValue("field_capacity", &field_capacity_set);
+  // model_calib.SetValue("ponded_depth_max", &ponded_depth_max_set);
+
+  model_calib.SetValue("smcmax_1", &smcmax_1_set);
+  model_calib.SetValue("van_genuchten_n_1", &van_genuchten_n_1_set);
+  model_calib.SetValue("van_genuchten_alpha_1", &van_genuchten_alpha_1_set);
+  model_calib.SetValue("hydraulic_conductivity_1", &hydraulic_conductivity_1_set);
+  model_calib.SetValue("van_genuchten_n_2", &van_genuchten_n_2_set);
+  model_calib.SetValue("van_genuchten_alpha_2", &van_genuchten_alpha_2_set);
+  model_calib.SetValue("hydraulic_conductivity_2", &hydraulic_conductivity_2_set);
   model_calib.SetValue("field_capacity", &field_capacity_set);
-  model_calib.SetValue("ponded_depth_max", &ponded_depth_max_set);
+  model_calib.SetValue("a", &a_set);
+  model_calib.SetValue("b", &b_set);
+  model_calib.SetValue("frac_to_GW", &frac_to_GW_set);
+  model_calib.SetValue("spf_factor", &spf_factor_set);
  
-  // get the new/updated values
-  model_calib.GetValue("smcmax", &smcmax[0]);
-  model_calib.GetValue("van_genuchten_n", &vg_n[0]);
-  model_calib.GetValue("van_genuchten_alpha", &vg_alpha[0]);
-  model_calib.GetValue("hydraulic_conductivity", &Ksat[0]);
+  // // get the new/updated values
+  // model_calib.GetValue("smcmax", &smcmax[0]);
+  // model_calib.GetValue("van_genuchten_n", &vg_n[0]);
+  // model_calib.GetValue("van_genuchten_alpha", &vg_alpha[0]);
+  // model_calib.GetValue("hydraulic_conductivity", &Ksat[0]);
+  // model_calib.GetValue("field_capacity", &field_capacity);
+  // model_calib.GetValue("ponded_depth_max", &ponded_depth_max);
+ 
+  model_calib.GetValue("smcmax_1", &smcmax_1);
+  model_calib.GetValue("van_genuchten_n_1", &vg_n_1);
+  model_calib.GetValue("van_genuchten_alpha_1", &vg_alpha_1);
+  model_calib.GetValue("hydraulic_conductivity_1", &Ksat_1);
+  model_calib.GetValue("van_genuchten_n_2", &vg_n_2);
+  model_calib.GetValue("van_genuchten_alpha_2", &vg_alpha_2);
+  model_calib.GetValue("hydraulic_conductivity_2", &Ksat_2);
   model_calib.GetValue("field_capacity", &field_capacity);
-  model_calib.GetValue("ponded_depth_max", &ponded_depth_max);
- 
-  if (fabs(ponded_depth_max  - ponded_depth_max_set) > 1.E-5) {
+  model_calib.GetValue("a", &a);
+  model_calib.GetValue("b", &b);
+  model_calib.GetValue("frac_to_GW", &frac_to_GW);
+  model_calib.GetValue("spf_factor", &spf_factor);
+
+
+
+
+
+
+
+  // if (fabs(ponded_depth_max  - ponded_depth_max_set) > 1.E-5) {
+  //   std::stringstream errMsg;
+  //   errMsg << "Mismatch between ponded_depth_max calibrated values set and get "<< ponded_depth_max_set<<" "<< ponded_depth_max
+  //     << " which is unexpected. \n";
+  //   throw std::runtime_error(errMsg.str());
+  // }
+
+  if (fabs(smcmax_1  - smcmax_1_set) > 1.E-5) {
     std::stringstream errMsg;
-    errMsg << "Mismatch between ponded_depth_max calibrated values set and get "<< ponded_depth_max_set<<" "<< ponded_depth_max
+    errMsg << "Mismatch between smcmax calibrated values set and get "<< smcmax_1_set<<" "<< smcmax_1
+      << " which is unexpected. \n";
+    throw std::runtime_error(errMsg.str());
+  }
+
+  if (fabs(vg_n_1  - van_genuchten_n_1_set) > 1.E-5) {
+    std::stringstream errMsg;
+    errMsg << "Mismatch between van_genuchten_n_1 calibrated values set and get "<< van_genuchten_n_1_set<<" "<< vg_n_1
+      << " which is unexpected. \n";
+    throw std::runtime_error(errMsg.str());
+  }
+
+  if (fabs(vg_n_2  - van_genuchten_n_2_set) > 1.E-5) {
+    std::stringstream errMsg;
+    errMsg << "Mismatch between van_genuchten_n_2 calibrated values set and get "<< van_genuchten_n_2_set<<" "<< vg_n_2
+      << " which is unexpected. \n";
+    throw std::runtime_error(errMsg.str());
+  }
+
+  if (fabs(vg_alpha_1  - van_genuchten_alpha_1_set) > 1.E-5) {
+    std::stringstream errMsg;
+    errMsg << "Mismatch between van_genuchten_alpha_1 calibrated values set and get "<< van_genuchten_alpha_1_set<<" "<< vg_alpha_1
+      << " which is unexpected. \n";
+    throw std::runtime_error(errMsg.str());
+  }
+
+  if (fabs(vg_alpha_2  - van_genuchten_alpha_2_set) > 1.E-5) {
+    std::stringstream errMsg;
+    errMsg << "Mismatch between van_genuchten_alpha_1 calibrated values set and get "<< van_genuchten_alpha_2_set<<" "<< vg_alpha_2
+      << " which is unexpected. \n";
+    throw std::runtime_error(errMsg.str());
+  }
+
+  if (fabs(Ksat_1  - hydraulic_conductivity_1_set) > 1.E-5) {
+    std::stringstream errMsg;
+    errMsg << "Mismatch between hydraulic_conductivity_1 calibrated values set and get "<< hydraulic_conductivity_1_set<<" "<< Ksat_1
+      << " which is unexpected. \n";
+    throw std::runtime_error(errMsg.str());
+  }
+
+  if (fabs(Ksat_2  - hydraulic_conductivity_2_set) > 1.E-5) {
+    std::stringstream errMsg;
+    errMsg << "Mismatch between hydraulic_conductivity_2 calibrated values set and get "<< hydraulic_conductivity_2_set<<" "<< Ksat_2
       << " which is unexpected. \n";
     throw std::runtime_error(errMsg.str());
   }
@@ -636,45 +760,83 @@ int main(int argc, char *argv[])
     throw std::runtime_error(errMsg.str());
   }
 
-  for (int i=0; i < num_layers; i++) {
-    
-    if (fabs(smcmax[i]  - smcmax_set[i]) > 1.E-5) {
-      std::stringstream errMsg;
-      errMsg << "Mismatch between smcmax calibrated values set and get "<< smcmax_set[i]<<" "<< smcmax[i]
-	     << " which is unexpected. \n";
-      throw std::runtime_error(errMsg.str());
-    }
-    
-    if (fabs(vg_n[i]  - vg_n_set[i]) > 1.E-5) {
-      std::stringstream errMsg;
-      errMsg << "Mismatch between vg_n calibrated values set and get "<< vg_n_set[i]<<" "<< vg_n[i]
-	     << " which is unexpected. \n";
-      throw std::runtime_error(errMsg.str());
-    }
-    
-    if (fabs(vg_alpha[i]  - vg_alpha_set[i]) > 1.E-5) {
-      std::stringstream errMsg;
-      errMsg << "Mismatch between vg_alpha calibrated values set and get "<< vg_alpha_set[i]<<" "<< vg_alpha[i]
-	     << " which is unexpected. \n";
-      throw std::runtime_error(errMsg.str());
-    }
-    
-    if (fabs(Ksat[i]  - Ksat_set[i]) > 1.E-5) {
-      std::stringstream errMsg;
-      errMsg << "Mismatch between hydraulic conductivity calibrated values set and get "<< Ksat_set[i]<<" "<< Ksat[i]
-	     << " which is unexpected. \n";
-      throw std::runtime_error(errMsg.str());
-    }
-    
+  if (fabs(a  - a_set) > 1.E-5) {
+    std::stringstream errMsg;
+    errMsg << "Mismatch between a calibrated values set and get "<< a_set<<" "<< a
+      << " which is unexpected. \n";
+    throw std::runtime_error(errMsg.str());
   }
 
+  if (fabs(b  - b_set) > 1.E-5) {
+    std::stringstream errMsg;
+    errMsg << "Mismatch between a calibrated values set and get "<< a_set<<" "<< a
+      << " which is unexpected. \n";
+    throw std::runtime_error(errMsg.str());
+  }
+
+  if (fabs(frac_to_GW  - frac_to_GW_set) > 1.E-5) {
+    std::stringstream errMsg;
+    errMsg << "Mismatch between a calibrated values set and get "<< a_set<<" "<< a
+      << " which is unexpected. \n";
+    throw std::runtime_error(errMsg.str());
+  }
+
+  if (fabs(spf_factor  - spf_factor_set) > 1.E-5) {
+    std::stringstream errMsg;
+    errMsg << "Mismatch between a calibrated values set and get "<< a_set<<" "<< a
+      << " which is unexpected. \n";
+    throw std::runtime_error(errMsg.str());
+  }
+
+  // for (int i=0; i < num_layers; i++) {
+    
+  //   if (fabs(smcmax[i]  - smcmax_set[i]) > 1.E-5) {
+  //     std::stringstream errMsg;
+  //     errMsg << "Mismatch between smcmax calibrated values set and get "<< smcmax_set[i]<<" "<< smcmax[i]
+	//      << " which is unexpected. \n";
+  //     throw std::runtime_error(errMsg.str());
+  //   }
+    
+  //   if (fabs(vg_n[i]  - vg_n_set[i]) > 1.E-5) {
+  //     std::stringstream errMsg;
+  //     errMsg << "Mismatch between vg_n calibrated values set and get "<< vg_n_set[i]<<" "<< vg_n[i]
+	//      << " which is unexpected. \n";
+  //     throw std::runtime_error(errMsg.str());
+  //   }
+    
+  //   if (fabs(vg_alpha[i]  - vg_alpha_set[i]) > 1.E-5) {
+  //     std::stringstream errMsg;
+  //     errMsg << "Mismatch between vg_alpha calibrated values set and get "<< vg_alpha_set[i]<<" "<< vg_alpha[i]
+	//      << " which is unexpected. \n";
+  //     throw std::runtime_error(errMsg.str());
+  //   }
+    
+  //   if (fabs(Ksat[i]  - Ksat_set[i]) > 1.E-5) {
+  //     std::stringstream errMsg;
+  //     errMsg << "Mismatch between hydraulic conductivity calibrated values set and get "<< Ksat_set[i]<<" "<< Ksat[i]
+	//      << " which is unexpected. \n";
+  //     throw std::runtime_error(errMsg.str());
+  //   }
+    
+  // }
+
   std::cout<<"|  \n";
-  for (int i=0; i < num_layers; i++)
-    std::cout<<"| Calib. values: layer = "<< i+1 <<", smcmax = "<< smcmax[i]
-	     <<", vg_n = "<< vg_n[i] <<", vg_alpha = " << vg_alpha[i]
-	     <<", Ksat = "<< Ksat[i] <<"\n";
+  // for (int i=0; i < num_layers; i++)
+  //   std::cout<<"| Calib. values: layer = "<< i+1 <<", smcmax = "<< smcmax[i]
+	//      <<", vg_n = "<< vg_n[i] <<", vg_alpha = " << vg_alpha[i]
+	//      <<", Ksat = "<< Ksat[i] <<"\n";
+  printf("smcmax_1 = %lf \n", smcmax_1);
+  printf("Ksat_1 = %lf \n", Ksat_1);
+  printf("Ksat_2 = %lf \n", Ksat_2);
+  printf("vg_n_1 = %lf \n", vg_n_1);
+  printf("vg_n_2 = %lf \n", vg_n_2);
+  printf("vg_alpha_1 = %lf \n", vg_alpha_1);
+  printf("vg_alpha_2 = %lf \n", vg_alpha_2);
   printf("field_capacity = %lf \n", field_capacity);
-  printf("ponded_depth_max = %lf \n", ponded_depth_max);
+  printf("a = %lf \n", a);
+  printf("b = %lf \n", b);
+  printf("frac_to_GW = %lf \n", frac_to_GW);
+  printf("spf_factor = %lf \n", spf_factor);
   std::cout<<"| *************************************** \n";
   std::cout<<"| LASAM Calibration test passed? YES \n";
   std::cout<<RESET<<"\n";

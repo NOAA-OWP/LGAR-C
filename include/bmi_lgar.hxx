@@ -65,14 +65,31 @@ public:
     this->output_var_names[21] = "cum_percolation";
     */
 
-    // calibratable parameters
-    this->calib_var_names[0] = "smcmax";
-    this->calib_var_names[1] = "smcmin";
-    this->calib_var_names[2] = "van_genuchten_n";
-    this->calib_var_names[3] = "van_genuchten_alpha";
-    this->calib_var_names[4] = "hydraulic_conductivity";
-    this->calib_var_names[5] = "field_capacity";
-    this->calib_var_names[6] = "ponded_depth_max";
+    // // calibratable parameters
+    // // old version before thorough testing at catchment scale
+    // this->calib_var_names[0] = "smcmax";
+    // this->calib_var_names[1] = "smcmin";
+    // this->calib_var_names[2] = "van_genuchten_n";
+    // this->calib_var_names[3] = "van_genuchten_alpha";
+    // this->calib_var_names[4] = "hydraulic_conductivity";
+    // this->calib_var_names[5] = "field_capacity";
+    // this->calib_var_names[6] = "ponded_depth_max";
+
+    // //calibratable parameters have been updated to reflect those used in broad testing, which used a 2 layer instance of LGAR. Edits to this list are absolutely possible.
+    this->calib_var_names[0]  = "smcmax_1";
+    this->calib_var_names[1]  = "van_genuchten_n_1";
+    this->calib_var_names[2]  = "van_genuchten_alpha_1";
+    this->calib_var_names[3]  = "hydraulic_conductivity_1";
+    this->calib_var_names[4]  = "van_genuchten_n_2";
+    this->calib_var_names[5]  = "van_genuchten_alpha_2";
+    this->calib_var_names[6]  = "hydraulic_conductivity_2";
+    this->calib_var_names[7]  = "field_capacity";
+    this->calib_var_names[8]  = "a";
+    this->calib_var_names[9]  = "b";
+    this->calib_var_names[10] = "frac_to_GW";
+    this->calib_var_names[11] = "spf_factor";
+
+
   };
   
   void Initialize(std::string config_file);
@@ -136,7 +153,7 @@ private:
   struct model_state* state;
   static const int input_var_name_count  = 3;
   static const int output_var_name_count = 15;
-  static const int calib_var_name_count  = 7;
+  static const int calib_var_name_count  = 12;
   
   std::string input_var_names[input_var_name_count];
   std::string output_var_names[output_var_name_count];
