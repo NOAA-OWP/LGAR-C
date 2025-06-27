@@ -1,6 +1,7 @@
 /*
   author: Ahmad Jan (ahmad.jan@noaa.gov)
   date:  November 9, 2022
+  updates from Peter La Follette (plafollette@lynker.com) on 27 June 2025
   - Includes unit test for bmi components and run model for a timestep to compute depth and soil moisture of wetting fronts
   - compares bmi input/output names, units, and memory allocation against benchmark
   - test passed criteria : test most of the bmi functions, i.e., bmi functions get/set expected values/behavior
