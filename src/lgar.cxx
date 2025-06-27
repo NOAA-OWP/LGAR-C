@@ -1377,7 +1377,9 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
         //the idea here is that in some cases, the reduction in theta via WF movement or AET will be intense enough such that theta goes below theta_r.
         //it requires a fairly unusual soil, which I encountered during random parameter sampling.
         double mass_before_theta_went_below_theta_r = lgar_calc_mass_bal(cum_layer_thickness_cm, *head) - current->depth_cm*(current->theta - (prior_mass/current->depth_cm + next->theta));
-        listDeleteFront(current->front_num, head);
+        // listDeleteFront(current->front_num, head);
+        current = listDeleteFront(current->front_num, head);
+        current = next;
         double mass_after_theta_went_below_theta_r = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
         *AET_demand_cm = *AET_demand_cm - fabs(mass_before_theta_went_below_theta_r - mass_after_theta_went_below_theta_r);
         actual_ET_demand = *AET_demand_cm;
