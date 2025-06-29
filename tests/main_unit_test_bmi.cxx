@@ -608,10 +608,10 @@ int main(int argc, char *argv[])
   double hydraulic_conductivity_1_set         = 0.446;
   double hydraulic_conductivity_2_set         = 0.0743;
   double field_capacity_set = 103.3;
-  double a_set              = 0.001; 
-  double b_set              = 3.0;
-  double frac_to_GW_set     = 0.1;
-  double spf_factor_set     = 0.9;
+  double a_set              = 0.003; 
+  double b_set              = 2.5;
+  double frac_to_GW_set     = 0.05;
+  double spf_factor_set     = 0.92;
 
   // Get the initial values set through the config file
   // model_calib.GetValue("smcmax", &smcmax[0]);
