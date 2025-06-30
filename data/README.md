@@ -1,16 +1,18 @@
 ## Description of calibratable parameters
 
-A detailed description of the calibratable parameters is given below. However, not all parameters should probably be included in calibration because this would lead to a large calibratabale space. It is recommended to calibrate:
+A detailed description of the calibratable parameters is given below. However, not all parameters should probably be included in calibration because this would lead to a large calibratabale space. 
 
-theta_e for the top layer
-alpha for the top two layers
-Ks for the top two layers
-n for the top two layers
-field_capacity_psi
-a
-b
-frac_to_GW
-spf_factor
+It is recommended to calibrate:
+
+- `theta_e` for the top layer  
+- `alpha` for the top two layers  
+- `Ks` for the top two layers  
+- `n` for the top two layers  
+- `field_capacity_psi`  
+- `a`  
+- `b`  
+- `frac_to_GW`  
+- `spf_factor`
 
 Note that it is not necessarily recommended to calibrate maximum ponded head or theta_r.
 
