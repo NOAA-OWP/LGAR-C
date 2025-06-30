@@ -294,11 +294,16 @@ Update()
     }
     state->state_previous = listCopy(state->head);
 
+    double ponded_flux_for_CR = 0.0;
+
     // allocates some water to conceptual reservoir storage via conditional preferential flow
     if (state->lgar_bmi_params.runoff_in_prev_step){
       double precip_subtimestep_cm_per_h_total = precip_subtimestep_cm_per_h;
       precip_for_CR_subtimestep_cm_per_h = frac_to_GW * precip_subtimestep_cm_per_h_total;
       precip_subtimestep_cm_per_h = (1.0 - frac_to_GW) * precip_subtimestep_cm_per_h_total;
+
+      ponded_flux_for_CR = volon_timestep_cm/subtimestep_h*frac_to_GW;
+      volon_timestep_cm = volon_timestep_cm*(1 - frac_to_GW);
     }
 
     /* Note unit conversion:
@@ -531,7 +536,7 @@ Update()
     state->lgar_bmi_params.precip_previous_timestep_cm = precip_subtimestep_cm;
 
     double CR_storage_start_cm = state->lgar_mass_balance.CR_storage_cm;
-    double CR_Q_subtimestep_cm = calc_CR_Q(subtimestep_h, a, b, precip_for_CR_subtimestep_cm_per_h, &state->lgar_mass_balance.CR_storage_cm);
+    double CR_Q_subtimestep_cm = calc_CR_Q(subtimestep_h, a, b, precip_for_CR_subtimestep_cm_per_h + ponded_flux_for_CR, &state->lgar_mass_balance.CR_storage_cm);
     state->lgar_mass_balance.volrunoff_CR_cm += CR_Q_subtimestep_cm;
     CR_Q_timestep_cm += CR_Q_subtimestep_cm;
 
