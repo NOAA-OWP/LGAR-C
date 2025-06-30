@@ -1125,7 +1125,7 @@ extern int wetting_front_free_drainage(struct wetting_front* head) {
   Note: '_old' denotes the wetting_front or variables at the previous timestep (or state)
 */
 // #######################################################################################################
-extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf_free_drainage_demand,
+extern double lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf_free_drainage_demand,
 				     double old_mass, int num_layers, double *AET_demand_cm, double *cum_layer_thickness_cm,
 				     int *soil_type, double *frozen_factor, struct wetting_front** head,
 				     struct wetting_front* state_previous, struct soil_properties_ *soil_properties)
@@ -1693,6 +1693,7 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
     }
   }
 
+  return(bottom_boundary_flux_cm);
 
 }
 

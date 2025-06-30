@@ -321,6 +321,7 @@ Update()
     volrunoff_subtimestep_cm      = 0.0;
     volrech_subtimestep_cm        = 0.0;
     surface_runoff_subtimestep_cm = 0.0;
+    double temp_rch               = 0.0; //handles case when a fraction of a wetting front technically crosses the lower boundary of the vadose zone
 
     PET_subtimestep_cm_per_h = state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm;
 
@@ -404,16 +405,16 @@ Update()
 
         // move the wetting fronts without adding any water; this is done to close the mass balance
         // and also to merge / cross if necessary 
-        lgar_move_wetting_fronts(subtimestep_h, &temp_pd, wf_free_drainage_demand, volend_subtimestep_cm,
+        temp_rch = lgar_move_wetting_fronts(subtimestep_h, &temp_pd, wf_free_drainage_demand, volend_subtimestep_cm,
               num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
               state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
               &state->head, state->state_previous, state->soil_properties);
 
-        if (temp_pd != 0.0){ //if temp_pd != 0.0, that means that some water left the model through the lower model bdy
-          volrech_subtimestep_cm = temp_pd;
-          // volrech_timestep_cm += volrech_subtimestep_cm;
-          temp_pd = 0.0;
-        }
+        // if (temp_pd != 0.0){ //if temp_pd != 0.0, that means that some water left the model through the lower model bdy. For LGARTO preparation, this has been refactored such that temp_rch handles this now.
+        //   // volrech_subtimestep_cm = temp_pd;
+        //   // volrech_timestep_cm += volrech_subtimestep_cm;
+        //   // temp_pd = 0.0;
+        // }
         
         // depth of the surficial front to be created
         dry_depth = lgar_calc_dry_depth(use_closed_form_G, nint, subtimestep_h, &delta_theta, state->lgar_bmi_params.layer_soil_type,
@@ -493,7 +494,7 @@ Update()
         double volin_subtimestep_cm_temp = volin_subtimestep_cm;  /* passing this for mass balance only, the method modifies it
                     and returns percolated value, so we need to keep its original
                     value stored to copy it back*/
-        lgar_move_wetting_fronts(subtimestep_h, &volin_subtimestep_cm, wf_free_drainage_demand, volend_subtimestep_cm,
+        temp_rch = lgar_move_wetting_fronts(subtimestep_h, &volin_subtimestep_cm, wf_free_drainage_demand, volend_subtimestep_cm,
               num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
               state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
               &state->head, state->state_previous, state->soil_properties);
@@ -519,6 +520,8 @@ Update()
       if (switch_caching){
         state->lgar_bmi_params.cache_count = 1;
       }
+
+      volrech_subtimestep_cm = temp_rch;
 
     }
 
