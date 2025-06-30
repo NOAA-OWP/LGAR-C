@@ -727,14 +727,8 @@ update_calibratable_parameters()
 
   // first we update the parameters that depend on soil layer, for each layer. 
   // This no longer relies on arrays (for compatability with ngen-cal) and instead supports calibration of up to 3 soil layers with scalar parameters.
-  int layer_num_prev = 0;
   for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
     layer_num  = current->layer_num;
-    if (layer_num_prev==layer_num){
-      continue;
-    }
-    layer_num_prev = layer_num; //prevents the loop from running for each WF -- just has to run once for each soil layer
-
     soil = state->lgar_bmi_params.layer_soil_type[layer_num];
     
     assert (current != NULL);
