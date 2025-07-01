@@ -97,7 +97,7 @@ extern void lgar_initialize(string config_file, struct model_state *state)
   state->lgar_calib_params.ponded_depth_max = state->lgar_bmi_params.ponded_depth_max_cm;
   state->lgar_calib_params.a = state->lgar_bmi_params.a;
   state->lgar_calib_params.b = state->lgar_bmi_params.b;
-  state->lgar_calib_params.frac_to_GW = state->lgar_bmi_params.frac_to_GW;
+  state->lgar_calib_params.frac_to_CR = state->lgar_bmi_params.frac_to_CR;
   state->lgar_calib_params.spf_factor = state->lgar_bmi_params.spf_factor;
 
   struct wetting_front *current = state->head;
@@ -264,7 +264,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   bool is_field_capacity_psi_cm_set = false;
   bool is_a_set                     = false;
   bool is_b_set                     = false;
-  bool is_frac_to_GW_set            = false;
+  bool is_frac_to_CR_set            = false;
   bool is_spf_factor_set            = false;
   bool is_soil_params_file_set      = false;
   bool is_max_valid_soil_types_set  = false;
@@ -448,12 +448,22 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       }
       continue;
     }
-    else if (param_key == "frac_to_GW") {
-      state->lgar_bmi_params.frac_to_GW = stod(param_value);
-      is_frac_to_GW_set = true;
+    else if (param_key == "frac_to_CR") {
+      state->lgar_bmi_params.frac_to_CR = stod(param_value);
+      is_frac_to_CR_set = true;
 
       if (verbosity.compare("high") == 0) {
-	std::cerr<<"frac_to_GW : "<<state->lgar_bmi_params.frac_to_GW<<"\n";
+	std::cerr<<"frac_to_CR : "<<state->lgar_bmi_params.frac_to_CR<<"\n";
+	std::cerr<<"          *****         \n";
+      }
+      continue;
+    }
+    else if (param_key == "frac_to_GW") {
+      state->lgar_bmi_params.frac_to_CR = stod(param_value);
+      is_frac_to_CR_set = true;
+
+      if (verbosity.compare("high") == 0) {
+	std::cerr<<"frac_to_CR (using old name in config): "<<state->lgar_bmi_params.frac_to_CR<<"\n";
 	std::cerr<<"          *****         \n";
       }
       continue;
@@ -780,11 +790,11 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     throw runtime_error(errMsg.str());
   }
 
-  if (! ( (is_a_set == is_b_set) && (is_frac_to_GW_set == is_b_set)) ){
+  if (! ( (is_a_set == is_b_set) && (is_frac_to_CR_set == is_b_set)) ){
     //in this case, it must be either the case that all of these have been set (the user wants a nonlinear GW reservoir), or that none of these are set (the user does not want this).
     //it can not be the case that only one or two of these three have been set.
     stringstream errMsg;
-    errMsg << "The configuration file \'" << config_file <<"\' does not correctly set a, b, and frac_to_GW. Either all or none must be set. a and b must be 0 or greater and frac_to_GW must be between 0 and 1. \n";
+    errMsg << "The configuration file \'" << config_file <<"\' does not correctly set a, b, and frac_to_CR. Either all or none must be set. a and b must be 0 or greater and frac_to_CR must be between 0 and 1. \n";
     throw runtime_error(errMsg.str());
   }
 
@@ -1064,7 +1074,7 @@ extern void lgar_global_mass_balance(struct model_state *state, double *giuh_run
   printf("Total percolation         = %14.10f cm\n", volrech);
   printf("Total AET                 = %14.10f cm\n", volAET);
   printf("Total PET                 = %14.10f cm\n", volPET);
-  if (state->lgar_bmi_params.frac_to_GW){
+  if (state->lgar_bmi_params.frac_to_CR){
     printf("storage in GW reservoir  = %14.10f cm\n", state->lgar_mass_balance.CR_storage_cm);
     printf("runoff from GW reservoir = %14.10f cm\n", volrunoff_CR);
   }

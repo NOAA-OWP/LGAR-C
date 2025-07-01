@@ -592,7 +592,7 @@ int main(int argc, char *argv[])
   double field_capacity;
   double a;
   double b;
-  double frac_to_GW;
+  double frac_to_CR;
   double spf_factor;
 
   // double smcmax_set[]   = {0.3513, 0.3773, 0.3617};
@@ -610,7 +610,7 @@ int main(int argc, char *argv[])
   double field_capacity_set = 103.3;
   double a_set              = 0.003; 
   double b_set              = 2.5;
-  double frac_to_GW_set     = 0.05;
+  double frac_to_CR_set     = 0.05;
   double spf_factor_set     = 0.92;
 
   // Get the initial values set through the config file
@@ -628,7 +628,7 @@ int main(int argc, char *argv[])
   model_calib.GetValue("field_capacity", &field_capacity);
   model_calib.GetValue("a", &a);
   model_calib.GetValue("b", &b);
-  model_calib.GetValue("frac_to_GW", &frac_to_GW);
+  model_calib.GetValue("frac_to_CR", &frac_to_CR);
   model_calib.GetValue("spf_factor", &spf_factor);
   
   // for (int i=0; i < num_layers; i++)
@@ -646,7 +646,7 @@ int main(int argc, char *argv[])
   // printf("field_capacity: %lf \n", field_capacity);
   // printf("a: %lf \n", a);
   // printf("a: %lf \n", b);
-  // printf("a: %lf \n", frac_to_GW);
+  // printf("a: %lf \n", frac_to_CR);
   // printf("a: %lf \n", spf_factor);
 
 
@@ -668,7 +668,7 @@ int main(int argc, char *argv[])
   model_calib.SetValue("field_capacity", &field_capacity_set);
   model_calib.SetValue("a", &a_set);
   model_calib.SetValue("b", &b_set);
-  model_calib.SetValue("frac_to_GW", &frac_to_GW_set);
+  model_calib.SetValue("frac_to_CR", &frac_to_CR_set);
   model_calib.SetValue("spf_factor", &spf_factor_set);
  
   // // get the new/updated values
@@ -689,7 +689,7 @@ int main(int argc, char *argv[])
   model_calib.GetValue("field_capacity", &field_capacity);
   model_calib.GetValue("a", &a);
   model_calib.GetValue("b", &b);
-  model_calib.GetValue("frac_to_GW", &frac_to_GW);
+  model_calib.GetValue("frac_to_CR", &frac_to_CR);
   model_calib.GetValue("spf_factor", &spf_factor);
 
 
@@ -775,7 +775,7 @@ int main(int argc, char *argv[])
     throw std::runtime_error(errMsg.str());
   }
 
-  if (fabs(frac_to_GW  - frac_to_GW_set) > 1.E-5) {
+  if (fabs(frac_to_CR  - frac_to_CR_set) > 1.E-5) {
     std::stringstream errMsg;
     errMsg << "Mismatch between a calibrated values set and get "<< a_set<<" "<< a
       << " which is unexpected. \n";
@@ -836,7 +836,7 @@ int main(int argc, char *argv[])
   printf("field_capacity = %lf \n", field_capacity);
   printf("a = %lf \n", a);
   printf("b = %lf \n", b);
-  printf("frac_to_GW = %lf \n", frac_to_GW);
+  printf("frac_to_CR = %lf \n", frac_to_CR);
   printf("spf_factor = %lf \n", spf_factor);
   std::cout<<"| *************************************** \n";
   std::cout<<"| LASAM Calibration test passed? YES \n";

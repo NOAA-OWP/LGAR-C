@@ -16,6 +16,6 @@ giuh_ordinates=0.06,0.51,0.28,0.12,0.03
 adaptive_timestep=true
 a=0.001
 b=3.0
-frac_to_GW=0.1
+frac_to_CR=0.1
 spf_factor=0.9
 allow_flux_caching=true

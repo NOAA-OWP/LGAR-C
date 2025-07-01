@@ -86,7 +86,7 @@ public:
     this->calib_var_names[7]  = "field_capacity";
     this->calib_var_names[8]  = "a";
     this->calib_var_names[9]  = "b";
-    this->calib_var_names[10] = "frac_to_GW";
+    this->calib_var_names[10] = "frac_to_CR";
     this->calib_var_names[11] = "spf_factor";
 
 

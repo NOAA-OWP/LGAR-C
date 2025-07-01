@@ -139,7 +139,7 @@ struct lgar_bmi_parameters
   double ponded_depth_max_cm;            // maximum amount of water on the surface unavailable for surface runoff
   double a = 0.0;                        // parameter for nonlinear reservoir
   double b = 0.0;                        // parameter for nonlinear reservoir
-  double frac_to_GW = 0.0;               // parameter for nonlinear reservoir 
+  double frac_to_CR = 0.0;               // parameter for nonlinear reservoir 
   double spf_factor = 0.98;              // parameter that controls the theta value above which contributions to the nonlinear reservoir will be made
   double precip_previous_timestep_cm;    // amount of rainfall (previous time step)
 
@@ -242,7 +242,7 @@ struct lgar_calib_parameters
   double ponded_depth_max;      // maximum ponded depth of surface water [cm]
   double a;                      // parameter for nonlinear reservoir
   double b;                      // parameter for nonlinear reservoir
-  double frac_to_GW;             // parameter for nonlinear reservoir
+  double frac_to_CR;             // parameter for nonlinear reservoir
   double spf_factor;             // parameter for nonlinear reservoir
 
 };
