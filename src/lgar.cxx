@@ -251,6 +251,8 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   state->lgar_bmi_params.PET_affects_precip    = false;
   state->lgar_bmi_params.allow_flux_caching    = false;
   state->lgar_bmi_params.log_mode              = false;
+  state->lgar_bmi_params.free_drainage_enabled = false;
+  state->lgar_bmi_params.free_drainage_to_CR   = false;
   // setting mass balance tolerance to be large by default; this can be specified in the config file
   state->lgar_bmi_params.mbal_tol = 1.E1;
   
@@ -487,6 +489,34 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       }
       else {
 	std::cerr<<"Invalid option: use_closed_form_G must be true or false. \n";
+        abort();
+      }
+
+      continue;
+    }
+    else if (param_key == "free_drainage_enabled") { 
+      if (param_value == "false") {
+        state->lgar_bmi_params.free_drainage_enabled = false;
+      }
+      else if (param_value == "true") {
+        state->lgar_bmi_params.free_drainage_enabled = true;
+      }
+      else {
+	std::cerr<<"Invalid option: free_drainage_enabled must be true or false, or left unspecified (defaulting to false). \n";
+        abort();
+      }
+
+      continue;
+    }
+    else if (param_key == "free_drainage_to_CR") { 
+      if (param_value == "false") {
+        state->lgar_bmi_params.free_drainage_to_CR = false;
+      }
+      else if (param_value == "true") {
+        state->lgar_bmi_params.free_drainage_to_CR = true;
+      }
+      else {
+	std::cerr<<"Invalid option: free_drainage_to_CR must be true or false, or left unspecified (defaulting to false). \n";
         abort();
       }
 
@@ -795,6 +825,12 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     //it can not be the case that only one or two of these three have been set.
     stringstream errMsg;
     errMsg << "The configuration file \'" << config_file <<"\' does not correctly set a, b, and frac_to_CR. Either all or none must be set. a and b must be 0 or greater and frac_to_CR must be between 0 and 1. \n";
+    throw runtime_error(errMsg.str());
+  }
+
+  if (state->lgar_bmi_params.free_drainage_to_CR && !state->lgar_bmi_params.free_drainage_enabled){
+    stringstream errMsg;
+    errMsg << "The configuration file \'" << config_file <<"\' sets free_drainage_to_CR as true but sets free_drainage_enabled as false. free_drainage_to_CR being true requires free drainage being enabled \n";
     throw runtime_error(errMsg.str());
   }
 
@@ -1135,8 +1171,8 @@ extern int wetting_front_free_drainage(struct wetting_front* head) {
   Note: '_old' denotes the wetting_front or variables at the previous timestep (or state)
 */
 // #######################################################################################################
-extern double lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf_free_drainage_demand,
-				     double old_mass, int num_layers, double *AET_demand_cm, double *cum_layer_thickness_cm,
+extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_subtimestep_cm, double *volin_cm, int wf_free_drainage_demand,
+				     double old_mass, double mass_correction_for_cached_free_drainage_fluxes, int num_layers, double *AET_demand_cm, double *cum_layer_thickness_cm,
 				     int *soil_type, double *frozen_factor, struct wetting_front** head,
 				     struct wetting_front* state_previous, struct soil_properties_ *soil_properties)
 {
@@ -1171,7 +1207,8 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int 
 
   double bottom_boundary_flux_cm = 0.0; // water leaving the system through the bottom boundary
 
-  *volin_cm = 0.0; // assuming that all the water can fit in, if not then re-assign the left over water at the end
+  *volin_cm = 0.0; // assuming that all the water can fit in, if not then re-assign the left over water at the end. now handled from the returned value from this function
+  double free_drainage_demand = *free_drainage_subtimestep_cm;
 
   /* ************************************************************ */
   // main loop advancing all wetting fronts and doing the mass balance
@@ -1226,7 +1263,6 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int 
        listPrint(*head);
     }
 
-    double free_drainage_demand = 0.0;
     double actual_ET_demand = *AET_demand_cm;
 
     // case to check if the wetting front is at the interface, i.e. deepest wetting front within a layer
@@ -1324,10 +1360,10 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int 
       delta_thetas[layer_num] = 0.0;
       delta_thickness[layer_num] = current->depth_cm - cum_layer_thickness_cm[layer_num-1];
 
-      double free_drainage_demand = 0;
+      // double free_drainage_demand = 0;
 
       if (wf_free_drainage_demand == wf)
-	prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
+	prior_mass += precip_mass_to_add - (free_drainage_demand + mass_correction_for_cached_free_drainage_fluxes + actual_ET_demand);
 
       // theta mass balance computes new theta that conserves the mass; new theta is assigned to the current wetting front
 
@@ -1365,12 +1401,12 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int 
       // if wetting front is the most surficial wetting front
       if (layer_num == 1) {
 
-	double free_drainage_demand = 0;
+	// double free_drainage_demand = 0;
 	// prior mass = mass contained in the current old wetting front
 	double prior_mass = current_old->depth_cm * (current_old->theta -  next_old->theta);
 
 	if (wf_free_drainage_demand == wf)
-	  prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
+	  prior_mass += precip_mass_to_add - (free_drainage_demand + mass_correction_for_cached_free_drainage_fluxes + actual_ET_demand);
 
 	current->depth_cm += current->dzdt_cm_per_h * timestep_h;
 
@@ -1470,11 +1506,11 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int 
 	delta_thetas[layer_num] = next->theta;
 	delta_thickness[layer_num] = current->depth_cm - cum_layer_thickness_cm[layer_num-1];
 
-	double free_drainage_demand = 0;
+	// double free_drainage_demand = 0;
   
 
 	if (wf_free_drainage_demand == wf)
-	  prior_mass += precip_mass_to_add - (free_drainage_demand + actual_ET_demand);
+	  prior_mass += precip_mass_to_add - (free_drainage_demand + mass_correction_for_cached_free_drainage_fluxes + actual_ET_demand);
   // theta mass balance computes new theta that conserves the mass; new theta is assigned to the current wetting front
 	double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass, AET_demand_cm,
 						   delta_thetas, delta_thickness, soil_type, soil_properties);

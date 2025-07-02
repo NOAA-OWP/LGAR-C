@@ -322,6 +322,8 @@ Update()
     volrech_subtimestep_cm        = 0.0;
     surface_runoff_subtimestep_cm = 0.0;
     double temp_rch               = 0.0; //handles case when a fraction of a wetting front technically crosses the lower boundary of the vadose zone
+    double free_drainage_subtimestep_cm = 0.0;
+    double free_drainage_for_CR = 0.0;
 
     PET_subtimestep_cm_per_h = state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm;
 
@@ -336,9 +338,26 @@ Update()
 
     if (!state->lgar_mass_balance.cache_fluxes){
 
+      double mass_correction_for_cached_free_drainage_fluxes = 0.0;
+
       if (switch_caching){
         PET_subtimestep_cm_per_h += state->lgar_mass_balance.accumulated_PET;
         state->lgar_mass_balance.accumulated_PET = 0.0;
+        mass_correction_for_cached_free_drainage_fluxes += state->lgar_mass_balance.accumulated_free_drainage;
+        state->lgar_mass_balance.accumulated_free_drainage = 0.0;
+      }
+
+      if (state->lgar_bmi_params.free_drainage_enabled){
+        free_drainage_subtimestep_cm += subtimestep_h*listFindFront(listLength(state->head), state->head, NULL)->K_cm_per_h;
+        if (free_drainage_subtimestep_cm<1.E-7){
+          free_drainage_subtimestep_cm = 0.0;
+        }
+        if (listFindFront(listLength(state->head), state->head, NULL)->psi_cm>1.E6){
+          free_drainage_subtimestep_cm = 0.0;
+        }
+      }
+      if ((state->lgar_bmi_params.free_drainage_enabled) && verbosity.compare("high") == 0){
+        printf("free_drainage_subtimestep_cm: %.10lf \n", free_drainage_subtimestep_cm);
       }
 
       //using cerr instead of cout due to some cout buffering issues when running in the ngen framework, cerr doesn't buffer so it prints immediately to the sreeen.
@@ -405,7 +424,7 @@ Update()
 
         // move the wetting fronts without adding any water; this is done to close the mass balance
         // and also to merge / cross if necessary 
-        temp_rch = lgar_move_wetting_fronts(subtimestep_h, &temp_pd, wf_free_drainage_demand, volend_subtimestep_cm,
+        temp_rch = lgar_move_wetting_fronts(subtimestep_h, &free_drainage_subtimestep_cm, &temp_pd, wf_free_drainage_demand, volend_subtimestep_cm, mass_correction_for_cached_free_drainage_fluxes,
               num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
               state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
               &state->head, state->state_previous, state->soil_properties);
@@ -494,7 +513,7 @@ Update()
         double volin_subtimestep_cm_temp = volin_subtimestep_cm;  /* passing this for mass balance only, the method modifies it
                     and returns percolated value, so we need to keep its original
                     value stored to copy it back*/
-        temp_rch = lgar_move_wetting_fronts(subtimestep_h, &volin_subtimestep_cm, wf_free_drainage_demand, volend_subtimestep_cm,
+        temp_rch = lgar_move_wetting_fronts(subtimestep_h, &free_drainage_subtimestep_cm, &volin_subtimestep_cm, wf_free_drainage_demand, volend_subtimestep_cm, mass_correction_for_cached_free_drainage_fluxes,
               num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
               state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
               &state->head, state->state_previous, state->soil_properties);
@@ -522,6 +541,12 @@ Update()
       }
 
       volrech_subtimestep_cm = temp_rch;
+      if (!state->lgar_bmi_params.free_drainage_to_CR){
+        volrech_subtimestep_cm += free_drainage_subtimestep_cm;
+      }
+      else {
+        free_drainage_for_CR += free_drainage_subtimestep_cm;
+      }
 
     }
 
@@ -530,8 +555,13 @@ Update()
       PET_timestep_cm += fmax(PET_subtimestep_cm,0.0); // ensures non-negative PET
       state->lgar_mass_balance.accumulated_PET += PET_timestep_cm;
 
-      volrech_timestep_cm += state->lgar_mass_balance.previous_recharge;
-
+      if (!state->lgar_bmi_params.free_drainage_to_CR){
+        volrech_subtimestep_cm += state->lgar_mass_balance.previous_recharge;
+      }
+      else {
+        free_drainage_for_CR += state->lgar_mass_balance.previous_recharge;
+      }
+      state->lgar_mass_balance.accumulated_free_drainage += state->lgar_mass_balance.previous_recharge;
     }
 
     volend_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
@@ -539,7 +569,7 @@ Update()
     state->lgar_bmi_params.precip_previous_timestep_cm = precip_subtimestep_cm;
 
     double CR_storage_start_cm = state->lgar_mass_balance.CR_storage_cm;
-    double CR_Q_subtimestep_cm = calc_CR_Q(subtimestep_h, a, b, precip_for_CR_subtimestep_cm_per_h + ponded_flux_for_CR, &state->lgar_mass_balance.CR_storage_cm);
+    double CR_Q_subtimestep_cm = calc_CR_Q(subtimestep_h, a, b, precip_for_CR_subtimestep_cm_per_h + ponded_flux_for_CR + free_drainage_for_CR/subtimestep_h, &state->lgar_mass_balance.CR_storage_cm);
     state->lgar_mass_balance.volrunoff_CR_cm += CR_Q_subtimestep_cm;
     CR_Q_timestep_cm += CR_Q_subtimestep_cm;
 
@@ -672,7 +702,9 @@ Update()
   //for caching
   state->lgar_mass_balance.previous_AET         = AET_subtimestep_cm;
   state->lgar_mass_balance.previous_PET         = PET_subtimestep_cm;
-  state->lgar_mass_balance.previous_recharge    = volrech_subtimestep_cm;
+  if (!state->lgar_mass_balance.cache_fluxes){
+    state->lgar_mass_balance.previous_recharge    = volrech_subtimestep_cm;
+  }
 
   // add to mass balance accumulated variables
   state->lgar_mass_balance.volprecip_cm  += precip_timestep_cm;
