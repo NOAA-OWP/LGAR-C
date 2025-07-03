@@ -2825,7 +2825,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
     if (count_no_mass_change == break_no_mass_change)
       break;
     
-    if (psi_cm_loc > 1e7){//there are rare cases where theta is very close to theta_r, and delta_mass - delta_mass_prev will change extremely slowly. Convergence might be possible but the model will take hours to converge rather than seconds. 
+    if (psi_cm_loc > 1e6){//there are rare cases where theta is very close to theta_r, and delta_mass - delta_mass_prev will change extremely slowly. Convergence might be possible but the model will take hours to converge rather than seconds. 
     //an alternative solution was to change the threshold in if (fabs(delta_mass - delta_mass_prev) < 1e-15) to 1e-11, but that solution is somewhat slow. 
       break;
     }
