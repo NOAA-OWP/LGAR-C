@@ -283,7 +283,7 @@ extern int                      listLength(struct wetting_front* head);
 extern bool                     listIsEmpty();
 extern struct wetting_front*    listDeleteFirst(struct wetting_front** head);
 extern struct wetting_front*    listFindFront(int i, struct wetting_front* head, struct wetting_front* head_old);
-extern struct wetting_front*    listDeleteFront(int i, struct wetting_front** head);
+extern struct wetting_front*    listDeleteFront(int front_num, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
 extern void                     listSortFrontsByDepth(struct wetting_front *head);
 extern void                     listInsertFirst(double d, double t, int f, int l, bool b, struct wetting_front** head);
 extern struct wetting_front*    listInsertFront(double d, double t, int f, int l, bool b, struct wetting_front** head);

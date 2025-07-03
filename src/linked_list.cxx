@@ -205,7 +205,7 @@ extern struct wetting_front* listFindFront(int key, struct wetting_front* head, 
 /*##############################################################*/
 /* listDeleteFront -delete the front with a particular front number */
 /*##############################################################*/
-extern struct wetting_front* listDeleteFront(int front_num, struct wetting_front** head)
+extern struct wetting_front* listDeleteFront(int front_num, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties)
 {
   //start from the first link
   struct wetting_front* current = *head;
@@ -261,6 +261,30 @@ extern struct wetting_front* listDeleteFront(int front_num, struct wetting_front
     previous->front_num--;
     previous = previous->next;
   }
+
+  int front_num_return = current->front_num;
+
+  // ensure that psi is preserved across layer boundaries and theta is updated accordingly
+  if (front_num!=1){
+    for (int wf = listLength(*head)-1; wf != 0; wf--) {
+      struct wetting_front *current_temp = listFindFront(wf, *head, NULL);
+      struct wetting_front *next_temp = current_temp->next;
+      if ( (current_temp->to_bottom) ){
+        // current_temp->is_WF_GW = next_temp->is_WF_GW; // LGARTO thing
+        current_temp->psi_cm = next_temp->psi_cm;
+
+        int soil_num_k1 = soil_type[current_temp->layer_num]; 
+        double theta_e_k   = soil_properties[soil_num_k1].theta_e;
+        double theta_r_k   = soil_properties[soil_num_k1].theta_r;
+        double vg_a_k      = soil_properties[soil_num_k1].vg_alpha_per_cm;
+        double vg_m_k      = soil_properties[soil_num_k1].vg_m;
+        double vg_n_k      = soil_properties[soil_num_k1].vg_n;
+        current_temp->theta = calc_theta_from_h(current_temp->psi_cm, vg_a_k, vg_m_k, vg_n_k,theta_e_k,theta_r_k);
+      }
+    }
+  }
+
+  current = listFindFront(front_num_return, *head, NULL);
 
   return current;
 }

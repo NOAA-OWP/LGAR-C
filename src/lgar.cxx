@@ -1423,8 +1423,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
         //the idea here is that in some cases, the reduction in theta via WF movement or AET will be intense enough such that theta goes below theta_r.
         //it requires a fairly unusual soil, which I encountered during random parameter sampling.
         double mass_before_theta_went_below_theta_r = lgar_calc_mass_bal(cum_layer_thickness_cm, *head) - current->depth_cm*(current->theta - (prior_mass/current->depth_cm + next->theta));
-        // listDeleteFront(current->front_num, head);
-        current = listDeleteFront(current->front_num, head);
+        current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
         current = next;
         double mass_after_theta_went_below_theta_r = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
         *AET_demand_cm = *AET_demand_cm - fabs(mass_before_theta_went_below_theta_r - mass_after_theta_went_below_theta_r);
@@ -1450,7 +1449,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
 	  have in above layers is calculated from the psi value of the current wetting front, with the assumption
 	  that the hydraulic head of this wetting front is the same all the way up to the surface.
 
-	  - LGAR paper (currently under review) has a better description, using diagrams, of the mass balance of wetting fronts
+	  - LGAR paper (https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2022WR033742) has a better description, using diagrams, of the mass balance of wetting fronts
 	*/
 
 	double vg_a_k, vg_m_k, vg_n_k;
@@ -1812,7 +1811,7 @@ extern void lgar_merge_wetting_fronts(int *soil_type, double *frozen_factor, str
         listPrint(*head);
       }
       
-      listDeleteFront(next->front_num, head);
+      next = listDeleteFront(next->front_num, head, soil_type, soil_properties);;
       
       if (verbosity.compare("high") == 0) {
         printf ("Deleting wetting front (after) ... \n");
@@ -1990,7 +1989,7 @@ extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, i
       double Se_k = calc_Se_from_theta(current->theta,theta_e,theta_r);
       next->psi_cm = calc_h_from_Se(Se_k, vg_a, vg_m, vg_n);
       next->K_cm_per_h = calc_K_from_Se(Se_k, Ksat_cm_per_h, vg_m);
-      current = listDeleteFront(current->front_num, head);
+      current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
       bottom_flux_cm += bottom_flux_cm_temp; 
       break;
     }
@@ -2041,7 +2040,7 @@ extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cu
 	int layer_num_k = current->layer_num;
 	double mass_before = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
 
-	current = listDeleteFront(current->front_num, head);
+	current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
 	
 	// if the dry wetting front is the most surficial then simply track the mass change
 	// due to the deletion of the wetting front;
