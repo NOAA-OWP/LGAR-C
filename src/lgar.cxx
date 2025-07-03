@@ -1996,7 +1996,7 @@ extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, i
     
     current = current->next;
 
-    if (bottom_flux_cm_temp!=0){//PTL: perhaps due to potential problems with precision error, this should just be replaces with a flag that gets toggled when bottom_boundary_flux_cm is changed from 0 to nonzero
+    if (bottom_flux_cm_temp!=0.0){//PTL: perhaps due to potential problems with precision error, this should just be replaces with a flag that gets toggled when bottom_boundary_flux_cm is changed from 0 to nonzero
       break;
     }
   }
@@ -2224,7 +2224,7 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
 
   // if free drainge has to be included, which currently we don't, then the following will be set to hydraulic conductivity
   // of the deeepest layer
-  if ((layer_num_fp == num_layers) && (current_free_drainage->theta == theta_e1) && (num_layers == number_of_wetting_fronts))
+  if ((layer_num_fp == num_layers) && (current_free_drainage->psi_cm < 1.E-1) && (num_layers == number_of_wetting_fronts))
     f_p = fmin(f_p, AET_demand_cm/timestep_h); //the idea here is that, if the soil is completely saturated, a little bit of water can still enter if AET is sufficiently large 
 
   //this code checks if there is enough storage available for infiltrating water. That is, f_p can only be as big as there is room for water. 
@@ -2889,8 +2889,8 @@ extern int lgarto_correction_type_surf(int num_layers, double* cum_layer_thickne
       }
       // if ( (current->is_WF_GW==0) && (current->depth_cm > cum_layer_thickness_cm[current->layer_num]) && (next->depth_cm == cum_layer_thickness_cm[current->layer_num]) && (current->theta>next->theta) && (current->layer_num!=num_layers) && (current->psi_cm<top_most_TO_front_below_surfs_psi_cm) ){
       // if ( (current->is_WF_GW==0) && (current->depth_cm > cum_layer_thickness_cm[current->layer_num]) && (next->depth_cm == cum_layer_thickness_cm[current->layer_num]) && (current->theta>next->theta) && (current->layer_num!=num_layers) ){
-      if ( (current->depth_cm > cum_layer_thickness_cm[current->layer_num]) && (next->depth_cm == cum_layer_thickness_cm[current->layer_num]) && (current->theta>next->theta) && (current->layer_num!=num_layers) ){
-        correction_type_surf = 2; //this is surface WF layer bdy crossing 
+      if ( (current->depth_cm > cum_layer_thickness_cm[current->layer_num]) && (next->depth_cm == cum_layer_thickness_cm[current->layer_num] && (next->to_bottom)) && (current->theta>next->theta) && (current->layer_num!=num_layers) ){
+        correction_type_surf = 2; //this is surface WF layer bdy crossing
         break;
       }
     }
