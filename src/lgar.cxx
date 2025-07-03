@@ -1549,78 +1549,78 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
       
       if (fabs(wf_free_drainage->theta - theta_e_k1) < 1E-15) {
 	
-	double current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+      double current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
 
-	double mass_balance_error = fabs(current_mass - mass_timestep); // mass error
+      double mass_balance_error = fabs(current_mass - mass_timestep); // mass error
 
-	double factor = 1.0;
-  if (wf_free_drainage->next!=NULL){
-    if (fabs(wf_free_drainage->theta - wf_free_drainage->next->theta)<0.01){// if two adjacent theta values are quite close, an initial factor of 1.0 might not make the mass balance close within 10000 iterations
-      factor = factor / fabs(wf_free_drainage->theta - wf_free_drainage->next->theta);
-    }
-  }
+      double factor = 1.0;
+      if (wf_free_drainage->next!=NULL){
+        if (fabs(wf_free_drainage->theta - wf_free_drainage->next->theta)<0.01){// if two adjacent theta values are quite close, an initial factor of 1.0 might not make the mass balance close within 10000 iterations
+          factor = factor / fabs(wf_free_drainage->theta - wf_free_drainage->next->theta);
+        }
+      }
 
-  // double factor = fmax(1,current->psi_cm/100); speed optimization should look at optimal factor values 
-	bool switched = false;
-	double tolerance = 1e-10;
+      // double factor = fmax(1,current->psi_cm/100); speed optimization should look at optimal factor values 
+      bool switched = false;
+      double tolerance = 1e-10;
 
-	// check if the difference is less than the tolerance
-	if (mass_balance_error <= tolerance) {
-	  // return current_mass;
-	}
+      // check if the difference is less than the tolerance
+      if (mass_balance_error <= tolerance) {
+        // return current_mass;
+      }
 
-	double depth_new = wf_free_drainage->depth_cm;
+      double depth_new = wf_free_drainage->depth_cm;
 
-	// loop to adjust the depth for mass balance
-  int iter = 0;
-  bool iter_aug_flag = FALSE;
-  bool break_flag = FALSE;
-	while (fabs(mass_balance_error - tolerance) > 1.E-10) {
-    iter++;
-    if (iter>1e4) {
-      break_flag = TRUE;
-      *AET_demand_cm = *AET_demand_cm + mass_balance_error;
-      actual_ET_demand = *AET_demand_cm;
-      break;
-    }
+      // loop to adjust the depth for mass balance
+      int iter = 0;
+      bool iter_aug_flag = FALSE;
+      bool break_flag = FALSE;
+      while (fabs(mass_balance_error - tolerance) > 1.E-10) {
+        iter++;
+        if (iter>1e4) {
+          break_flag = TRUE;
+          *AET_demand_cm = *AET_demand_cm + mass_balance_error;
+          actual_ET_demand = *AET_demand_cm;
+          break;
+        }
 
-    if ((iter>1e3) && (!iter_aug_flag)){
-      factor = factor * 100;
-      iter_aug_flag = TRUE;
-    }
+        if ((iter>1e3) && (!iter_aug_flag)){
+          factor = factor * 100;
+          iter_aug_flag = TRUE;
+        }
 
-	  if (current_mass < mass_timestep) {
-	    depth_new += 0.01 * factor;
-	    switched = false;
-	  }
-	  else {
-	    if (!switched) {
-	      switched = true;
-	      factor = factor * 0.001;
-	    }
-	    depth_new -= 0.01 * factor;
+        if (current_mass < mass_timestep) {
+          depth_new += 0.01 * factor;
+          switched = false;
+        }
+        else {
+          if (!switched) {
+            switched = true;
+            factor = factor * 0.001;
+          }
+          depth_new -= 0.01 * factor;
 
-	  }
+        }
 
-    if ( (wf_free_drainage->to_bottom==TRUE) && (wf_free_drainage->layer_num==num_layers) ){
-      depth_new = cum_layer_thickness_cm[num_layers];
-    }
+        if ( (wf_free_drainage->to_bottom==TRUE) && (wf_free_drainage->layer_num==num_layers) ){
+          depth_new = cum_layer_thickness_cm[num_layers];
+        }
 
-	  wf_free_drainage->depth_cm = depth_new;
+        wf_free_drainage->depth_cm = depth_new;
 
-	  current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
-	  mass_balance_error = fabs(current_mass - mass_timestep);
+        current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+        mass_balance_error = fabs(current_mass - mass_timestep);
 
-	}
+      }
 
-  //there is a general class of problem where a very small psi value that is greater than 0 (say 1e-3 or so) will for some but not all soils mathematically yield theta = theta_e, even though theta should be slightly less than theta_e.
-  //in layered soils, this can cause a mass balance error. It is fairly rare and only seems to impact cases where the model domain is entirely saturated, which shouldn't happen when LGAR is applied in the correct environment / with sufficient layer thicknesses.
-  if (break_flag) {
-    current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
-    mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand + free_drainage_demand);
-    mass_balance_error = mass_timestep - current_mass;
-    bottom_boundary_flux_cm += mass_balance_error;
-  }
+      //there is a general class of problem where a very small psi value that is greater than 0 (say 1e-3 or so) will for some but not all soils mathematically yield theta = theta_e, even though theta should be slightly less than theta_e.
+      //in layered soils, this can cause a mass balance error. It is fairly rare and only seems to impact cases where the model domain is entirely saturated, which shouldn't happen when LGAR is applied in the correct environment / with sufficient layer thicknesses.
+      if (break_flag) {
+        current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+        mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand + free_drainage_demand);
+        mass_balance_error = mass_timestep - current_mass;
+        bottom_boundary_flux_cm += mass_balance_error;
+      }
 
       }
     }
