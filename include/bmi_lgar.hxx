@@ -2,7 +2,7 @@
 #define BMI_LGAR_HXX_INCLUDED
 
 /*
-  authors : Ahmad Jan and Fred Ogden
+  authors : Ahmad Jan and Fred Ogden and Peter La Follette
   year    : 2022
   email   : ahmad.jan@noaa.gov
   Description: BMI for the Lumped Aric/semi-arid model (LASAM)

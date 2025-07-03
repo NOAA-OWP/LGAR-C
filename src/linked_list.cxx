@@ -1,9 +1,9 @@
 #include "../include/all.hxx"
 
 //#####################################################################################
-/* authors : Fred Ogden and Ahmad Jan
+/* authors : Fred Ogden and Ahmad Jan and Peter La Follette
    year    : 2022
-   email   : ahmad.jan@noaa.gov
+   email   : ahmad.jan@noaa.gov peter.lafollette@noaa.gov
    - The file constains linked list functionality for the wetting front
    - Originally written by Fred Ogden (most of it), and modified/extended by Ahmad Jan */
 //#####################################################################################

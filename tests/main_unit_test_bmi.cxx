@@ -1,6 +1,6 @@
 /*
-  author: Ahmad Jan (ahmad.jan@noaa.gov)
-  date:  November 9, 2022
+  author: Ahmad Jan (ahmad.jan@noaa.gov) Peter La Follette (peter.lafollette@noaa.gov)
+  date:  November 9, 2022, updates by Peter June 2025
   updates from Peter La Follette (plafollette@lynker.com) on 27 June 2025
   - Includes unit test for bmi components and run model for a timestep to compute depth and soil moisture of wetting fronts
   - compares bmi input/output names, units, and memory allocation against benchmark
