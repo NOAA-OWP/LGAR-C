@@ -522,6 +522,9 @@ Update()
 
         volin_subtimestep_cm = volin_subtimestep_cm_temp;
       }
+
+      lgar_clean_redundant_fronts(&state->head, state->lgar_bmi_params.layer_soil_type, state->soil_properties); //deletes WFs that are very close in capillary head value
+
       /*----------------------------------------------------------------------*/
       // calculate derivative (dz/dt) for all wetting fronts
       int new_front = -1;

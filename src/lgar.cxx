@@ -2917,4 +2917,29 @@ extern int lgarto_correction_type_surf(int num_layers, double* cum_layer_thickne
   return correction_type_surf;
 }
 
+extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties){
+  if (verbosity.compare("high") == 0) {
+    printf("before lgar_clean_redundant_fronts: \n");
+    listPrint(*head);
+  }
+  struct wetting_front *current;
+  struct wetting_front *next;
+  current = *head;
+  next = current->next;
+  for (int wf = 1; wf != (listLength(*head)); wf++) {
+    if ( ((current->layer_num==next->layer_num) && (fabs(current->theta - next->theta)<1.E-10)) ){
+      current = listDeleteFront(current->front_num, head, soil_type, soil_properties); 
+      break;
+    }
+
+    current = next;
+    next = current->next;
+  }
+
+  if (verbosity.compare("high") == 0) {
+    printf("after lgar_clean_redundant_fronts: \n");
+    listPrint(*head);
+  }
+}
+
 #endif
