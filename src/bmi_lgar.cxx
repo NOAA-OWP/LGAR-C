@@ -473,7 +473,6 @@ Update()
         is created and that there is water on the surface (or raining). */
 
       if (ponded_depth_subtimestep_cm > 0 && !create_surficial_front) {
-
         volrunoff_subtimestep_cm = lgar_insert_water(use_closed_form_G, nint, subtimestep_h, AET_subtimestep_cm, &ponded_depth_subtimestep_cm,
                 &volin_subtimestep_cm, precip_subtimestep_cm_per_h,
                 wf_free_drainage_demand, num_layers,
@@ -481,7 +480,6 @@ Update()
                 state->lgar_bmi_params.cum_layer_thickness_cm,
                 state->lgar_bmi_params.frozen_factor, state->head,
                 state->soil_properties); 
-
         // volin_timestep_cm += volin_subtimestep_cm;
         // volrunoff_timestep_cm += volrunoff_subtimestep_cm;
         
@@ -675,7 +673,16 @@ Update()
 
   // update thickness/depth and soil moisture of wetting fronts (used for state coupling)
   struct wetting_front *current = state->head;
+  int to_bottom_count = 0;
   for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
+    if (current->to_bottom){
+      to_bottom_count ++;
+    }
+    if (to_bottom_count>num_layers){
+      printf("too many to_bottom WFs! This should be equal to the number of layers \n");
+      listPrint(state->head);
+	    abort();
+    }
     assert (current != NULL);
     state->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
     state->lgar_bmi_params.soil_depth_wetting_fronts[i] = current->depth_cm * state->units.cm_to_m;

@@ -154,7 +154,7 @@ double calc_theta_from_h(double h,double alpha, double m, double n, double theta
 /***********************************/
 double calc_Se_from_h(double h,double alpha, double m, double n)
 {
-  if(is_epsilon_less_than(h,1.0e-10)) return 1.0;  // this function doesn't work well ffor tiny h
+  if(is_epsilon_less_than(h,1.0E-10)) return 1.0;  // this function doesn't work well ffor tiny h
   else return(1.0/(pow(1.0+pow(alpha*h,n),m)));
 }
 
@@ -171,7 +171,11 @@ double calc_K_from_Se(double Se, double Ksat, double m)
 /***********************************/
 double calc_h_from_Se(double Se, double alpha, double m, double n)
 {
-  return(1.0/alpha*pow(pow(Se,-1.0/m)-1.0,1.0/n));
+  double result = 1.0/alpha*pow(pow(Se,-1.0/m)-1.0,1.0/n);
+  if (result > 1.E20){
+    result = 1.E20;//as theta appraoches theta_r, psi can get enormous 
+  }
+  return(result);
 }
 
 /***************************************/

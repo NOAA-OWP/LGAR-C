@@ -1876,7 +1876,7 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
     next = current->next;
     next_to_next = current->next->next;
 
-    if (current->depth_cm > cum_layer_thickness_cm[layer_num] && (next->depth_cm == cum_layer_thickness_cm[layer_num])
+    if (current->depth_cm > cum_layer_thickness_cm[layer_num] && (next->depth_cm == cum_layer_thickness_cm[layer_num]) && (next->to_bottom)
 	&& (layer_num!=num_layers) ) {
       
       double current_theta = fmin(theta_e, current->theta);
@@ -2145,9 +2145,7 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
 				struct wetting_front* head, struct soil_properties_ *soil_properties)
 {
   // note ponded_depth_cm is a pointer.   Access its value as (*ponded_depth_cm).
-
   int wf_that_supplies_free_drainage_demand = wf_free_drainage_demand;
-
   // local vars
   double theta_e, theta_r;
   double vg_a, vg_m, vg_n,Ksat_cm_per_h;
