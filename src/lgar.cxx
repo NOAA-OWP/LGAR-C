@@ -2830,6 +2830,11 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
       break;
     }
 
+    if (iter>100000){
+      printf("WARNING: lgar_theta_mass_balance has been called an excessive number of times. While not necessarily a problem for model convergence, this does mean the model is performing slower than usual. \n");
+      break;
+    }
+
     // -ve pressure will return NAN, so terminate the loop if previous psi is way small and current psi is zero
     // the wetting front is almost saturated
     if (psi_cm_loc <= 0 && psi_cm_loc_prev < 0) break;
