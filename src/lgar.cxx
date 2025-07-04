@@ -1367,7 +1367,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
 
       // theta mass balance computes new theta that conserves the mass; new theta is assigned to the current wetting front
 
-      double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass, AET_demand_cm,
+      double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass, precip_mass_to_add, AET_demand_cm,
 						 delta_thetas, delta_thickness, soil_type, soil_properties);
       actual_ET_demand = *AET_demand_cm;
       //done with delta_thetas and delta_thickness, cleanup memory
@@ -1511,7 +1511,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
 	if (wf_free_drainage_demand == wf)
 	  prior_mass += precip_mass_to_add - (free_drainage_demand + mass_correction_for_cached_free_drainage_fluxes + actual_ET_demand);
   // theta mass balance computes new theta that conserves the mass; new theta is assigned to the current wetting front
-	double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass, AET_demand_cm,
+	double theta_new = lgar_theta_mass_balance(layer_num, soil_num, psi_cm, new_mass, prior_mass, precip_mass_to_add, AET_demand_cm,
 						   delta_thetas, delta_thickness, soil_type, soil_properties);
   actual_ET_demand = *AET_demand_cm;
   //done with delta_thetas and delta_thickness, cleanup memory
@@ -2718,7 +2718,7 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *so
    is within a tolerance. */
 // ############################################################################################
 extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm, double new_mass,
-				      double prior_mass, double *AET_demand_cm, double *delta_theta, double *delta_thickness,
+				      double prior_mass, double precip_mass_to_add, double *AET_demand_cm, double *delta_theta, double *delta_thickness,
 				      int *soil_type, struct soil_properties_ *soil_properties)
 {
 
@@ -2822,7 +2822,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
       count_no_mass_change = 0;
 
     // break the loop if the mass does not change in the five consecutive iterations.
-    if (count_no_mass_change == break_no_mass_change)
+    if (count_no_mass_change == break_no_mass_change && precip_mass_to_add < 1.E-12) // made it so that this check only occurs if there is no infiltration, because there is a case where precip on a very dry wetting front will need more than 5 iterations to have its mass change at all
       break;
     
     if ((psi_cm_loc > 1e6) && (iter>2000)){//there are rare cases where theta is very close to theta_r, and delta_mass - delta_mass_prev will change extremely slowly. Convergence might be possible but the model will take hours to converge rather than seconds. 
@@ -2845,7 +2845,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   //There is a rare case where mass balance closure would require that theta<theta_r. 
   //However, the above loop can never increase psi to the point where theta<theta_r, because theta must always be between theta_r and theta_r, because of the van Genuchten model (calc_theta_from_h).
   //If we get to the case where theta<theta_r would be necessary for mass balance closure, then the above loop will break before delta_mass <= tolerance.
-  //In this rare case, the remaining mass balance error is put into AET. 
+  //In this case, the remaining mass balance error is put into AET. This should usually be acceptable, because it will often be the AET flux that would have required theta < theta_r for mass conservation, so reducing AET works in this case.
   if ((delta_mass > tolerance) && (!wanted_to_saturate_flag)){//the second condition is necessary because count_no_mass_change == break_no_mass_change in the loop above will trigger when the model approaches saturation; in this event the extra water should go into runoff (handled eslewhere), because the soil saturates, rather than AET
     *AET_demand_cm = *AET_demand_cm - fabs(delta_mass - tolerance);
   }

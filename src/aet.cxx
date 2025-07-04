@@ -26,44 +26,47 @@ extern double calc_aet(double PET_timestep_cm, double time_step_h, double wiltin
   
   double actual_ET_demand = 0.0;
   struct wetting_front *current;
-  
-  double theta_wp;
-  
-  double Se,theta_e,theta_r;
-  double vg_a, vg_m, vg_n;
-  int layer_num, soil_num;
-  
   current = head;
 
-  layer_num = current->layer_num;
-  soil_num  = soil_type[layer_num];
-  theta_e   = soil_properties[soil_num].theta_e;
-  theta_r   = soil_properties[soil_num].theta_r;
-  vg_a      = soil_properties[soil_num].vg_alpha_per_cm;
-  vg_m      = soil_properties[soil_num].vg_m;
-  vg_n      = soil_properties[soil_num].vg_n;
+  if (current->psi_cm<1.E6){ // for some extremely dry soils and combinations of van Genuchten parameters, it is possible to get an AET value that would reduce theta to below theta_r. 
+                             // while this has been addressed in a variety of places, a simple solution is to just not allow AET for extremely dry soils.
+    double theta_wp;
+    
+    double Se,theta_e,theta_r;
+    double vg_a, vg_m, vg_n;
+    int layer_num, soil_num;
 
-  // compute theta field capacity
-  double head_at_which_PET_equals_AET_cm = field_capacity_psi_cm; //340.9 is 0.33 atm, expressed in water depth, which is a good field capacity for most soils.
-  //Coarser soils like sand will have a field capacity of 0.1 atm or so, which would be 103.3 cm.
-  double theta_fc = calc_theta_from_h(head_at_which_PET_equals_AET_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
-  
-  double wp_head_theta = calc_theta_from_h(wilting_point_psi_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
-  
-  
-  theta_wp = (theta_fc - wp_head_theta)*1/2 + wp_head_theta; // theta_50 in python
+    layer_num = current->layer_num;
+    soil_num  = soil_type[layer_num];
+    theta_e   = soil_properties[soil_num].theta_e;
+    theta_r   = soil_properties[soil_num].theta_r;
+    vg_a      = soil_properties[soil_num].vg_alpha_per_cm;
+    vg_m      = soil_properties[soil_num].vg_m;
+    vg_n      = soil_properties[soil_num].vg_n;
 
-  Se = calc_Se_from_theta(theta_wp,theta_e,theta_r);
-  double psi_wp_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
+    // compute theta field capacity
+    double head_at_which_PET_equals_AET_cm = field_capacity_psi_cm; //340.9 is 0.33 atm, expressed in water depth, which is a good field capacity for most soils.
+    //Coarser soils like sand will have a field capacity of 0.1 atm or so, which would be 103.3 cm.
+    double theta_fc = calc_theta_from_h(head_at_which_PET_equals_AET_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
+    
+    double wp_head_theta = calc_theta_from_h(wilting_point_psi_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
+    
+    
+    theta_wp = (theta_fc - wp_head_theta)*1/2 + wp_head_theta; // theta_50 in python
 
-  double h_ratio = 1.0 + pow(current->psi_cm/psi_wp_cm, 3.0);
+    Se = calc_Se_from_theta(theta_wp,theta_e,theta_r);
+    double psi_wp_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
 
-  actual_ET_demand = PET_timestep_cm * (1/h_ratio) * time_step_h;
+    double h_ratio = 1.0 + pow(current->psi_cm/psi_wp_cm, 3.0);
 
-  if (actual_ET_demand<0)
-    actual_ET_demand=0.0;
-  else if (actual_ET_demand>(PET_timestep_cm*time_step_h))
-    actual_ET_demand = PET_timestep_cm*time_step_h;
+    actual_ET_demand = PET_timestep_cm * (1/h_ratio) * time_step_h;
+
+    if (actual_ET_demand<0)
+      actual_ET_demand=0.0;
+    else if (actual_ET_demand>(PET_timestep_cm*time_step_h))
+      actual_ET_demand = PET_timestep_cm*time_step_h;
+
+  }
 
   if (verbosity.compare("high") == 0) {
     printf("AET =  %14.10f \n",actual_ET_demand);
