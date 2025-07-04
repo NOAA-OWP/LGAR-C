@@ -2725,9 +2725,9 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   double psi_cm_loc = psi_cm; // location psi
   double delta_mass = fabs(new_mass - prior_mass); // mass different between the new and prior
   // double original_delta_mass = delta_mass; 
-  double tolerance = 1e-12;
+  double tolerance = 1e-10;
 
-  double factor = fmax(1,psi_cm/100);//was 1.0 previously. This code is far faster and seems to avoid loops with >10000 iterations. Low n values can cause this
+  double factor = fmax(1.0,psi_cm/10.0);//was 1.0 previously. This code is far faster and seems to avoid loops with >10000 iterations. Low n values can cause this
   bool switched = false; // flag that determines capillary head to be incremented or decremented
 
   double theta             = 0; // this will be updated and returned
@@ -2825,13 +2825,12 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
     if (count_no_mass_change == break_no_mass_change)
       break;
     
-    if ((psi_cm_loc > 1e6) && (iter>10000)){//there are rare cases where theta is very close to theta_r, and delta_mass - delta_mass_prev will change extremely slowly. Convergence might be possible but the model will take hours to converge rather than seconds. 
+    if ((psi_cm_loc > 1e6) && (iter>2000)){//there are rare cases where theta is very close to theta_r, and delta_mass - delta_mass_prev will change extremely slowly. Convergence might be possible but the model will take hours to converge rather than seconds. 
     //an alternative solution was to change the threshold in if (fabs(delta_mass - delta_mass_prev) < 1e-15) to 1e-11, but that solution is somewhat slow. 
       break;
     }
 
-    if (iter>100000){
-      printf("WARNING: lgar_theta_mass_balance has been called an excessive number of times. While not necessarily a problem for model convergence, this does mean the model is performing slower than usual. \n");
+    if (iter>10000){ //limit the total number of iterations 
       break;
     }
 
