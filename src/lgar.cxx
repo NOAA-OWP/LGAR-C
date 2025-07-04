@@ -1596,7 +1596,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
         else {
           if (!switched) {
             switched = true;
-            factor = factor * 0.001;
+            factor = factor * 0.1;
           }
           depth_new -= 0.01 * factor;
 
@@ -2234,11 +2234,11 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
     int layer_num = k;
     soil_num = soil_type[layer_num];
     max_storage += soil_properties[soil_num].theta_e * (cum_layer_thickness_cm[k]-cum_layer_thickness_cm[k-1]);
-  }// would be more efficient to make max_storage a vairable that is not computed every time lgar_insert_water is called
+  }// would be more efficient to make max_storage a variable that is not computed every time lgar_insert_water is called
 
   if (f_p > (max_storage - current_mass)/timestep_h){
     f_p = (max_storage - current_mass)/timestep_h;
-  }
+  } // might want to move code that allows for AET to slightly increase an otherwise small f_p to be after this ... and can do the same kind of thing for free drainage too. But, probably really small effect, especially when complete saturation is uncommon
 
   // if ( (current_mass)/max_storage > 0.99 ){
   //   printf("warning: vadose zone is 99 percent full or greater. If you are using the model in an environment with more precipitation than PET, LGAR is not an appropriate model because its lower boundary condition is no flow. \n ");
