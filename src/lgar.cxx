@@ -1613,6 +1613,13 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
 
       }
 
+      if (isinf(wf_free_drainage->depth_cm)){ // there is a rare case where the psi-theta relationship, for psi very close to 0, is not 1:1, so psi can technically change and theta=theta_e for either psi. 
+                                              // Then, it can be that the WF below WF that accepts infiltration has a theta value equal to theta_e for its layer but a psi value that is very slightly above 0.
+                                              // In this case, no adjustment of depth will close the mass balance so the depth will become infinite. 
+        wf_free_drainage->depth_cm = cum_layer_thickness_cm[num_layers] + 1.E-6;
+        break_flag = TRUE;
+      }
+
       //there is a general class of problem where a very small psi value that is greater than 0 (say 1e-3 or so) will for some but not all soils mathematically yield theta = theta_e, even though theta should be slightly less than theta_e.
       //in layered soils, this can cause a mass balance error. It is fairly rare and only seems to impact cases where the model domain is entirely saturated, which shouldn't happen when LGAR is applied in the correct environment / with sufficient layer thicknesses.
       if (break_flag) {
@@ -2931,7 +2938,7 @@ extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_t
   current = *head;
   next = current->next;
   for (int wf = 1; wf != (listLength(*head)); wf++) {
-    if ( ((current->layer_num==next->layer_num) && (fabs(current->theta - next->theta)<1.E-10)) ){
+    if ( ((current->layer_num==next->layer_num) && (fabs(current->theta - next->theta)<1.E-15)) ){
       current = listDeleteFront(current->front_num, head, soil_type, soil_properties); 
       break;
     }
