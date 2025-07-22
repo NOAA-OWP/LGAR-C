@@ -1413,7 +1413,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
 	/* condition to bound the wetting front depth, if depth of a wf, at this timestep,
 	   gets greater than the domain depth, it will be merge anyway as it is passing
 	   the layer depth */
-	current->depth_cm = fmin(current->depth_cm, column_depth);
+	// current->depth_cm = fmin(current->depth_cm, column_depth); //we want WFs to exceed the lower boundary in the event that they must be partially truncated and then WFs above this one will correctly have their moisture corrected
 
   double theta_old = current->theta; //might not be necessary 
 	if (current->dzdt_cm_per_h == 0.0 && current->to_bottom == FALSE) // a new front was just created, so don't update it.
@@ -2567,7 +2567,7 @@ extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_
 /* code to calculate velocity of fronts
    equations with full description are provided in the lgar paper (currently under review) */
 // ############################################################################################
-extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *soil_type, double *cum_layer_thickness_cm,
+extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, int num_layers, double h_p, int *soil_type, double *cum_layer_thickness_cm,
 			   double *frozen_factor, struct wetting_front* head, struct soil_properties_ *soil_properties, bool switch_caching, int cache_count, int new_front)
 {
   if (verbosity.compare("high") == 0) {
@@ -2703,6 +2703,21 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *so
 
     if (dzdt>1e4){//insanity check
       dzdt = 1e4;
+    }
+    
+    double largest_K_s = 0.0;
+    for (int ii=1; ii<=num_layers; ii++) {
+      int soil_num = soil_type[ii];
+      double temp_K_s = soil_properties[soil_num].Ksat_cm_per_h;
+      largest_K_s = fmax(temp_K_s, largest_K_s);
+    }
+
+    if (dzdt>100*largest_K_s){//insanity check; was 1E4 but now addtionally defining based on K_s
+      dzdt = 100*largest_K_s;
+    }
+
+    if (dzdt<-100*largest_K_s){//insanity check; was -1E4 
+      dzdt = -100*largest_K_s;
     }
 
     if (switch_caching){

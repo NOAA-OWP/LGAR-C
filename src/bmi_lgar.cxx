@@ -402,7 +402,8 @@ Update()
 
       // checks on creatign a new surficial front
       // 1. check current and previous timestep precipitation
-      bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0);
+      // bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0);
+      bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0 && volon_timestep_cm == 0) || ( (precip_subtimestep_cm > 0.0 || volon_timestep_cm > 0) && (listLength(state->head)==num_layers) );
       
       // 2. check soil top wetting front condition (saturated/unsaturated), and surface ponded water
       if (is_top_wf_saturated || volon_timestep_cm > 0.0)
@@ -533,7 +534,7 @@ Update()
           new_front = state->head->front_num;
         }
       }
-      lgar_dzdt_calc(use_closed_form_G, nint, ponded_depth_subtimestep_cm, state->lgar_bmi_params.layer_soil_type,
+      lgar_dzdt_calc(use_closed_form_G, nint, num_layers, ponded_depth_subtimestep_cm, state->lgar_bmi_params.layer_soil_type,
         state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
         state->head, state->soil_properties, switch_caching, state->lgar_bmi_params.cache_count, new_front);
 
