@@ -88,20 +88,6 @@
 					"precipitation_rate" : "P",
 					"potential_evapotranspiration_rate" : "PET"
 				    },
-					"model_params": {
-						"smcmax_1": 0.45,
-						"van_genuchten_n_1": 1.5,
-						"van_genuchten_alpha_1": 0.02,
-						"hydraulic_conductivity_1": 1.0,
-						"van_genuchten_n_2": 1.4,
-						"van_genuchten_alpha_2": 0.01,
-						"hydraulic_conductivity_2": 0.2,
-						"field_capacity": 333.3,
-						"a": 0.001,
-						"b": 3.0,
-						"frac_to_GW": 0.1,
-						"spf_factor": 0.9
-					},
 				    "output_variables" : [
 					"precipitation",
 					"potential_evapotranspiration",
