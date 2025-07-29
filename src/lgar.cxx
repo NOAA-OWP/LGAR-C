@@ -60,7 +60,8 @@ using namespace std;
 //  V        -------------------------------------------4------         -- depth_cm(f4)
 // depth
 
-
+#define THRESHOLD_NO_MOISTURE_DIFF 1.E-15 //threshold that will be used to check if adjacent WFs are redundant
+#define MBAL_ITERATIVE_TOLERANCE 1.E-10 //in the loops that close mass balance across multiple layers, the before and after masses (considering fluxes as well) must match by this number or less
 
 // ############################################################################################
 /*
@@ -1562,12 +1563,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
 
       // double factor = fmax(1,current->psi_cm/100); speed optimization should look at optimal factor values 
       bool switched = false;
-      double tolerance = 1e-10;
-
-      // check if the difference is less than the tolerance
-      if (mass_balance_error <= tolerance) {
-        // return current_mass;
-      }
+      double tolerance = MBAL_ITERATIVE_TOLERANCE;
 
       double depth_new = wf_free_drainage->depth_cm;
 
@@ -1575,7 +1571,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
       int iter = 0;
       bool iter_aug_flag = FALSE;
       bool break_flag = FALSE;
-      while (fabs(mass_balance_error - tolerance) > 1.E-10) {
+      while (fabs(mass_balance_error) > tolerance) {
         iter++;
         if (iter>1e4) {
           break_flag = TRUE;
@@ -1664,11 +1660,6 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
     }
 
     if (correction_type_surf==2){
-      // double mass_corr_loop_start = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
-      // bool close_psis = correct_close_psis(soil_type, soil_properties, head);
-      // if (close_psis){
-      //   bottom_boundary_flux_cm += (mass_corr_loop_start - lgar_calc_mass_bal(cum_layer_thickness_cm, *head));
-      // }
       lgar_wetting_fronts_cross_layer_boundary(num_layers, cum_layer_thickness_cm, soil_type, frozen_factor, head, soil_properties);
     }
 
@@ -2743,7 +2734,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   double psi_cm_loc = psi_cm; // location psi
   double delta_mass = fabs(new_mass - prior_mass); // mass different between the new and prior
   // double original_delta_mass = delta_mass; 
-  double tolerance = 1e-10;
+  double tolerance = MBAL_ITERATIVE_TOLERANCE;
 
   double factor = fmax(1.0,psi_cm/10.0);//was 1.0 previously. This code is far faster and seems to avoid loops with >10000 iterations. Low n values can cause this
   bool switched = false; // flag that determines capillary head to be incremented or decremented
@@ -2949,7 +2940,8 @@ extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_t
   current = *head;
   next = current->next;
   for (int wf = 1; wf != (listLength(*head)); wf++) {
-    if ( ((current->layer_num==next->layer_num) && (fabs(current->theta - next->theta)<1.E-15)) ){
+    if ( ((current->layer_num==next->layer_num) && (fabs(current->theta - next->theta)<THRESHOLD_NO_MOISTURE_DIFF)) ){ // here, we only delete wetting fronts if they are very close in moisture. 
+                                                                                                                       // Theta can become extremely sensitive with respect to psi for small psi. This approach avoids errors due to that sensitivity. 
       current = listDeleteFront(current->front_num, head, soil_type, soil_properties); 
       break;
     }

@@ -17,6 +17,46 @@
 // default verbosity is set to 'none' other option 'high' or 'low' needs to be specified in the config file
 string verbosity="none";
 
+// some macros for flux caching, these are not relevant if flux caching is disabled in the config file.
+// precip intensity above which flux caching does not occur
+#ifndef PRECIP_THRESHOLD_MM_PER_H
+#define PRECIP_THRESHOLD_MM_PER_H ((double)1.0e-6)
+#endif
+
+// Small epsilon added to PET denominator to prevent division by 0, and in another case to check if there is significant PET
+#ifndef PET_EPSILON
+#define PET_EPSILON ((double)1.0e-8)
+#endif
+
+// Threshold for AET/PET ratio to indicate low enough AET for flux caching to start
+#ifndef AET_PET_RATIO_THRESHOLD
+#define AET_PET_RATIO_THRESHOLD ((double)0.75)
+#endif
+
+// while ponded head is greater than this, flux caching will not occur
+#ifndef VOLON_TIMESTEP_THRESHOLD_CM
+#define VOLON_TIMESTEP_THRESHOLD_CM ((double)1.0e-16)
+#endif
+
+// While the vadose zone lower boundary flux is greater than this, flux caching will not happen
+#ifndef BOTTOM_BDY_FLUX_THRESHOLD_CM
+#define BOTTOM_BDY_FLUX_THRESHOLD_CM ((double)1.0e-4)
+#endif
+
+// While the top most wetting front has a dzdt value greater than this, flux caching will not happen
+#ifndef THRESHOLD_DZDT_CM_PER_H
+#define THRESHOLD_DZDT_CM_PER_H ((double)1.0e0)
+#endif
+
+// Number of timesteps before flux cache reset
+#ifndef NUM_TIMESTEPS_BEFORE_RESET_CACHE
+#define NUM_TIMESTEPS_BEFORE_RESET_CACHE 24
+#endif
+
+// small epsillon that is usually used to determine if something is 0 while avoiding machine precision errors
+#define SMALL_EPS 1.E-12
+
+
 /**
  * @brief Delete dynamic arrays allocated in Initialize() and held by this object
  * 
@@ -210,26 +250,32 @@ Update()
   bool caching_at_start = state->lgar_mass_balance.cache_fluxes;
   bool switch_caching = FALSE;
 
-  int num_timesteps_before_reset_cache = 24;
+  double wf_free_drain_dzdt = 0.0;
+
+  if (!caching_at_start){
+    struct wetting_front *wf_free_drainage_for_cache = listFindFront(wetting_front_free_drainage(state->head), state->head, NULL);
+    wf_free_drain_dzdt = wf_free_drainage_for_cache->dzdt_cm_per_h;
+  }
 
   if (state->lgar_bmi_params.allow_flux_caching){
     //The idea here is that, during dry periods, AET will become a small fraction of PET and wetting fronts will be very slow moving. In these cases, it is not necessary to compute fluxes for every time step.
-    //To save on runtime, and if allow_flux_caching is set to true in the config file, we simply cache cmputed fluxes to be used for subsequent time steps rather than recomputing them.
+    //To save on runtime, and if allow_flux_caching is set to true in the config file, we simply cache computed fluxes to be used for subsequent time steps rather than recomputing them.
     //The current implementation is to not move the wetting fronts under these conditions, but then move them more rapidly once it is time to calculate fluxes again. Also, during these periods, PET will be 0 but made to be larger to conserve mass when it is time to recalculate fluxes.
     //Recharge is copied from the last time step. If free drainage is enabled, this will technically result in a small mass balance error. 
     //There is very little change to the simulation when this is enabled.
     //Note that for NextGen models, it is ultimately desirable that there is technically output for every hour, so simply relaxing the adaptive time step to be coarser than 1 hour isn't the best solution
     if (subtimestep_h == state->lgar_bmi_params.forcing_resolution_h){
-      if ( (state->lgar_bmi_input_params->precipitation_mm_per_h < 1.E-6) && ( (state->lgar_mass_balance.previous_AET / (state->lgar_mass_balance.previous_PET + 1.E-8 )) < 0.75) && (state->lgar_bmi_params.cache_count!=num_timesteps_before_reset_cache) && (volon_timestep_cm<1.E-16) && (state->lgar_mass_balance.previous_recharge<1.E-4) ){
+      if ( (state->lgar_bmi_input_params->precipitation_mm_per_h < PRECIP_THRESHOLD_MM_PER_H) && ( (state->lgar_mass_balance.previous_AET / (state->lgar_mass_balance.previous_PET + PET_EPSILON )) < AET_PET_RATIO_THRESHOLD) && (state->lgar_bmi_params.cache_count!=NUM_TIMESTEPS_BEFORE_RESET_CACHE) && 
+           (volon_timestep_cm<VOLON_TIMESTEP_THRESHOLD_CM) && (state->lgar_mass_balance.previous_recharge<BOTTOM_BDY_FLUX_THRESHOLD_CM) ){
         state->lgar_mass_balance.cache_fluxes = TRUE;
       }
-      if ( state->lgar_mass_balance.previous_PET<1.E-10 && state->head->dzdt_cm_per_h<1.E-1 && (state->lgar_mass_balance.previous_recharge<1.E-4) ){
-        state->lgar_mass_balance.cache_fluxes = TRUE;
-      }
-      if (volon_timestep_cm>=1.E-16){
+      if ( wf_free_drain_dzdt>THRESHOLD_DZDT_CM_PER_H ){
         state->lgar_mass_balance.cache_fluxes = FALSE;
       }
-      if ( (state->lgar_bmi_params.cache_count==num_timesteps_before_reset_cache ) || (state->lgar_bmi_input_params->precipitation_mm_per_h >= 1.E-6) ){
+      if (volon_timestep_cm>=VOLON_TIMESTEP_THRESHOLD_CM){
+        state->lgar_mass_balance.cache_fluxes = FALSE;
+      }
+      if ( (state->lgar_bmi_params.cache_count==NUM_TIMESTEPS_BEFORE_RESET_CACHE ) || (state->lgar_bmi_input_params->precipitation_mm_per_h >= PRECIP_THRESHOLD_MM_PER_H) ){
         state->lgar_mass_balance.cache_fluxes = FALSE;
       }
     }
@@ -254,8 +300,22 @@ Update()
   }
 
   // ensure precip and PET are non-negative
-  state->lgar_bmi_input_params->precipitation_mm_per_h = fmax(state->lgar_bmi_input_params->precipitation_mm_per_h, 0.0);
-  state->lgar_bmi_input_params->PET_mm_per_h           = fmax(state->lgar_bmi_input_params->PET_mm_per_h, 0.0);
+  if (state->lgar_bmi_input_params->precipitation_mm_per_h < 0.0) {
+      std::cerr << "Warning: Pr [mm/h] (timestep) is negative ("
+                << state->lgar_bmi_input_params->precipitation_mm_per_h
+                << "), setting to 0.\n";
+  }
+  state->lgar_bmi_input_params->precipitation_mm_per_h =
+      fmax(state->lgar_bmi_input_params->precipitation_mm_per_h, 0.0);
+
+  if (state->lgar_bmi_input_params->PET_mm_per_h < 0.0) {
+      std::cerr << "Warning: PET [mm/h] (timestep) is negative ("
+                << state->lgar_bmi_input_params->PET_mm_per_h
+                << "), setting to 0.\n";
+  }
+  state->lgar_bmi_input_params->PET_mm_per_h =
+      fmax(state->lgar_bmi_input_params->PET_mm_per_h, 0.0);
+
 
   if (PET_affects_precip){ // if the user wants PET subtracted from precip
     if (state->lgar_bmi_input_params->precipitation_mm_per_h > state->lgar_bmi_input_params->PET_mm_per_h){
@@ -348,11 +408,12 @@ Update()
       }
 
       if (state->lgar_bmi_params.free_drainage_enabled){
-        free_drainage_subtimestep_cm += subtimestep_h*listFindFront(listLength(state->head), state->head, NULL)->K_cm_per_h;
+        struct wetting_front *front = listFindFront(listLength(state->head), state->head, NULL);
+        free_drainage_subtimestep_cm += subtimestep_h*front->K_cm_per_h;
         if (free_drainage_subtimestep_cm<1.E-7){
           free_drainage_subtimestep_cm = 0.0;
         }
-        if (listFindFront(listLength(state->head), state->head, NULL)->psi_cm>1.E6){
+        if (front->psi_cm>1.E6){
           free_drainage_subtimestep_cm = 0.0;
         }
       }
@@ -388,7 +449,7 @@ Update()
 
       //addressed machine precision issues where volon_timestep_error could be for example -1E-17 or 1.E-20 or smaller
       volon_timestep_cm = fmax(volon_timestep_cm,0.0);
-      volon_timestep_cm = volon_timestep_cm > 1.0E-12 ? volon_timestep_cm : 0.0;
+      volon_timestep_cm = volon_timestep_cm > SMALL_EPS ? volon_timestep_cm : 0.0;
 
       int wf_free_drainage_demand = wetting_front_free_drainage(state->head);
 
@@ -396,7 +457,7 @@ Update()
       // Should a new wetting front be created?
       int soil_num = state->lgar_bmi_params.layer_soil_type[state->head->layer_num];
       double theta_e = state->soil_properties[soil_num].theta_e;
-      bool is_top_wf_saturated = (state->head->theta+1.0E-12) >= theta_e ? true : false; //sometimes a machine precision error would erroneously create a new wetting front during saturated conditions. The + 1.0E-12 seems to prevent this.
+      bool is_top_wf_saturated = (state->head->theta+SMALL_EPS) >= theta_e ? true : false; //sometimes a machine precision error would erroneously create a new wetting front during saturated conditions. The epsillon.
       double theta_above_which_precip_contribs_to_GW = theta_e * spf_factor;
       top_near_sat = state->head->theta > theta_above_which_precip_contribs_to_GW ? true : false; //is the top WF near saturation, thus triggering simple preferential flow if enabled
 
@@ -486,7 +547,10 @@ Update()
         
         volrech_subtimestep_cm = volin_subtimestep_cm;
         volon_subtimestep_cm = ponded_depth_subtimestep_cm;
-        if (volrunoff_subtimestep_cm < 0) abort();
+        if (volrunoff_subtimestep_cm < 0) {
+          std::cerr<<"Runoff is less than 0, which should not happen.\n";
+          abort();
+        }
       }
       else {
 
@@ -498,7 +562,6 @@ Update()
         }
         else {
           volrunoff_subtimestep_cm = (ponded_depth_subtimestep_cm - ponded_depth_max_cm);
-          // volrunoff_timestep_cm += (ponded_depth_subtimestep_cm - ponded_depth_max_cm);
           volon_subtimestep_cm = ponded_depth_max_cm;
           ponded_depth_subtimestep_cm = ponded_depth_max_cm;
         }
@@ -576,7 +639,7 @@ Update()
     CR_Q_timestep_cm += CR_Q_subtimestep_cm;
 
     // set runoff_in_prev_step for next step
-    if ((volrunoff_subtimestep_cm > 1.E-9) || (top_near_sat)){
+    if ((volrunoff_subtimestep_cm > SMALL_EPS) || (top_near_sat)){
       state->lgar_bmi_params.runoff_in_prev_step = true;
     }
     else {
@@ -683,7 +746,7 @@ Update()
       to_bottom_count ++;
     }
     if (to_bottom_count>num_layers){
-      printf("too many to_bottom WFs! This should be equal to the number of layers \n");
+      std::cerr << "Error: too many to_bottom WFs! This should be equal to the number of layers.\n";
       listPrint(state->head);
 	    abort();
     }
