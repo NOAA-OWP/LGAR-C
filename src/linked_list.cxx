@@ -37,7 +37,7 @@ extern void listDelete(struct wetting_front* head)
 {
   while (head != NULL) {
     struct wetting_front *next = head->next;
-    free( head );
+    delete head;
     head = next;
   }
 }
@@ -73,7 +73,7 @@ extern struct wetting_front* listCopy(struct wetting_front* current, struct wett
   }
   else {
 
-    struct wetting_front* wf = (struct wetting_front*)malloc(sizeof(struct wetting_front));
+    struct wetting_front* wf = new wetting_front();
 
     wf->depth_cm = current->depth_cm;
     wf->theta = current->theta;
@@ -99,7 +99,7 @@ extern void listInsertFirst(double depth, double theta, int front_num, int layer
 {
 
   //create a link
-  struct wetting_front *link = (struct wetting_front*) malloc(sizeof(struct wetting_front));
+  struct wetting_front *link = new wetting_front();
 
   link->depth_cm = depth;
   link->theta = theta;
@@ -255,7 +255,7 @@ extern struct wetting_front* listDeleteFront(int front_num, struct wetting_front
     previous = current->next;
 
   }
-  if( current != NULL ) free( current );
+  delete current;
   current = previous;
 
   while(previous != NULL) { // decrement all front numbers
@@ -283,8 +283,7 @@ extern struct wetting_front* listInsertFront(double depth, double theta, int new
     
     if(new_front_num==1) { // create it
       //create a link
-      struct wetting_front *link = (struct wetting_front*) malloc(sizeof(struct wetting_front));
-
+      struct wetting_front *link = new wetting_front();
       link->depth_cm = depth;
       link->theta = theta;
       link->front_num = new_front_num;
@@ -305,7 +304,7 @@ extern struct wetting_front* listInsertFront(double depth, double theta, int new
   do {
     if (previous->front_num == new_front_num-1) { // this is where we want to insert it
       //create a new link
-      struct wetting_front *link = (struct wetting_front*) malloc(sizeof(struct wetting_front));
+      struct wetting_front *link = new wetting_front();
 
       link->depth_cm = depth;
       link->theta = theta;
@@ -353,7 +352,7 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
   if(head == NULL) { // list is empty
     // Kinda weird.  Shouldn't call this function to start a list.  Create link in the first position
 
-    link = (struct wetting_front*) malloc(sizeof(struct wetting_front));
+    link = new wetting_front();
 
     link->depth_cm = depth;
     link->theta = theta;
@@ -378,7 +377,7 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
       // yep.  It's first
       //create a link and put it at the beginning of the list
 
-      link = (struct wetting_front*) malloc(sizeof(struct wetting_front));
+      link = new wetting_front();
 
       link->depth_cm = depth;
       link->theta = theta;
@@ -407,7 +406,7 @@ extern struct wetting_front* listInsertFrontAtDepth(int num_layers, double *cum_
 	  // it is in this interval
 
 	  // create a link
-	  link = (struct wetting_front*) malloc(sizeof(struct wetting_front));
+	  link = new wetting_front();
 
 	  link->depth_cm = depth;
 	  link->theta = theta;
