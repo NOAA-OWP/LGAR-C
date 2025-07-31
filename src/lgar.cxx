@@ -2040,39 +2040,6 @@ extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cu
 
 	current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
 	
-	// if the dry wetting front is the most surficial then simply track the mass change
-	// due to the deletion of the wetting front;
-	// this needs to be revised
-	if (layer_num_k > 1) {
-	  int soil_num_k    = soil_type[current->layer_num];
-	  double theta_e_k  = soil_properties[soil_num_k].theta_e;
-	  double theta_r_k  = soil_properties[soil_num_k].theta_r;
-	  double vg_a_k     = soil_properties[soil_num_k].vg_alpha_per_cm;
-	  double vg_m_k     = soil_properties[soil_num_k].vg_m;
-	  double vg_n_k     = soil_properties[soil_num_k].vg_n;
-	  double Se_k       = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
-
-	  // now this is the wetting front that was below the dry wetting front
-	  current->psi_cm = calc_h_from_Se(Se_k, vg_a_k, vg_m_k, vg_n_k);
-
-	  struct wetting_front *current_local = *head; //In LGARTO, should be the highest to_bottom WF above the one that got deleted before the next to_bottom==FALSE one, but *head is fine for LGAR 
-
-	  // update psi and theta for all wetting fronts above the current wetting front
-	  while (current_local->layer_num < layer_num_k) {
-	    int soil_num_k1 = soil_type[current_local->layer_num];
-	    theta_e_k   = soil_properties[soil_num_k1].theta_e;
-	    theta_r_k   = soil_properties[soil_num_k1].theta_r;
-	    vg_a_k      = soil_properties[soil_num_k1].vg_alpha_per_cm;
-	    vg_m_k      = soil_properties[soil_num_k1].vg_m;
-	    vg_n_k      = soil_properties[soil_num_k1].vg_n;
-
-      current_local->psi_cm = current->psi_cm;
-
-      current_local->theta = calc_theta_from_h(current->psi_cm, vg_a_k, vg_m_k, vg_n_k,theta_e_k,theta_r_k);
-	    current_local = current_local->next;
-	  }
-	}
-
 	double mass_after = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
 	*mass_change += fabs(mass_after - mass_before);
 
