@@ -2792,7 +2792,10 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   // double original_delta_mass = delta_mass; 
   double tolerance = MBAL_ITERATIVE_TOLERANCE;
 
-  double factor = fmax(1.0,psi_cm/10.0);//was 1.0 previously. This code is far faster and seems to avoid loops with >10000 iterations. Low n values can cause this
+  double factor = fmax(1.0,psi_cm/10.0);//was 1.0 previously. This code is far faster and seems to avoid loops with >10000 iterations.
+  if (psi_cm>1.E4){ // in very dry cases, mass conservation will take longer to achieve if using a small factor
+    factor = psi_cm;
+  }
   bool switched = false; // flag that determines capillary head to be incremented or decremented
 
   double theta             = 0; // this will be updated and returned
