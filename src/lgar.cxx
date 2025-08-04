@@ -60,10 +60,12 @@ using namespace std;
 //  V        -------------------------------------------4------         -- depth_cm(f4)
 // depth
 
-#define THRESHOLD_NO_MOISTURE_DIFF 1.E-15 //threshold that will be used to check if adjacent WFs are redundant
-#define MBAL_ITERATIVE_TOLERANCE 1.E-10 //in the loops that close mass balance across multiple layers, the before and after masses (considering fluxes as well) must match by this number or less
-#define TRUNCATION_DEPTH 1.E-9 //when a WF exceeds the lower boundary, we want it to only slightly do this in order to keep the lower boundary condition effectively no flow but also correctly set psi for WFs that it passed
-#define FACTOR_LIMITS_LAYER_CROSSING_SPEED 2.0 //when a WF crosses a layer boundary, it shouldn't go too far into the next layer -- for example in the case of sand over clay, a WF in sand might have a large dzdt value that leads to crossing to an unrealistic depth in the clay below
+#define THRESHOLD_NO_MOISTURE_DIFF 1.E-15      // threshold that will be used to check if adjacent WFs are redundant
+#define MBAL_ITERATIVE_TOLERANCE 1.E-10        // in the loops that close mass balance across multiple layers, the before and after masses (considering fluxes as well) must match by this number or less
+#define MAX_ITER_MBAL_LOOP 1.E5                // the loop that adjusts theta after WFs move (shich that psi will be equal across soil layer boundaries) will iterate this many times before accepting a mass balance error. It is larger than MAX_ITER_SATURATION_MBAL_LOOP because the loop with MAX_ITER__MBAL_LOOP addresses very large psi cases.
+#define MAX_ITER_SATURATION_MBAL_LOOP 1.E4     // the loop that adjusts the depth of a saturated WF after the WF becomes saturated to conserve mass has this maximum number of iterations before it just accepts that there will be a mass balance error
+#define TRUNCATION_DEPTH 1.E-9                 // when a WF exceeds the lower boundary, we want it to only slightly do this in order to keep the lower boundary condition effectively no flow but also correctly set psi for WFs that it passed
+#define FACTOR_LIMITS_LAYER_CROSSING_SPEED 2.0 // when a WF crosses a layer boundary, it shouldn't go too far into the next layer -- for example in the case of sand over clay, a WF in sand might have a large dzdt value that leads to crossing to an unrealistic depth in the clay below
 
 
 // ############################################################################################
@@ -1637,14 +1639,14 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
       bool break_flag = FALSE;
       while (fabs(mass_balance_error) > tolerance) {
         iter++;
-        if (iter>1e4) {
+        if (iter>MAX_ITER_SATURATION_MBAL_LOOP) {
           break_flag = TRUE;
           *AET_demand_cm = *AET_demand_cm + mass_balance_error;
           actual_ET_demand = *AET_demand_cm;
           break;
         }
 
-        if ((iter>1e3) && (!iter_aug_flag)){
+        if ((iter>(MAX_ITER_SATURATION_MBAL_LOOP/10)) && (!iter_aug_flag)){
           factor = factor * 100;
           iter_aug_flag = TRUE;
         }
@@ -2812,13 +2814,19 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   // the new and prior is within the tolerance
   int iter = 0;
   bool iter_aug_flag = FALSE;
+  bool iter_aug_flag_extreme = FALSE;
 
   while (delta_mass > tolerance) {
     iter++;
 
-    if (iter>1000 && iter_aug_flag==FALSE){
+    if (iter>(MAX_ITER_MBAL_LOOP/100) && iter_aug_flag==FALSE){
       factor = factor*100;
       iter_aug_flag = TRUE;
+    }
+
+    if (iter>(MAX_ITER_MBAL_LOOP/10) && iter_aug_flag_extreme==FALSE){
+      factor = factor*100;
+      iter_aug_flag_extreme = TRUE;
     }
 
     if (new_mass > prior_mass) {
@@ -2885,15 +2893,11 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
       count_no_mass_change = 0;
 
     // break the loop if the mass does not change in the five consecutive iterations.
-    if (count_no_mass_change == break_no_mass_change && precip_mass_to_add < 1.E-12) // made it so that this check only occurs if there is no infiltration, because there is a case where precip on a very dry wetting front will need more than 5 iterations to have its mass change at all
-      break;
-    
-    if ((psi_cm_loc > 1e6) && (iter>2000)){//there are rare cases where theta is very close to theta_r, and delta_mass - delta_mass_prev will change extremely slowly. Convergence might be possible but the model will take hours to converge rather than seconds. 
-    //an alternative solution was to change the threshold in if (fabs(delta_mass - delta_mass_prev) < 1e-15) to 1e-11, but that solution is somewhat slow. 
+    if (count_no_mass_change == break_no_mass_change && precip_mass_to_add < 1.E-12){ // made it so that this check only occurs if there is no infiltration, because there is a case where precip on a very dry wetting front will need more than 5 iterations to have its mass change at all
       break;
     }
 
-    if (iter>10000){ //limit the total number of iterations 
+    if (iter>MAX_ITER_MBAL_LOOP){ //limit the total number of iterations 
       break;
     }
 
