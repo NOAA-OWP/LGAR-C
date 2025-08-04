@@ -1968,12 +1968,6 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
 
       double depth_new = cum_layer_thickness_cm[layer_num] + mbal_Z_correction; // this is the new wetting front absolute depth
 
-      if (depth_new>cum_layer_thickness_cm[num_layers]){
-        printf("\n");
-        printf("next->depth_cm: %lf \n", next->depth_cm);
-        printf("depth_new: %lf \n", depth_new);
-      }
-
       current->depth_cm = cum_layer_thickness_cm[layer_num];
       
       next->theta = theta_new;
