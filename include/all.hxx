@@ -142,6 +142,9 @@ struct lgar_bmi_parameters
   double a = 0.0;                        // parameter for nonlinear reservoir
   double b = 0.0;                        // parameter for nonlinear reservoir
   double frac_to_CR = 0.0;               // parameter for nonlinear reservoir 
+  double a_slow = 0.0;                        // parameter for nonlinear reservoir
+  double b_slow = 0.0;                        // parameter for nonlinear reservoir
+  double frac_slow = 0.0;               // parameter for nonlinear reservoir 
   double spf_factor = 0.98;              // parameter that controls the theta value above which contributions to the nonlinear reservoir will be made
   double precip_previous_timestep_cm;    // amount of rainfall (previous time step)
 
@@ -193,7 +196,9 @@ struct lgar_mass_balance_variables
   double volAET_cm;           // volume of AET
   double volPET_cm;           // volume of PET
 
-  double CR_storage_cm = 0.0;    //water stored in the conceptual reservoir
+  // double CR_storage_cm = 0.0;    //water stored in the conceptual reservoir
+  double CR_fast_storage_cm = 0.0;    //water stored in the conceptual reservoir
+  double CR_slow_storage_cm = 0.0;    //water stored in the conceptual reservoir
   double volrunoff_CR_cm = 0.0;  //discharge to stream from conceptual reservoir
 
   double previous_AET = 0.0;  // used to determine if fluxes can be cached rather than computed
@@ -246,6 +251,9 @@ struct lgar_calib_parameters
   double a;                      // parameter for nonlinear reservoir
   double b;                      // parameter for nonlinear reservoir
   double frac_to_CR;             // parameter for nonlinear reservoir
+  double a_slow;                      // parameter for nonlinear reservoir
+  double b_slow;                      // parameter for nonlinear reservoir
+  double frac_slow;             // parameter for nonlinear reservoir
   double spf_factor;             // parameter for nonlinear reservoir
 
 };
@@ -318,7 +326,7 @@ extern double lgar_calc_mass_bal(double *cum_layer_thickness, struct wetting_fro
 extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
 
 // computes derivatives; called derivs() in Python code
-extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, int num_layers, double h_p, int *soil_type, double *cum_layer_thickness,
+extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, int num_layers, double h_p, double subtimestep_h, int *soil_type, double *cum_layer_thickness,
 			   double *frozen_factor, struct wetting_front* head, struct soil_properties_ *soil_properties, bool switch_caching, int cache_count, int new_front);
 
 // computes dry depth
@@ -431,6 +439,13 @@ extern void f_alloc(float **var,int size);
 extern bool is_epsilon_less_than(double a, double eps);
 
 //function for contribtion to streamflow from conceptual reservoir
-extern double calc_CR_Q(double subtimestep_h, double a, double b, double precip_for_CR_subtimestep_cm, double *CR_storage_cm);
+extern double calc_CR_Q(
+    double subtimestep_h,
+    double a_fast, double a_slow,
+    double b_fast, double b_slow,
+    double frac_slow,  // fraction (0 - 1) of recharge going to slow reservoir
+    double precip_for_CR_subtimestep_cm,
+    double *CR_fast_storage_cm,
+    double *CR_slow_storage_cm);
 
 #endif  // _ALL_HXX

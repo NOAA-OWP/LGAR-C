@@ -3,21 +3,45 @@
 
 #include "../include/all.hxx"
 
-//A single nonlinear reservoir is used to represent water stored in the catchment that contributes to streamflow, which lumps both quickflow and groundwater contributions to streamflow
-extern double calc_CR_Q(double subtimestep_h, double a, double b, double precip_for_CR_subtimestep_cm, double *CR_storage_cm){
-    double QCR = subtimestep_h * (a * pow(*CR_storage_cm, b));
-    if (*CR_storage_cm < 0.01){ // idea here is that we do want the contribution to streamflw to actually become 0 in arid or semi arid environments
-        QCR = 0.0;
+
+extern double calc_CR_Q(
+    double subtimestep_h,
+    double a_fast, double a_slow,
+    double b_fast, double b_slow,
+    double frac_slow,  // fraction (0 - 1) of recharge going to slow reservoir
+    double precip_for_CR_subtimestep_cm,
+    double *CR_fast_storage_cm,
+    double *CR_slow_storage_cm)
+{
+    // Partition recharge between fast and slow reservoirs
+    double input_slow = precip_for_CR_subtimestep_cm * frac_slow;
+    double input_fast = precip_for_CR_subtimestep_cm - input_slow; // implicit (1 - frac_slow)
+
+    // === FAST reservoir outflow ===
+    double Q_fast = subtimestep_h * (a_fast * pow(*CR_fast_storage_cm, b_fast));
+    if (*CR_fast_storage_cm < 0.01) Q_fast = 0.0;
+
+    double delta_fast = subtimestep_h * input_fast - Q_fast;
+    if (*CR_fast_storage_cm + delta_fast > 0.0) {
+        *CR_fast_storage_cm += delta_fast;
+    } else {
+        Q_fast = *CR_fast_storage_cm + input_fast;
+        *CR_fast_storage_cm = 0.0;
     }
-    if (*CR_storage_cm + (subtimestep_h * precip_for_CR_subtimestep_cm - QCR) > 0.0){
-        *CR_storage_cm += (subtimestep_h * precip_for_CR_subtimestep_cm - QCR);
+
+    // === SLOW reservoir outflow ===
+    double Q_slow = subtimestep_h * (a_slow * pow(*CR_slow_storage_cm, b_slow));
+    if (*CR_slow_storage_cm < 0.01) Q_slow = 0.0;
+
+    double delta_slow = subtimestep_h * input_slow - Q_slow;
+    if (*CR_slow_storage_cm + delta_slow > 0.0) {
+        *CR_slow_storage_cm += delta_slow;
+    } else {
+        Q_slow = *CR_slow_storage_cm + input_slow;
+        *CR_slow_storage_cm = 0.0;
     }
-    else {
-        QCR = *CR_storage_cm + precip_for_CR_subtimestep_cm;
-        *CR_storage_cm = 0.0;
-    }
-    return(QCR);
+
+    return Q_fast + Q_slow;
 }
 
 #endif
-
