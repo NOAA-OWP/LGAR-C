@@ -1637,6 +1637,8 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
       int iter = 0;
       bool iter_aug_flag = FALSE;
       bool break_flag = FALSE;
+      int speedup_thresh = MAX_ITER_SATURATION_MBAL_LOOP/10;
+
       while (fabs(mass_balance_error) > tolerance) {
         iter++;
         if (iter>MAX_ITER_SATURATION_MBAL_LOOP) {
@@ -1646,7 +1648,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
           break;
         }
 
-        if ((iter>(MAX_ITER_SATURATION_MBAL_LOOP/10)) && (!iter_aug_flag)){
+        if ((iter>speedup_thresh) && (!iter_aug_flag)){
           factor = factor * 100;
           iter_aug_flag = TRUE;
         }
@@ -2818,16 +2820,18 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
   int iter = 0;
   bool iter_aug_flag = FALSE;
   bool iter_aug_flag_extreme = FALSE;
+  int first_speedup_thresh = MAX_ITER_MBAL_LOOP/100;
+  int second_speedup_thresh = MAX_ITER_MBAL_LOOP/10;
 
   while (delta_mass > tolerance) {
     iter++;
 
-    if (iter>(MAX_ITER_MBAL_LOOP/100) && iter_aug_flag==FALSE){
+    if (iter>first_speedup_thresh && iter_aug_flag==FALSE){
       factor = factor*100;
       iter_aug_flag = TRUE;
     }
 
-    if (iter>(MAX_ITER_MBAL_LOOP/10) && iter_aug_flag_extreme==FALSE){
+    if (iter>second_speedup_thresh && iter_aug_flag_extreme==FALSE){
       factor = factor*100;
       iter_aug_flag_extreme = TRUE;
     }
