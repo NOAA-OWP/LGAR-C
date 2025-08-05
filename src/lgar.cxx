@@ -62,7 +62,7 @@ using namespace std;
 
 #define THRESHOLD_NO_MOISTURE_DIFF 1.E-15      // threshold that will be used to check if adjacent WFs are redundant
 #define MBAL_ITERATIVE_TOLERANCE 1.E-10        // in the loops that close mass balance across multiple layers, the before and after masses (considering fluxes as well) must match by this number or less
-#define MAX_ITER_MBAL_LOOP 1.E5                // the loop that adjusts theta after WFs move (shich that psi will be equal across soil layer boundaries) will iterate this many times before accepting a mass balance error. It is larger than MAX_ITER_SATURATION_MBAL_LOOP because the loop with MAX_ITER__MBAL_LOOP addresses very large psi cases.
+#define MAX_ITER_MBAL_LOOP 1.E5                // the loop that adjusts theta after WFs move (shich that psi will be equal across soil layer boundaries) will iterate this many times before accepting a mass balance error.
 #define MAX_ITER_SATURATION_MBAL_LOOP 1.E4     // the loop that adjusts the depth of a saturated WF after the WF becomes saturated to conserve mass has this maximum number of iterations before it just accepts that there will be a mass balance error
 #define TRUNCATION_DEPTH 1.E-9                 // when a WF exceeds the lower boundary, we want it to only slightly do this in order to keep the lower boundary condition effectively no flow but also correctly set psi for WFs that it passed
 #define FACTOR_LIMITS_LAYER_CROSSING_SPEED 2.0 // when a WF crosses a layer boundary, it shouldn't go too far into the next layer -- for example in the case of sand over clay, a WF in sand might have a large dzdt value that leads to crossing to an unrealistic depth in the clay below
@@ -1483,6 +1483,11 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
 	  current->theta = current->theta;
 	else {
       if ((prior_mass/current->depth_cm + next->theta)<theta_r){
+        if (verbosity.compare("high") == 0) {
+          printf("Deleting WF (%d) that will go below theta_r (before)...\n", current->front_num);
+          listPrint(*head);
+        }
+
         //the idea here is that in some cases, the reduction in theta via WF movement or AET will be intense enough such that theta goes below theta_r.
         //it requires a fairly unusual soil, which I encountered during random parameter sampling.
         double mass_before_theta_went_below_theta_r = lgar_calc_mass_bal(cum_layer_thickness_cm, *head) - current->depth_cm*(current->theta - (prior_mass/current->depth_cm + next->theta));
@@ -1491,6 +1496,10 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
         double mass_after_theta_went_below_theta_r = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
         *AET_demand_cm = *AET_demand_cm - fabs(mass_before_theta_went_below_theta_r - mass_after_theta_went_below_theta_r);
         actual_ET_demand = *AET_demand_cm;
+        if (verbosity.compare("high") == 0) {
+          printf("Deleting WF that will go below theta_r (after)...\n");
+          listPrint(*head);
+        }
       }
       else {//This is the case where theta>theta_r, which will be almost all of the time 
 	      current->theta = fmax(theta_r, fmin(theta_e, prior_mass/current->depth_cm + next->theta));
@@ -1770,23 +1779,26 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
 
   current = *head;
 
-  for (int wf=1; wf != listLength(*head); wf++) {
+  for (int wf=1; wf != listLength(*head) + 1; wf++) {
 
+    int soil_num_k    = soil_type[current->layer_num];
+
+    double theta_e_k   = soil_properties[soil_num_k].theta_e;
+    double theta_r_k   = soil_properties[soil_num_k].theta_r;
+    double vg_a_k      = soil_properties[soil_num_k].vg_alpha_per_cm;
+    double vg_m_k      = soil_properties[soil_num_k].vg_m;
+    double vg_n_k      = soil_properties[soil_num_k].vg_n;
+
+    double Ksat_cm_per_h_k  = frozen_factor[current->layer_num] * soil_properties[soil_num_k].Ksat_cm_per_h;
+
+    double Se = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
     if (current->psi_cm>1.0){
-      int soil_num_k    = soil_type[current->layer_num];
-
-      double theta_e_k   = soil_properties[soil_num_k].theta_e;
-      double theta_r_k   = soil_properties[soil_num_k].theta_r;
-      double vg_a_k      = soil_properties[soil_num_k].vg_alpha_per_cm;
-      double vg_m_k      = soil_properties[soil_num_k].vg_m;
-      double vg_n_k      = soil_properties[soil_num_k].vg_n;
-
-      double Ksat_cm_per_h_k  = frozen_factor[current->layer_num] * soil_properties[soil_num_k].Ksat_cm_per_h;
-
-      double Se = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
       current->psi_cm = calc_h_from_Se(Se, vg_a_k, vg_m_k, vg_n_k); 
       current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h_k, vg_m_k);
     }
+
+    current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h_k, vg_m_k);
+
     current = current->next;
 
   }
@@ -1916,6 +1928,8 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
 
   if (verbosity.compare("high") == 0) {
     printf("Layer boundary crossing... \n");
+    printf("States before wetting fronts cross layer boundary...\n");
+    listPrint(*head);
   }
 
   for (int wf=1; wf != listLength(*head); wf++) {
