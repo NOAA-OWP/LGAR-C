@@ -1359,7 +1359,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
                _____________       ______________
                          |                   |
                __________|__       __________|___
-	               |                     |
+	                     |                     |
                ________|____       __________|___
                    |                         |
                ____|________       __________|___
@@ -1794,7 +1794,6 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
     double Se = calc_Se_from_theta(current->theta,theta_e_k,theta_r_k);
     if (current->psi_cm>1.0){
       current->psi_cm = calc_h_from_Se(Se, vg_a_k, vg_m_k, vg_n_k); 
-      current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h_k, vg_m_k);
     }
 
     current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h_k, vg_m_k);
@@ -2021,6 +2020,18 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
         double vg_m_k      = soil_properties[soil_num_k1].vg_m;
         double vg_n_k      = soil_properties[soil_num_k1].vg_n;
         current_temp->theta = calc_theta_from_h(current_temp->psi_cm, vg_a_k, vg_m_k, vg_n_k,theta_e_k,theta_r_k);
+        double Ksat_cm_per_h_k  = soil_properties[soil_num_k1].Ksat_cm_per_h;
+        double Se = calc_Se_from_theta(current_temp->theta,theta_e_k, theta_r_k);
+        current_temp->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h_k, vg_m_k);
+      }
+      else{
+        int soil_num_k1 = soil_type[current_temp->layer_num]; 
+        double theta_e_k   = soil_properties[soil_num_k1].theta_e;
+        double theta_r_k   = soil_properties[soil_num_k1].theta_r;
+        double vg_m_k      = soil_properties[soil_num_k1].vg_m;
+        double Ksat_cm_per_h_k  = soil_properties[soil_num_k1].Ksat_cm_per_h;
+        double Se = calc_Se_from_theta(current_temp->theta,theta_e_k, theta_r_k);
+        current_temp->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h_k, vg_m_k);
       }
     }
   }
