@@ -88,20 +88,11 @@ else()
    			./src/util_funcs.cxx ./src/aet.cxx ./src/Logger.cpp ./include/Logger.hpp ./giuh/giuh.c include/all.hxx ./giuh/giuh.h)
 endif()
 
-# -----------------------------------------------------------------------------
-# Find the Boost library and configure usage
-set(Boost_USE_STATIC_LIBS OFF)
-set(Boost_USE_MULTITHREADED ON)
-set(Boost_USE_STATIC_RUNTIME OFF)
-find_package(Boost 1.79.0 REQUIRED)
-
 target_include_directories(lasambmi PRIVATE include)
 
 set_target_properties(lasambmi PROPERTIES VERSION ${PROJECT_VERSION})
 
 set_target_properties(lasambmi PROPERTIES PUBLIC_HEADER ./include/bmi_lgar.hxx)
-
-target_link_libraries(lasambmi PRIVATE Boost::serialization Boost::archive)
 
 include(GNUInstallDirs)
 

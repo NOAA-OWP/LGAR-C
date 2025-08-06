@@ -24,7 +24,6 @@
 #include <vector>
 #include <time.h>
 #include <sstream>
-#include <boost/serialization/access.hpp>
 
 using namespace std;
 
@@ -54,18 +53,6 @@ struct wetting_front
   bool   to_bottom;        // TRUE iff this wetting front is in contact with the layer bottom
   double dzdt_cm_per_h;    // use to store the calculated wetting front speed
   struct wetting_front *next;  // pointer to the next wetting front.
-
-  template <class Archive>
-  void serialize(Archive &ar, const unsigned int version) {
-    ar & this->depth_cm;
-    ar & this->theta;
-    ar & this->psi_cm;
-    ar & this->K_cm_per_h;
-    ar & this->layer_num;
-    ar & this->front_num;
-    ar & this->to_bottom;
-    ar & this->dzdt_cm_per_h;
-  }
 };
 
 /* head is a GLOBALLY defined pointer to the first link in the wetting front list.
