@@ -1458,7 +1458,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
 	printf("case (wetting front within a layer) : layer_num (%d) == layer_num_below (%d) \n", layer_num,layer_num_below);
       }
 
-      // if wetting front is the most surficial wetting front
+      // if wetting front is in the most surficial layer
       if (layer_num == 1) {
 
 	// double free_drainage_demand = 0;
@@ -1749,18 +1749,8 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
     }
 
     if (correction_type_surf==4){
-      lgar_fix_dry_over_wet_wetting_fronts(&mass_change, cum_layer_thickness_cm, soil_type, head, soil_properties);
-      // if (*free_drainage_subtimestep_cm==0.0){
-        *AET_demand_cm = *AET_demand_cm - mass_change; //technically this could be handled in a smoother way, and is in lgarto, but this follows the format of lgar
-      // }
-      // else {
-      //   *free_drainage_subtimestep_cm = *free_drainage_subtimestep_cm - mass_change;
-      //   // *AET_demand_cm = *AET_demand_cm - mass_change;
-      //   if (*free_drainage_subtimestep_cm<0.0){
-      //     *AET_demand_cm = *AET_demand_cm + *free_drainage_subtimestep_cm;
-      //     *free_drainage_subtimestep_cm = 0.0;
-      //   }
-      // }
+      lgar_fix_dry_over_wet_wetting_fronts(num_layers, &mass_change, cum_layer_thickness_cm, soil_type, head, soil_properties);
+      *AET_demand_cm = *AET_demand_cm - mass_change;
     }
 
     correction_type_surf =  lgarto_correction_type_surf(num_layers, cum_layer_thickness_cm, head);
@@ -1810,11 +1800,11 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
   //Just a check to make sure that, when there is only 1 layer, than the existing wetting front is at the correct depth.
   //This might have been fixed with other debugging related to scenarios with just 1 layer where the wetting front is completely satruated. Not sure this is necessary.
   if (listLength(*head)==1) {
+    current = *head;
     if (current->depth_cm != cum_layer_thickness_cm[1]) {
       current->depth_cm = cum_layer_thickness_cm[1];
     }
   }
-
   return(bottom_boundary_flux_cm);
 
 }
@@ -2126,11 +2116,15 @@ extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, i
 // ############################################################################################
 /* The function handles situation of dry over wet wetting fronts
   mainly happen when AET extracts more water from the upper wetting front
-  and the front gets drier than the lower wetting front */
+  and the front gets drier than the lower wetting front, or if free 
+  drainage is enabled it can do the same thing */
 // ############################################################################################
-extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
+extern void lgar_fix_dry_over_wet_wetting_fronts(int num_layers, double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
 					 struct wetting_front** head, struct soil_properties_ *soil_properties)
 {
+  // This function will delete the wetting front that is drier than the WF below it that is in the same layer, and then it will 
+  // iteratively adjust the psi and theta values of the region of the soil column that should have just 1 psi value now that a WF was deleted.
+  // mass_change will return any mass balance error and should usually be 0.0
   if (verbosity.compare("high") == 0) {
     printf("Fix Dry over Wet Wetting Front... \n");
   }
@@ -2142,25 +2136,175 @@ extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cu
 
   for (int l=1; l <= listLength(*head); l++) {
     if (next != NULL) {
-      // this part fixes case of upper theta less than lower theta due to AET extraction
+      // this part fixes case of upper theta less than lower theta due to AET extraction or free drainage
       // also handles the case when the current and next wetting fronts have the same theta
       // and are within the same layer
       /***************************************************/
 
       if ( (current->theta <= next->theta) && (current->layer_num == next->layer_num) ) {
-	int layer_num_k = current->layer_num;
-	double mass_before = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+        int layer_num_k = current->layer_num;
+        double mass_before = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
 
-	current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
-	
-	double mass_after = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
-	*mass_change += fabs(mass_after - mass_before);
+        int layer_num = current->layer_num;
 
-	/* note: mass_before is less when we have wetter front over drier front condition,
-	   however, lgar_calc_mass_bal returns mass_before > mass_after due to fabs(theta_current - theta_next);
-	   for mass_before the functions compuates more than the actual mass; removing fabs in that function
-	   might be one option, but for now we are adding fabs to mass_change to make sure we added extra water
-	   back to AET after deleting the drier front */
+        double prior_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+        current = listDeleteFront(current->front_num, head, soil_type, soil_properties); //current will be the WF directly after the one that got deleted
+
+        if (current->front_num > 1){ //check if any to_bottom WFs above the deleted one need to be included in the mass balance iterations. That is, if the WF above the deleted one is to_bottom, include all to_bottom WFs directly above the deleted front
+          struct wetting_front *front = listFindFront(current->front_num-1, *head, NULL);
+          if (front->to_bottom){
+            current = front;
+          }
+        }
+        while (current->to_bottom){
+          if (current->front_num==1){
+            break;
+          }
+          current = listFindFront(current->front_num-1, *head, NULL);
+          if (!current->to_bottom){
+            current = current->next;
+            break;
+          }
+        }
+        double new_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+        double psi_cm = current->psi_cm;
+
+        double psi_cm_loc = current->psi_cm; // location psi
+        double delta_mass = fabs(new_mass - prior_mass); // mass different between the new and prior
+        double tolerance = MBAL_ITERATIVE_TOLERANCE;
+
+        double factor = fmax(1.0,psi_cm/10.0);
+        if (psi_cm>1.E4){ // in very dry cases, mass conservation will take longer to achieve if using a small factor
+          factor = psi_cm;
+        }
+        bool switched = false; // flag that determines capillary head to be incremented or decremented
+
+        double theta             = 0.0; // this will be updated and returned
+        double psi_cm_loc_prev   = psi_cm_loc;
+        double delta_mass_prev   = delta_mass;
+        int count_no_mass_change = 0;
+        int break_no_mass_change = 5;
+
+        // the loop increments/decrements the capillary head until mass difference between
+        // the new and prior is within the tolerance
+        int iter = 0;
+        bool iter_aug_flag = FALSE;
+        bool iter_aug_flag_extreme = FALSE;
+        int first_speedup_thresh = MAX_ITER_MBAL_LOOP/100;
+        int second_speedup_thresh = MAX_ITER_MBAL_LOOP/10;
+
+        while (delta_mass > tolerance) {
+          iter++;
+
+          if (iter>first_speedup_thresh && iter_aug_flag==FALSE){
+            factor = factor*100;
+            iter_aug_flag = TRUE;
+          }
+
+          if (iter>second_speedup_thresh && iter_aug_flag_extreme==FALSE){
+            factor = factor*100;
+            iter_aug_flag_extreme = TRUE;
+          }
+
+          if (new_mass > prior_mass) {
+            psi_cm_loc += 0.1 * factor;
+            switched = false;
+          }
+          else {
+            if (!switched) {
+        switched = true;
+        factor = factor * 0.1;
+            }
+            
+            psi_cm_loc_prev = psi_cm_loc;
+            psi_cm_loc -= 0.1 * factor;
+            
+            if (psi_cm_loc < 0 && psi_cm_loc_prev != 0) {
+        /* this is for the extremely rare case when iterative psi_cm_loc calculation temporarily
+          yields a negative value and the actual answer for psi_cm_loc is nonzero. For example
+          when a completely saturated wetting front with a tiny amount of ET should yield a resulting
+          theta that is slightly below saturation. */
+              psi_cm_loc = psi_cm_loc_prev * 0.1;
+            }
+            
+          }
+
+          int layer_num  = current->layer_num;
+          int soil_num   = soil_type[layer_num];
+
+          current->psi_cm = psi_cm_loc;
+          current->theta = calc_theta_from_h(psi_cm_loc, soil_properties[soil_num].vg_alpha_per_cm, soil_properties[soil_num].vg_m,
+                  soil_properties[soil_num].vg_n,soil_properties[soil_num].theta_e,
+                  soil_properties[soil_num].theta_r);
+
+          struct wetting_front *next = current->next;
+          struct wetting_front *before_next = current;
+          if (next){ // current was previously selected as the top most WF in the region that we want to iteratively adjust. The lowest will be either the lowest WF, or the first WF below current that is not to_bottom.
+            while (next->to_bottom){
+              next->psi_cm = before_next->psi_cm;
+              layer_num  = next->layer_num;
+              soil_num   = soil_type[layer_num];
+              double theta_e = soil_properties[soil_num].theta_e;
+              double theta_r = soil_properties[soil_num].theta_r;
+              double vg_a    = soil_properties[soil_num].vg_alpha_per_cm;
+              double vg_m    = soil_properties[soil_num].vg_m;
+              double vg_n    = soil_properties[soil_num].vg_n;
+
+              next->theta = calc_theta_from_h(next->psi_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
+
+              before_next = next;
+              next = next->next;
+              if (!next){
+                break;
+              }
+            }
+            if (next){
+              if (!next->to_bottom && before_next->to_bottom){ // done one more time to also include the next WF that is not to bottom if it exists (i.e. we did not reach LGAR's lower boundary)
+                next->psi_cm = before_next->psi_cm;
+                layer_num  = next->layer_num;
+                soil_num   = soil_type[layer_num];
+                double theta_e = soil_properties[soil_num].theta_e;
+                double theta_r = soil_properties[soil_num].theta_r;
+                double vg_a    = soil_properties[soil_num].vg_alpha_per_cm;
+                double vg_m    = soil_properties[soil_num].vg_m;
+                double vg_n    = soil_properties[soil_num].vg_n;
+
+                next->theta = calc_theta_from_h(next->psi_cm, vg_a,vg_m, vg_n, theta_e, theta_r);
+
+              }
+            }
+          }
+
+          new_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+          delta_mass = fabs(new_mass - prior_mass);
+          
+          if (fabs(psi_cm_loc - psi_cm_loc_prev) < 1E-15 && factor < 1E-13) break; // stop if the difference between iterated psis is very small
+
+          // another condition to avoid infinite loop when the error does not improve
+          if (fabs(delta_mass - delta_mass_prev) < 1E-15)
+            count_no_mass_change++;
+          else
+            count_no_mass_change = 0;
+
+          // break the loop if the mass does not change in the five consecutive iterations.
+          if (count_no_mass_change == break_no_mass_change){ // made it so that this check only occurs if there is no infiltration, because there is a case where precip on a very dry wetting front will need more than 5 iterations to have its mass change at all
+            break;
+          }
+
+          if (iter>MAX_ITER_MBAL_LOOP){ //limit the total number of iterations 
+            break;
+          }
+
+          // -ve pressure will return NAN, so terminate the loop if previous psi is way small and current psi is zero
+          // the wetting front is almost saturated
+          if (psi_cm_loc <= 0 && psi_cm_loc_prev < 0) break;
+
+          delta_mass_prev = delta_mass;
+
+        }
+
+        double mass_after = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+        *mass_change += fabs(mass_after - mass_before);
 
       }
       
@@ -2173,7 +2317,6 @@ extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cu
 
     }
   }
-
 }
 
 // ############################################################################################
@@ -3044,6 +3187,50 @@ extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_t
     printf("after lgar_clean_redundant_fronts: \n");
     listPrint(*head);
   }
+}
+
+extern double calc_min_water_possible_for_FD_WF(int wf_free_drainage, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties){
+	/* The region of the soil column from which AET and free drainage are extracted is equal to the most surficial region sharing a single psi value, which 
+     can span multiple layers. This function calculates the minimum amount of water that this region can hold, and AET and free drainage will be augmented such that
+     they can not yield a theta value below theta_r. */
+  double min_storage = 0.0;
+  double previous_depth = 0.0;
+
+  struct wetting_front *current;
+  current = *head;
+  while (current!=NULL){
+    int layer_num  = current->layer_num;
+    int soil_num   = soil_type[layer_num];
+    double theta_r = soil_properties[soil_num].theta_r;
+    min_storage += theta_r*(current->depth_cm - previous_depth);
+    if (current->front_num==wf_free_drainage){
+      break;
+    }
+    previous_depth = current->depth_cm;
+    current = current->next;
+  }
+  return min_storage;
+
+}
+
+extern double calc_storage_in_FD_WF(int wf_free_drainage, struct wetting_front** head){
+  /* The region of the soil column from which AET and free drainage are extracted is equal to the most surficial region sharing a single psi value, which 
+     can span multiple layers. This function calculates the amount of water that this region currently holds, and AET and free drainage will be augmented such that
+     they can not yield a theta value below theta_r. */
+  double storage = 0.0;
+  double previous_depth = 0.0;
+
+  struct wetting_front *current;
+  current = *head;
+  while (current!=NULL){
+    storage += current->theta*(current->depth_cm - previous_depth);
+    if (current->front_num==wf_free_drainage){
+      break;
+    }
+    previous_depth = current->depth_cm;
+    current = current->next;
+  }
+  return storage;
 }
 
 #endif

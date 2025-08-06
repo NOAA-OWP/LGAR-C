@@ -411,6 +411,11 @@ Update()
         min_storage += state->soil_properties[soil_num_min_check].theta_r * (state->lgar_bmi_params.cum_layer_thickness_cm[k]-state->lgar_bmi_params.cum_layer_thickness_cm[k-1]);
       }
 
+      int wf_free_drainage_demand = wetting_front_free_drainage(state->head);
+
+      double min_water_possible_for_FD_WF = calc_min_water_possible_for_FD_WF(wf_free_drainage_demand,  &state->head, state->lgar_bmi_params.layer_soil_type, state->soil_properties);
+      double storage_in_FD_WF = calc_storage_in_FD_WF(wf_free_drainage_demand, &state->head);
+
       double mass_correction_for_cached_free_drainage_fluxes = 0.0;
 
       if (switch_caching){
@@ -424,7 +429,7 @@ Update()
         struct wetting_front *front = listFindFront(listLength(state->head), state->head, NULL);
         free_drainage_subtimestep_cm += subtimestep_h*front->K_cm_per_h;
         int iter_mass_check_FD = 0;
-        while (mass_used_to_check_impossible_storages - free_drainage_subtimestep_cm < min_storage){
+        while ( (mass_used_to_check_impossible_storages - free_drainage_subtimestep_cm < min_storage) || (storage_in_FD_WF - free_drainage_subtimestep_cm < min_water_possible_for_FD_WF) ){
           free_drainage_subtimestep_cm *= 0.5; //give it a chance to merely become smaller before setting to 0
           if (iter_mass_check_FD > 5){
             free_drainage_subtimestep_cm = 0.0;
@@ -465,7 +470,7 @@ Update()
       }
 
       int iter_mass_check_AET = 0;
-      while (mass_used_to_check_impossible_storages - AET_subtimestep_cm < min_storage){
+      while ( (mass_used_to_check_impossible_storages - AET_subtimestep_cm < min_storage) || (storage_in_FD_WF - AET_subtimestep_cm < min_water_possible_for_FD_WF) ){
         AET_subtimestep_cm *= 0.5; //give it a chance to merely become smaller before setting to 0
         if (iter_mass_check_AET > 5){
           AET_subtimestep_cm = 0.0;
@@ -474,10 +479,17 @@ Update()
         iter_mass_check_AET ++;
       }
 
-      if (mass_used_to_check_impossible_storages - AET_subtimestep_cm - free_drainage_subtimestep_cm < min_storage){ // both should also be checked at the same because while individually these might not make an impossible storage,
-                                                                                                                     // together they might
-        AET_subtimestep_cm = 0.0;
-        free_drainage_subtimestep_cm = 0.0;
+      int iter_mass_check_AET_and_FD = 0;
+      while ( (mass_used_to_check_impossible_storages - AET_subtimestep_cm - free_drainage_subtimestep_cm < min_storage) || (storage_in_FD_WF - AET_subtimestep_cm - free_drainage_subtimestep_cm < min_water_possible_for_FD_WF) ){ 
+        // both should also be checked at the same because while individually these might not make an impossible storage, together they might
+        AET_subtimestep_cm *= 0.5;
+        free_drainage_subtimestep_cm *= 0.5;
+        if (iter_mass_check_AET_and_FD > 5){
+          AET_subtimestep_cm = 0.0;
+          free_drainage_subtimestep_cm = 0.0;
+          break;
+        }
+        iter_mass_check_AET_and_FD ++;
       }
 
       // precip_timestep_cm += precip_subtimestep_cm;
@@ -487,8 +499,6 @@ Update()
       //addressed machine precision issues where volon_timestep_error could be for example -1E-17 or 1.E-20 or smaller
       volon_timestep_cm = fmax(volon_timestep_cm,0.0);
       volon_timestep_cm = volon_timestep_cm > SMALL_EPS ? volon_timestep_cm : 0.0;
-
-      int wf_free_drainage_demand = wetting_front_free_drainage(state->head);
 
       /*----------------------------------------------------------------------*/
       // Should a new wetting front be created?
@@ -722,6 +732,10 @@ Update()
 
     bool unexpected_local_error = fabs(local_mb) > mbal_tol ? true : false; //1.0E-4 was the default for LASAM stability testing 
     if (isinf(local_mb)){
+      unexpected_local_error = true;
+    }
+
+    if (AET_subtimestep_cm<-1.E-1){
       unexpected_local_error = true;
     }
     

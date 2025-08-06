@@ -371,7 +371,7 @@ extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, i
 						       struct wetting_front** head, struct soil_properties_ *soil_properties);
 
 // subroutine to handle wet over dry wetting fronts condtions
-extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
+extern void lgar_fix_dry_over_wet_wetting_fronts(int num_layers, double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
 						 struct wetting_front** head, struct soil_properties_ *soil_properties);
 
 // checks if dry over wet wetting front exists or not
@@ -384,6 +384,10 @@ extern int wetting_front_free_drainage(struct wetting_front* head);
 extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm, double new_mass,
 				      double prior_mass, double precip_mass_to_add, double *AET_demand_cm, double *delta_theta, double *layer_thickness_cm,
 				      int *soil_type, struct soil_properties_ *soil_properties);
+
+extern double calc_min_water_possible_for_FD_WF(int wf_free_drainage, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
+
+extern double calc_storage_in_FD_WF(int wf_free_drainage, struct wetting_front** head);
 
 /********************************************************************/
 // Bmi functions
