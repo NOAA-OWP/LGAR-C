@@ -582,7 +582,7 @@ Update()
         is created and that there is water on the surface (or raining). */
 
       if (ponded_depth_subtimestep_cm > 0 && !create_surficial_front) {
-        volrunoff_subtimestep_cm = lgar_insert_water(use_closed_form_G, nint, subtimestep_h, AET_subtimestep_cm, &ponded_depth_subtimestep_cm,
+        volrunoff_subtimestep_cm = lgar_insert_water(use_closed_form_G, nint, subtimestep_h, AET_subtimestep_cm, free_drainage_subtimestep_cm, &ponded_depth_subtimestep_cm,
                 &volin_subtimestep_cm, precip_subtimestep_cm_per_h,
                 wf_free_drainage_demand, num_layers,
                 ponded_depth_max_cm, state->lgar_bmi_params.layer_soil_type,
@@ -732,10 +732,6 @@ Update()
 
     bool unexpected_local_error = fabs(local_mb) > mbal_tol ? true : false; //1.0E-4 was the default for LASAM stability testing 
     if (isinf(local_mb)){
-      unexpected_local_error = true;
-    }
-
-    if (AET_subtimestep_cm<-1.E-1){
       unexpected_local_error = true;
     }
     
