@@ -480,13 +480,15 @@ Update()
       }
 
       int iter_mass_check_AET_and_FD = 0;
-      while ( (mass_used_to_check_impossible_storages - AET_subtimestep_cm - free_drainage_subtimestep_cm < min_storage) || (storage_in_FD_WF - AET_subtimestep_cm - free_drainage_subtimestep_cm < min_water_possible_for_FD_WF) ){ 
+      while ( (mass_used_to_check_impossible_storages - AET_subtimestep_cm - free_drainage_subtimestep_cm - mass_correction_for_cached_free_drainage_fluxes < min_storage) || (storage_in_FD_WF - AET_subtimestep_cm - free_drainage_subtimestep_cm - mass_correction_for_cached_free_drainage_fluxes < min_water_possible_for_FD_WF) ){ 
         // both should also be checked at the same because while individually these might not make an impossible storage, together they might
         AET_subtimestep_cm *= 0.5;
         free_drainage_subtimestep_cm *= 0.5;
+        mass_correction_for_cached_free_drainage_fluxes *=0.5;
         if (iter_mass_check_AET_and_FD > 5){
           AET_subtimestep_cm = 0.0;
           free_drainage_subtimestep_cm = 0.0;
+          mass_correction_for_cached_free_drainage_fluxes = 0.0;
           break;
         }
         iter_mass_check_AET_and_FD ++;

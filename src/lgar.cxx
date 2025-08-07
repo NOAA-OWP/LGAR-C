@@ -1751,6 +1751,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
     }
 
     if (correction_type_surf==4){
+      mass_change = 0.0;
       lgar_fix_dry_over_wet_wetting_fronts(num_layers, &mass_change, cum_layer_thickness_cm, soil_type, head, soil_properties);
       *AET_demand_cm = *AET_demand_cm - mass_change;
     }
@@ -2226,7 +2227,7 @@ extern void lgar_fix_dry_over_wet_wetting_fronts(int num_layers, double *mass_ch
         int front_num_correction = current->front_num;
         lgar_theta_mass_balance_correction(front_num_correction, prior_mass, head, cum_layer_thickness_cm, soil_type, soil_properties);
         double mass_after = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
-        *mass_change += fabs(mass_after - prior_mass);
+        *mass_change += (mass_after - prior_mass);
 
       }
       
@@ -3017,6 +3018,10 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
       break;
     }
 
+    if (psi_cm_loc > 1.E8){ //unrealistic pressures
+      break;
+    }
+
     // -ve pressure will return NAN, so terminate the loop if previous psi is way small and current psi is zero
     // the wetting front is almost saturated
     if (psi_cm_loc <= 0 && psi_cm_loc_prev < 0) break;
@@ -3318,7 +3323,9 @@ extern void lgar_theta_mass_balance_correction(int front_num, double prior_mass,
     new_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
     delta_mass = fabs(new_mass - prior_mass);
     
-    if (fabs(psi_cm_loc - psi_cm_loc_prev) < 1E-15 && factor < 1E-13) break; // stop if the difference between iterated psis is very small
+    if (fabs(psi_cm_loc - psi_cm_loc_prev) < 1E-15 && factor < 1E-13) {
+      break; // stop if the difference between iterated psis is very small
+    }
 
     // another condition to avoid infinite loop when the error does not improve
     if (fabs(delta_mass - delta_mass_prev) < 1E-15)
@@ -3337,7 +3344,13 @@ extern void lgar_theta_mass_balance_correction(int front_num, double prior_mass,
 
     // -ve pressure will return NAN, so terminate the loop if previous psi is way small and current psi is zero
     // the wetting front is almost saturated
-    if (psi_cm_loc <= 0 && psi_cm_loc_prev < 0) break;
+    if (psi_cm_loc <= 0 && psi_cm_loc_prev < 0) {
+      break;
+    }
+
+    if (psi_cm_loc > 1.E8){ //unrealistic pressures
+      break;
+    }
 
     delta_mass_prev = delta_mass;
 
