@@ -1608,9 +1608,6 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
     // l == 1 is the last iteration (top most wetting front), so do a check on the mass balance)
     // this part should be moved out of here to a subroutine; add a call to that subroutine
     if (wf == 1) { 
-      //first do a test layer bdy cross and then recalc wf_free_drainage_demand
-      lgar_wetting_fronts_cross_layer_boundary(num_layers, cum_layer_thickness_cm, soil_type, frozen_factor,
-					   head, soil_properties); //replacing with more complete code that does merging and crossing as necessary
 
       wf_free_drainage_demand = wetting_front_free_drainage(*head);
     // if ((wf == wf_free_drainage_demand) && (current->theta>=theta_e) ) {
@@ -1737,7 +1734,12 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
     }
 
     if (correction_type_surf==2){
+      double mass_before_bdy_crossing = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
       lgar_wetting_fronts_cross_layer_boundary(num_layers, cum_layer_thickness_cm, soil_type, frozen_factor, head, soil_properties);
+      double mass_after_bdy_crossing  = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+      if (fabs(mass_before_bdy_crossing - mass_after_bdy_crossing)>100.*MBAL_ITERATIVE_TOLERANCE){
+        *AET_demand_cm = *AET_demand_cm + (mass_before_bdy_crossing - mass_after_bdy_crossing);
+      }
     }
 
     if (correction_type_surf==3){
@@ -1924,10 +1926,6 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
 
   for (int wf=1; wf != listLength(*head); wf++) {
     
-    if (verbosity.compare("high") == 0) {
-      printf("Boundary Crossing | ******* Wetting Front = %d ****** \n", wf);
-    }
-    
     // local variables
     double theta_e,theta_r;
     double vg_a, vg_m, vg_n;
@@ -1948,6 +1946,10 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
 
     if (current->depth_cm > cum_layer_thickness_cm[layer_num] && (next->depth_cm == cum_layer_thickness_cm[layer_num]) && (next->to_bottom)
 	&& (layer_num!=num_layers) ) {
+
+      if (verbosity.compare("high") == 0) {
+        printf("Boundary Crossing | ******* Wetting Front = %d ****** \n", wf);
+      }
 
       double current_theta = fmin(theta_e, current->theta);
       double overshot_depth = current->depth_cm - next->depth_cm;
@@ -1976,8 +1978,6 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
 
       double depth_new = cum_layer_thickness_cm[layer_num] + mbal_Z_correction; // this is the new wetting front absolute depth
 
-
-
       current->depth_cm = cum_layer_thickness_cm[layer_num];
       
       next->theta = theta_new;
@@ -1995,10 +1995,6 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
       
     }
     
-    if (verbosity.compare("high") == 0) {
-      printf("States after wetting fronts cross layer boundary...\n");
-      listPrint(*head);
-    }
     current = current->next;
   }
 
@@ -2038,10 +2034,65 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
         if (current->depth_cm>cum_layer_thickness_cm[num_layers] && current->layer_num==num_layers){
           current->depth_cm = cum_layer_thickness_cm[num_layers] + 1.E-6;
           int front_num_correction = current->front_num;
-          lgar_theta_mass_balance_correction(front_num_correction, prior_mass, head, cum_layer_thickness_cm, soil_type, soil_properties);
+          // first, lgar_theta_mass_balance_correction will attempt to close the mass balance by adjusting the theta value of the WF that crossed the layer boundary and other WFs sharing a psi value with it.
+          lgar_theta_mass_balance_correction(front_num_correction, prior_mass, head, cum_layer_thickness_cm, soil_type, soil_properties); 
+          double current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+          if (prior_mass > (current_mass + 100.*MBAL_ITERATIVE_TOLERANCE)) {
+            // if lgar_theta_mass_balance_correction reached theta_e or got very close, then mass balance closure was not possible, which is uncommon but can happen if multiple correction types are necessary in the same time step
+            // in this case, the depth that closes the mass balance is searched for by finding two depths for current->depth_cm, one that makes the storage too low, and one that makes it too high, so the answer is somewhere in between 
+            double tolerance = MBAL_ITERATIVE_TOLERANCE; 
+            double depth_increment = 0.001;                //initial guess
+            double max_increment = 1./TRUNCATION_DEPTH;    // Prevent inf depth
+            double max_depth = cum_layer_thickness_cm[num_layers] + 1./TRUNCATION_DEPTH; 
+
+            double increment = depth_increment;
+            bool found_upper_bound = false;
+            int iter_one_direction = 0;
+
+            // Exponential increase to find upper bound
+            while (prior_mass > current_mass && increment < max_increment && current->depth_cm < max_depth) {
+              iter_one_direction++;
+              current->depth_cm += increment;
+              current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+
+              if (current_mass >= prior_mass) {
+                  found_upper_bound = true;
+                  break;
+              }
+              increment *= 2.0;  
+            }
+
+            // Binary search for refinement (only if upper bound found)
+            if (found_upper_bound) {
+              double low = current->depth_cm - increment;
+              double high = current->depth_cm;
+              double mid;
+
+              while ((high - low) > tolerance) {
+                mid = 0.5 * (low + high);
+                current->depth_cm = mid;
+                current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+
+                  if (current_mass >= prior_mass) {
+                    high = mid;
+                  } else {
+                    low = mid;
+                  }
+              }
+
+              // Final assignment from binary search
+              current->depth_cm = high;
+              current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+            }
+          }
         }
       }
     } 
+  }
+
+  if (verbosity.compare("high") == 0) {
+    printf("States after wetting fronts cross layer boundary...\n");
+    listPrint(*head);
   }
 }
 
@@ -2426,13 +2477,20 @@ extern void lgar_create_surficial_front(int num_layers, double *ponded_depth_cm,
 
   current->dzdt_cm_per_h = 0.0; //for now assign 0 to dzdt as it will be computed/updated in lgar_dzdt_calc function
 
-  if (current->next!=NULL){// sometimes a new WF immediately has to merge with another WF or cross a layer bdy
-    if (current->depth_cm>current->next->depth_cm){
-      //do a merge cross merge
-      // I'm thinking it might not be necessary -- this should happen later. Leaving in for now however,
+  if (current->next!=NULL){// sometimes a new WF immediately has to merge with another WF
+    bool had_to_merge = false;
+    while ( (current->depth_cm > current->next->depth_cm) && (current->layer_num == current->next->layer_num) && !(current->next->to_bottom)){
+      // Technically this should be replaced with the function that iteratively checks for merging, layer crossing, lower boundary crossing, and dry over wet, 
+      // but because all we are doing is adding a new WF onto a linked list that will not need correction because correction was just done on it, it could be that all we need to do here is merge
+      // because the resulting depths should all be in the top layer
       lgar_merge_wetting_fronts(soil_type, frozen_factor, head, soil_properties);
+                struct wetting_front *current_check;
+                current_check = *head;
+      had_to_merge = true;
+    }
+    if (had_to_merge){ //pretty sure this is not necessary but keeping it in
       lgar_wetting_fronts_cross_layer_boundary(num_layers, cum_layer_thickness_cm, soil_type, frozen_factor,
-                head, soil_properties);
+          head, soil_properties);
     }
   }
 
