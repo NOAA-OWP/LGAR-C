@@ -1917,6 +1917,7 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
   current = *head; 
   bool cross_necessary = false;
   bool theta_correction_necessary = false;
+  int front_for_cross = -1;
 
   if (verbosity.compare("high") == 0) {
     printf("Layer boundary crossing... \n");
@@ -1989,6 +1990,7 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
       current->to_bottom = TRUE;
       next->to_bottom = FALSE;
       cross_necessary = true;
+      front_for_cross = next->front_num;
       if (depth_new>cum_layer_thickness_cm[num_layers] && next->layer_num==num_layers){
         theta_correction_necessary = true;
       }
@@ -2026,16 +2028,24 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
         current_temp->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h_k, vg_m_k);
       }
     }
+  if (verbosity.compare("high") == 0) {
+    printf("States after wetting fronts cross layer boundary before theta correction...\n");
+    listPrint(*head);
+  }
 
     if (theta_correction_necessary){
       for (int wf = listLength(*head)-1; wf != 0; wf--) {
       struct wetting_front *current = listFindFront(wf, *head, NULL);
         double prior_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
-        if (current->depth_cm>cum_layer_thickness_cm[num_layers] && current->layer_num==num_layers){
+        if (current->depth_cm>cum_layer_thickness_cm[num_layers] && current->layer_num==num_layers && current->front_num==front_for_cross){
           current->depth_cm = cum_layer_thickness_cm[num_layers] + 1.E-6;
           int front_num_correction = current->front_num;
           // first, lgar_theta_mass_balance_correction will attempt to close the mass balance by adjusting the theta value of the WF that crossed the layer boundary and other WFs sharing a psi value with it.
           lgar_theta_mass_balance_correction(front_num_correction, prior_mass, head, cum_layer_thickness_cm, soil_type, soil_properties); 
+            if (verbosity.compare("high") == 0) {
+              printf("States after wetting fronts cross layer boundary and after theta correction...\n");
+              listPrint(*head);
+            }
           double current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
           if (prior_mass > (current_mass + 100.*MBAL_ITERATIVE_TOLERANCE)) {
             // if lgar_theta_mass_balance_correction reached theta_e or got very close, then mass balance closure was not possible, which is uncommon but can happen if multiple correction types are necessary in the same time step
