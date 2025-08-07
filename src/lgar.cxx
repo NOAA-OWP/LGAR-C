@@ -2048,8 +2048,8 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
               listPrint(*head);
             }
           double current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
-          if (prior_mass > (current_mass + 100.*MBAL_ITERATIVE_TOLERANCE)) {
-            // if lgar_theta_mass_balance_correction reached theta_e or got very close, then mass balance closure was not possible, which is uncommon but can happen if multiple correction types are necessary in the same time step
+          if (prior_mass > (current_mass + 100.*MBAL_ITERATIVE_TOLERANCE)) { //the inclusion of 100.*MBAL_ITERATIVE_TOLERANCE is due to the fact that prior_mass > current_mass might be true, but only within the mass balance tolerance, in which case we should not run this
+            // if lgar_theta_mass_balance_correction reached theta_e or got very close, then mass balance closure was not possible (theta could not be increased enough so the current mass is too low), which is uncommon but can happen if multiple correction types are necessary in the same time step
             // in this case, the depth that closes the mass balance is searched for by finding two depths for current->depth_cm, one that makes the storage too low, and one that makes it too high, so the answer is somewhere in between 
             double tolerance = MBAL_ITERATIVE_TOLERANCE; 
             double depth_increment = 0.001;                //initial guess
@@ -2060,7 +2060,7 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
             bool found_upper_bound = false;
             int iter_one_direction = 0;
 
-            // Exponential increase to find upper bound
+            // Exponential increase to find the depth that leads to a mass that is too large
             while (prior_mass > current_mass && increment < max_increment && current->depth_cm < max_depth) {
               iter_one_direction++;
               if (iter_one_direction > MAX_ITER_MBAL_LOOP){ 
@@ -2076,7 +2076,7 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
               increment *= 2.0;  
             }
 
-            // Binary search for refinement (only if upper bound found)
+            // Now that the depth that closes the mass balance will be between these two depths
             if (found_upper_bound) {
               double low = current->depth_cm - increment;
               double high = current->depth_cm;
