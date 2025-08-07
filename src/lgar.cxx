@@ -2063,6 +2063,9 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
             // Exponential increase to find upper bound
             while (prior_mass > current_mass && increment < max_increment && current->depth_cm < max_depth) {
               iter_one_direction++;
+              if (iter_one_direction > MAX_ITER_MBAL_LOOP){ 
+                break;
+              }
               current->depth_cm += increment;
               current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
 
@@ -2079,21 +2082,24 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
               double high = current->depth_cm;
               double mid;
 
-              while ((high - low) > tolerance) {
+              double current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+
+              while (fabs(current_mass - prior_mass) > tolerance) {
+                iter_one_direction++;
                 mid = 0.5 * (low + high);
                 current->depth_cm = mid;
                 current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
 
-                  if (current_mass >= prior_mass) {
-                    high = mid;
-                  } else {
-                    low = mid;
-                  }
-              }
+                if (current_mass >= prior_mass) {
+                  high = mid;
+                } else {
+                  low = mid;
+                }
 
-              // Final assignment from binary search
-              current->depth_cm = high;
-              current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+                if (iter_one_direction > MAX_ITER_MBAL_LOOP){
+                  break;
+                }
+              }
             }
           }
         }
@@ -2105,6 +2111,7 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
     printf("States after wetting fronts cross layer boundary...\n");
     listPrint(*head);
   }
+
 }
 
 
@@ -2864,7 +2871,7 @@ extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, int num_layers, dou
     if (is_next_to_bottom && dzdt*subtimestep_h + current->depth_cm > FACTOR_LIMITS_LAYER_CROSSING_SPEED*(cum_layer_thickness_cm[current->layer_num])){
       count_correct_for_crossing ++;
       // idea is that we want to make sure that layer boundary crossing does not go crazy, should never cross more than
-      // some factor of the current layer depth into the next layer. Idea is in that most situations it won't matter, but in for example sand
+      // some factor of the current layer depth into the next layer. In most situations it won't matter, but in for example sand
       // over clay, can have the case that layer boundary crossing immediately goes super deep because dzdt is large for sand,
       // and this very sudden expansion into clay for a single time step is unrealistic 
       // this will probably not be desirable for the fracture domain and is more of a soil matrix property 
