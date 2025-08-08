@@ -3044,7 +3044,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
       break;
     }
 
-    if (psi_cm_loc > 1.E8){ //unrealistic pressures
+    if (psi_cm_loc > 1.E7){ //unrealistic pressures
       break;
     }
 
@@ -3374,7 +3374,7 @@ extern void lgar_theta_mass_balance_correction(int front_num, double prior_mass,
       break;
     }
 
-    if (psi_cm_loc > 1.E8){ //unrealistic pressures
+    if (psi_cm_loc > 1.E7){ //unrealistic pressures
       break;
     }
 
