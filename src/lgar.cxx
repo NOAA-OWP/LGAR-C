@@ -1616,7 +1616,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
 
       struct wetting_front *wf_free_drainage = listFindFront(wf_free_drainage_demand, *head, NULL);
 
-      double mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand + free_drainage_demand);
+      double mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand + free_drainage_demand + mass_correction_for_cached_free_drainage_fluxes);
 
       assert (old_mass > 0.0);
       
@@ -1644,6 +1644,13 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
       bool iter_aug_flag = FALSE;
       bool break_flag = FALSE;
       int speedup_thresh = MAX_ITER_SATURATION_MBAL_LOOP/10;
+
+      if (fabs(mass_balance_error) > tolerance){
+        if (verbosity.compare("high") == 0) {
+          printf("start WF depth adjustment due to saturation");
+          listPrint(*head);
+        }
+      }
 
       while (fabs(mass_balance_error) > tolerance) {
         iter++;
@@ -1683,6 +1690,18 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
 
       }
 
+      if (depth_new<TRUNCATION_DEPTH){ // extremely rare error where, if the WFs below this one are extremely dry (psi values > 1.E7) and WF below have layer n values close to 1 (say 1.02 or so),
+                                       // theta below this WF will sometimes change very slightly. If the next WF is thick enough, the current WF is thin enough, and the added infiltraiton is small enough, then 
+                                       // technically mass balance will need a negative WF depth. Instead, we just accept the very small mass balance error and move on.
+        double mass_before = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+        depth_new=TRUNCATION_DEPTH;
+        wf_free_drainage->depth_cm = depth_new;
+        double mass_after = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
+        // mass_balance_error = fabs(mass_after - mass_before); //optionally could send mass balance error to AET to force closure, but this could yield an invalid AET value
+        // *AET_demand_cm = *AET_demand_cm + mass_balance_error;
+        // actual_ET_demand = *AET_demand_cm;
+      }
+
       if (isinf(wf_free_drainage->depth_cm)){ // there is a rare case where the psi-theta relationship, for psi very close to 0, is not 1:1, so psi can technically change and theta=theta_e for either psi. 
                                               // Then, it can be that the WF below WF that accepts infiltration has a theta value equal to theta_e for its layer but a psi value that is very slightly above 0.
                                               // In this case, no adjustment of depth will close the mass balance so the depth will become infinite. 
@@ -1694,7 +1713,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
       //in layered soils, this can cause a mass balance error. It is fairly rare and only seems to impact cases where the model domain is entirely saturated, which shouldn't happen when LGAR is applied in the correct environment / with sufficient layer thicknesses.
       if (break_flag) {
         current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
-        mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand + free_drainage_demand);
+        mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand + free_drainage_demand + mass_correction_for_cached_free_drainage_fluxes);
         mass_balance_error = mass_timestep - current_mass;
         bottom_boundary_flux_cm += mass_balance_error;
       }
