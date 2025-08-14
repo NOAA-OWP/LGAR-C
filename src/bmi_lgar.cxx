@@ -53,7 +53,7 @@ string verbosity="none";
 #define NUM_TIMESTEPS_BEFORE_RESET_CACHE 24
 #endif
 
-// small epsillon that is usually used to determine if something is 0 while avoiding machine precision errors
+// small epsillon that is used to determine if the difference between two quantities is 0 while avoiding machine precision errors
 #define SMALL_EPS 1.E-12
 
 
@@ -307,18 +307,15 @@ Update()
       std::cerr << "Warning: Pr [mm/h] (timestep) is negative ("
                 << state->lgar_bmi_input_params->precipitation_mm_per_h
                 << "), setting to 0.\n";
+      state->lgar_bmi_input_params->precipitation_mm_per_h = 0.0;
   }
-  state->lgar_bmi_input_params->precipitation_mm_per_h =
-      fmax(state->lgar_bmi_input_params->precipitation_mm_per_h, 0.0);
 
   if (state->lgar_bmi_input_params->PET_mm_per_h < 0.0) {
       std::cerr << "Warning: PET [mm/h] (timestep) is negative ("
                 << state->lgar_bmi_input_params->PET_mm_per_h
                 << "), setting to 0.\n";
+      state->lgar_bmi_input_params->PET_mm_per_h = 0.0;
   }
-  state->lgar_bmi_input_params->PET_mm_per_h =
-      fmax(state->lgar_bmi_input_params->PET_mm_per_h, 0.0);
-
 
   if (PET_affects_precip){ // if the user wants PET subtracted from precip
     if (state->lgar_bmi_input_params->precipitation_mm_per_h > state->lgar_bmi_input_params->PET_mm_per_h){
@@ -402,7 +399,6 @@ Update()
     if (!state->lgar_mass_balance.cache_fluxes){
 
       //this code makes sure that AET or free drainage will not be extracted in a way that would result in an impossible storage
-      double current_mass = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
       double min_storage = 0.0;
       double mass_used_to_check_impossible_storages = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
       for (int k = 1; k < num_layers+1; k++) {
@@ -413,8 +409,8 @@ Update()
 
       int wf_free_drainage_demand = wetting_front_free_drainage(state->head);
 
-      double min_water_possible_for_FD_WF = calc_min_water_possible_for_FD_WF(wf_free_drainage_demand,  &state->head, state->lgar_bmi_params.layer_soil_type, state->soil_properties);
-      double storage_in_FD_WF = calc_storage_in_FD_WF(wf_free_drainage_demand, &state->head);
+      double min_water_possible_for_FD_WF = calc_min_water_possible_for_free_drainage_wetting_front(wf_free_drainage_demand,  &state->head, state->lgar_bmi_params.layer_soil_type, state->soil_properties);
+      double storage_in_FD_WF = calc_storage_in_free_drainage_wetting_front(wf_free_drainage_demand, &state->head);
 
       double mass_correction_for_cached_free_drainage_fluxes = 0.0;
 
@@ -684,7 +680,6 @@ Update()
     state->lgar_bmi_params.precip_previous_timestep_cm = precip_subtimestep_cm;
 
     double CR_storage_start_cm = state->lgar_mass_balance.CR_fast_storage_cm + state->lgar_mass_balance.CR_slow_storage_cm;
-    // double CR_Q_subtimestep_cm = calc_CR_Q(subtimestep_h, a, b, precip_for_CR_subtimestep_cm_per_h + ponded_flux_for_CR + free_drainage_for_CR/subtimestep_h, &state->lgar_mass_balance.CR_storage_cm);
     double CR_Q_subtimestep_cm = calc_CR_Q(subtimestep_h, a, a_slow, b, b_slow, frac_slow, precip_for_CR_subtimestep_cm_per_h + ponded_flux_for_CR + free_drainage_for_CR/subtimestep_h, &state->lgar_mass_balance.CR_fast_storage_cm, &state->lgar_mass_balance.CR_slow_storage_cm);
     state->lgar_mass_balance.volrunoff_CR_cm += CR_Q_subtimestep_cm;
     CR_Q_timestep_cm += CR_Q_subtimestep_cm;

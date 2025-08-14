@@ -196,7 +196,6 @@ struct lgar_mass_balance_variables
   double volAET_cm;           // volume of AET
   double volPET_cm;           // volume of PET
 
-  // double CR_storage_cm = 0.0;    //water stored in the conceptual reservoir
   double CR_fast_storage_cm = 0.0;    //water stored in the conceptual reservoir
   double CR_slow_storage_cm = 0.0;    //water stored in the conceptual reservoir
   double volrunoff_CR_cm = 0.0;  //discharge to stream from conceptual reservoir
@@ -388,9 +387,9 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 // computes updated theta (soil moisture content) after fixing a dry over wet front or after layer boundary crossing to address edge cases 
 extern void lgar_theta_mass_balance_correction(int front_num, double prior_mass, struct wetting_front** head, double *cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
 
-extern double calc_min_water_possible_for_FD_WF(int wf_free_drainage, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
+extern double calc_min_water_possible_for_free_drainage_wetting_front(int wf_free_drainage, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
 
-extern double calc_storage_in_FD_WF(int wf_free_drainage, struct wetting_front** head);
+extern double calc_storage_in_free_drainage_wetting_front(int wf_free_drainage, struct wetting_front** head);
 
 /********************************************************************/
 // Bmi functions
