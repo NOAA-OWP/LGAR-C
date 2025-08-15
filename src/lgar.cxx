@@ -3043,7 +3043,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
       break;
     }
 
-    if ( (psi_cm_loc > PSI_UPPER_LIM) && (iter > first_speedup_thresh) ){ //unrealistic pressures, but there are some cases where convergence is possible even at large psi values, and there is a case where AET can bring psi above PSI_UPPER_LIM, so we do want to allow a few iterations
+    if ( (psi_cm_loc > PSI_UPPER_LIM) && (iter > first_speedup_thresh) ){ //unrealistic pressures, but there are some cases where convergence is possible even at large psi values, and there is a case where AET, free drainage, or WF movement can bring psi above PSI_UPPER_LIM, so we do want to allow a few iterations
       break;
     }
 
@@ -3163,7 +3163,8 @@ extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_t
 extern double calc_min_water_possible_for_free_drainage_wetting_front(int wf_free_drainage, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties){
 	/* The region of the soil column from which AET and free drainage are extracted is equal to the most surficial region sharing a single psi value, which 
      can span multiple layers. This function calculates the minimum amount of water that this region can hold, and AET and free drainage will be augmented such that
-     they can not yield a theta value below theta_r. */
+     they can not yield a theta value below the threshold for maximum psi. Initially this just checked such that storage would not go below theta_r, but for consistency with
+     the mass balance loops that augment theta and psi values, this should check that we do not exceed our maximum psi value. */
   double min_storage = 0.0;
   double previous_depth = 0.0;
 
@@ -3172,11 +3173,21 @@ extern double calc_min_water_possible_for_free_drainage_wetting_front(int wf_fre
   int layer_num;
   int soil_num;
   double theta_r;
+  double theta_e;
+  double vg_n;
+  double vg_m;
+  double vg_a;
+  double min_theta;
   while (current!=NULL){
     layer_num  = current->layer_num;
     soil_num   = soil_type[layer_num];
     theta_r    = soil_properties[soil_num].theta_r;
-    min_storage += theta_r*(current->depth_cm - previous_depth);
+    theta_e    = soil_properties[soil_num].theta_e;
+    vg_a       = soil_properties[soil_num].vg_alpha_per_cm;
+    vg_m       = soil_properties[soil_num].vg_m;
+    vg_n       = soil_properties[soil_num].vg_n;
+    double min_theta = calc_theta_from_h(PSI_UPPER_LIM, vg_a, vg_m, vg_n, theta_e, theta_r);
+    min_storage += min_theta*(current->depth_cm - previous_depth);
     if (current->front_num==wf_free_drainage){
       break;
     }
@@ -3380,7 +3391,7 @@ extern void lgar_theta_mass_balance_correction(int front_num, double prior_mass,
       break;
     }
 
-    if ( (psi_cm_loc > PSI_UPPER_LIM) && (iter > first_speedup_thresh) ){ //unrealistic pressures, but there are some cases where convergence is possible even at large psi values, and there is a case where AET can bring psi above PSI_UPPER_LIM, so we do want to allow a few iterations
+    if ( (psi_cm_loc > PSI_UPPER_LIM) && (iter > first_speedup_thresh) ){ //unrealistic pressures, but there are some cases where convergence is possible even at large psi values, and there is a case where AET, free drainage, or WF movement can bring psi above PSI_UPPER_LIM, so we do want to allow a few iterations
       break;
     }
 
