@@ -14,6 +14,8 @@ using namespace std;
 #include "../bmi/bmi.hxx"
 #include "all.hxx"
 #include <stdexcept>
+#include "vecbuf.hpp"
+#include <boost/serialization/access.hpp>
 
 extern "C" {
 #include "../giuh/giuh.h"
@@ -30,7 +32,11 @@ class NotImplemented : public std::logic_error {
 class BmiLGAR : public bmi::Bmi {
 public:
   ~BmiLGAR();
-  BmiLGAR():giuh_ordinates(nullptr), giuh_runoff_queue(nullptr) {
+  BmiLGAR() : 
+    giuh_ordinates(nullptr),
+    giuh_runoff_queue(nullptr),
+    m_serialized{}
+  {
     this->input_var_names[0] = "precipitation_rate";
     this->input_var_names[1] = "potential_evapotranspiration_rate";
     this->input_var_names[2] = "soil_temperature_profile";
@@ -130,8 +136,9 @@ public:
   void global_mass_balance();
   double update_calibratable_parameters();
   struct model_state* get_model();
-  
+
 private:
+  friend class boost::serialization::access;
   void realloc_soil();
   struct model_state* state;
   static const int input_var_name_count  = 3;
@@ -145,6 +152,9 @@ private:
   int num_giuh_ordinates;
   double *giuh_ordinates;
   double *giuh_runoff_queue;
+
+  vecbuf<char> m_serialized;
+  uint64_t m_serialized_length; // needs a stable anchor for GetValuePtr
 
   // unit conversion
   //struct unit_conversion units;
@@ -163,6 +173,15 @@ private:
   };
 
   struct bmi_unit_conversion bmi_unit_conv;
+
+  template<class Archive>
+  void serialize(Archive& ar, const unsigned int version);
+  template<class Archive>
+  void serialize_wetting_front_list(Archive &ar, wetting_front **head, int &count);
+  
+  void new_serialized();
+  void load_serialized(const char* data);
+  void free_serialized();
 };
 
 

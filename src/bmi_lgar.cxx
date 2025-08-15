@@ -14,6 +14,9 @@
 #include "../include/all.hxx"
 #include "../include/Logger.hpp"
 
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+
 std::stringstream bmilgar_ss("");
 
 // default verbosity is set to 'none' other option 'high' or 'low' needs to be specified in the config file
@@ -703,36 +706,64 @@ Finalize()
   delete [] state->lgar_bmi_params.frozen_factor;
   delete state->lgar_bmi_input_params;
   delete state;
+  this->state = NULL;
 }
 
 
 int BmiLGAR::
 GetVarGrid(std::string name)
 {
-  if (name.compare("soil_storage_model") == 0 || name.compare("soil_num_wetting_fronts") == 0)   // int
+  if (
+    name.compare("soil_storage_model") == 0
+    || name.compare("soil_num_wetting_fronts") == 0
+    || name.compare("serialization_free") == 0
+  ) // int
     return 0;
-  else if (name.compare("precipitation_rate") == 0 || name.compare("precipitation") == 0)
+  else if (
+    name.compare("precipitation_rate") == 0
+    || name.compare("precipitation") == 0
+    || name.compare("potential_evapotranspiration_rate") == 0
+    || name.compare("potential_evapotranspiration") == 0
+    || name.compare("actual_evapotranspiration") == 0
+    || name.compare("surface_runoff") == 0
+    || name.compare("giuh_runoff") == 0
+	  || name.compare("soil_storage") == 0
+    || name.compare("field_capacity") == 0
+    || name.compare("ponded_depth_max") == 0
+    || name.compare("total_discharge") == 0
+    || name.compare("infiltration") == 0
+	  || name.compare("percolation") == 0
+    || name.compare("groundwater_to_stream_recharge") == 0
+    || name.compare("mass_balance") == 0
+  ) // double
     return 1;
-  else if (name.compare("potential_evapotranspiration_rate") == 0
-	   || name.compare("potential_evapotranspiration") == 0
-	   || name.compare("actual_evapotranspiration") == 0) // double
-    return 1;
-  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
-	   || name.compare("soil_storage") == 0 || name.compare("field_capacity") == 0 || name.compare("ponded_depth_max") == 0)// double
-    return 1;
-  else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
-	   || name.compare("percolation") == 0  || name.compare("groundwater_to_stream_recharge") == 0) // double
-    return 1;
-  else if (name.compare("mass_balance") == 0)
-    return 1;
-  else if (name.compare("soil_depth_layers") == 0  || name.compare("smcmax") == 0 || name.compare("smcmin") == 0
-	   || name.compare("van_genuchten_m") == 0 || name.compare("van_genuchten_alpha") == 0 || name.compare("van_genuchten_n") == 0 
-	   || name.compare("hydraulic_conductivity") == 0) // array of doubles (fixed length)
+  else if (
+    name.compare("soil_depth_layers") == 0
+    || name.compare("smcmax") == 0
+    || name.compare("smcmin") == 0
+	  || name.compare("van_genuchten_m") == 0
+    || name.compare("van_genuchten_alpha") == 0
+    || name.compare("van_genuchten_n") == 0 
+	  || name.compare("hydraulic_conductivity") == 0
+  ) // array of doubles (fixed length)
     return 2;
-  else if (name.compare("soil_moisture_wetting_fronts") == 0 || name.compare("soil_depth_wetting_fronts") == 0) // array of doubles (dynamic length)
+  else if (
+    name.compare("soil_moisture_wetting_fronts") == 0
+    || name.compare("soil_depth_wetting_fronts") == 0
+  ) // array of doubles (dynamic length)
     return 3;
-  else if (name.compare("soil_temperature_profile") == 0) // array of doubles (fixed and of the size of soil temperature profile)
+  else if (
+    name.compare("soil_temperature_profile") == 0
+  ) // array of doubles (fixed and of the size of soil temperature profile)
     return 4;
+  else if (
+    name.compare("serialization_state") == 0
+  ) // char
+    return 5;
+  else if (
+    name.compare("serialization_create") == 0
+  ) // uint64_t
+    return 6;
   else
     return -1;
 }
@@ -747,6 +778,10 @@ GetVarType(std::string name)
     return "int";
   else if (var_grid == 1 || var_grid == 2 || var_grid == 3 || var_grid == 4)
     return "double";
+  else if (var_grid == 5)
+    return "char";
+  else if (var_grid == 6)
+    return "uint64_t";
   else
     return "none";
 }
@@ -761,6 +796,10 @@ GetVarItemsize(std::string name)
     return sizeof(int);
   else if (var_grid == 1 || var_grid == 2 || var_grid == 3 || var_grid == 4)
     return sizeof(double);
+  else if (var_grid == 5)
+    return sizeof(char);
+  else if (var_grid == 6)
+    return sizeof(uint64_t);
   else
     return 0;
 }
@@ -882,6 +921,8 @@ GetGridSize(const int grid)
     return this->state->lgar_bmi_params.num_wetting_fronts;
   else if (grid == 4) // number of cells (discretized temperature profile, input from SFT)
     return this->state->lgar_bmi_params.num_cells_temp;
+  else if (grid == 5)
+    return this->m_serialized_length; // serialized state length
   else
     return -1;
 }
@@ -895,8 +936,13 @@ GetValue (std::string name, void *dest)
   int nbytes = 0;
 
   src = this->GetValuePtr(name);
-  nbytes = this->GetVarNbytes(name);
-  memcpy (dest, src, nbytes);
+
+  if (name.compare("serialization_state") == 0) {
+    memcpy(dest, src, this->m_serialized_length);
+  } else {
+    nbytes = this->GetVarNbytes(name);
+    memcpy (dest, src, nbytes);
+  }
 }
 
 
@@ -953,7 +999,12 @@ GetValuePtr (std::string name)
     return (void*)&this->state->lgar_calib_params.ponded_depth_max;
   else if (name.compare("field_capacity") == 0)
     return (void*)&this->state->lgar_calib_params.field_capacity_psi;
-  else {
+  else if (name.compare("serialization_state") == 0)
+    return (void*)(this->m_serialized.data());
+  else if (name.compare("serialization_create") == 0) {
+    this->new_serialized();
+    return (void*)(&this->m_serialized_length);
+  } else {
     std::stringstream errMsg;
     errMsg << "variable "<< name << " does not exist";
     throw std::runtime_error(errMsg.str());
@@ -990,6 +1041,18 @@ GetValueAtIndices (std::string name, void *dest, int *inds, int len)
 void BmiLGAR::
 SetValue (std::string name, void *src)
 {
+  // state serialization exceptions
+  if (name == "serialization_state") {
+    this->load_serialized((char*)src);
+    return;
+  } else if (name == "serialization_free") {
+    this->free_serialized();
+    return;
+  } else if (name.compare("serialization_create") == 0) {
+    auto msg = "Cannot set values with \"serialization_create\".";
+    Logger::Log(LogLevel::WARNING, msg);
+    throw std::runtime_error(msg);
+  }
   void * dest = NULL;
   dest = this->GetValuePtr(name);
 
@@ -1207,5 +1270,160 @@ GetGridNodesPerFace(const int grid, int *nodes_per_face)
   LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
   throw bmi_lgar::NotImplemented();
 }
+
+
+// low-impoact serialization. This will only archive mutable state that is not recalculated during Update or is accessable through BMI getters/setters
+template <class Archive>
+void BmiLGAR::
+serialize(Archive& ar, const unsigned int version) {
+  model_state* state = this->state;
+
+  // GetValuePtr properties
+  ar & state->lgar_bmi_input_params->precipitation_mm_per_h;
+  ar & this->bmi_unit_conv.volprecip_timestep_m;
+  ar & state->lgar_bmi_input_params->PET_mm_per_h;
+  ar & this->bmi_unit_conv.volPET_timestep_m;
+  ar & this->bmi_unit_conv.volAET_timestep_m;
+  ar & this->bmi_unit_conv.volrunoff_giuh_timestep_m;
+  ar & this->bmi_unit_conv.volend_timestep_m;
+  ar & this->bmi_unit_conv.volQ_timestep_m;
+  ar & this->bmi_unit_conv.volin_timestep_m;
+  ar & this->bmi_unit_conv.volrech_timestep_m;
+  ar & this->bmi_unit_conv.volQ_gw_timestep_m;
+  ar & this->bmi_unit_conv.mass_balance_m;
+  ar & this->bmi_unit_conv.volrunoff_timestep_m;
+  ar & state->lgar_bmi_params.num_wetting_fronts;
+  ar & state->lgar_calib_params.ponded_depth_max;
+  ar & state->lgar_calib_params.field_capacity_psi;
+
+  // end of update
+  ar & state->lgar_mass_balance.volprecip_timestep_cm;
+  ar & state->lgar_mass_balance.volin_timestep_cm;
+  ar & state->lgar_mass_balance.volon_timestep_cm;
+  ar & state->lgar_mass_balance.volend_timestep_cm;
+  ar & state->lgar_mass_balance.volAET_timestep_cm;
+  ar & state->lgar_mass_balance.volrech_timestep_cm;
+  ar & state->lgar_mass_balance.volrunoff_timestep_cm;
+  ar & state->lgar_mass_balance.volQ_timestep_cm;
+  ar & state->lgar_mass_balance.volQ_gw_timestep_cm;
+  ar & state->lgar_mass_balance.volPET_timestep_cm;
+  ar & state->lgar_mass_balance.volrunoff_giuh_timestep_cm;
+
+  ar & state->lgar_mass_balance.volprecip_cm;
+  ar & state->lgar_mass_balance.volin_cm;
+  ar & state->lgar_mass_balance.volon_cm;
+  ar & state->lgar_mass_balance.volend_cm;
+  ar & state->lgar_mass_balance.volAET_cm;
+  ar & state->lgar_mass_balance.volrech_cm;
+  ar & state->lgar_mass_balance.volrunoff_cm;
+  ar & state->lgar_mass_balance.volQ_cm;
+  ar & state->lgar_mass_balance.volQ_gw_cm;
+  ar & state->lgar_mass_balance.volPET_cm;
+  ar & state->lgar_mass_balance.volrunoff_giuh_cm;
+  ar & state->lgar_mass_balance.volchange_calib_cm;
+
+  ar & boost::serialization::make_array(state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.num_layers);
+
+  // giuh state
+  ar & boost::serialization::make_array(this->giuh_runoff_queue, state->lgar_bmi_params.num_giuh_ordinates);
+
+  // in frozen_factor_hydraulic_conductivity
+  if (state->lgar_bmi_params.sft_coupled) {
+    ar & boost::serialization::make_array(state->lgar_bmi_params.frozen_factor, state->lgar_bmi_params.num_layers);
+  }
+
+  // update_calibratable_parameters
+  ar & state->lgar_bmi_params.field_capacity_psi_cm;
+  ar & state->lgar_bmi_params.calib_params_flag;
+
+  // may be set in adapative timesteps
+  if (state->lgar_bmi_params.adaptive_timestep){
+    ar & state->lgar_bmi_params.timestep_h;
+  }
+
+  // how much time has passed since instantiation
+  ar & state->lgar_bmi_params.time_s;
+  ar & state->lgar_bmi_params.timesteps;
+
+  // serialization of arbitrarily-lengthed linked-lists
+  int num_fronts = state->lgar_bmi_params.num_wetting_fronts;
+  this->serialize_wetting_front_list(ar, &state->head, state->lgar_bmi_params.num_wetting_fronts);
+  int num_previous = 0;
+  this->serialize_wetting_front_list(ar, &state->state_previous, num_previous);
+
+  if (Archive::is_loading::value && num_fronts != state->lgar_bmi_params.num_wetting_fronts) {
+    // reallocate arrays based on new num_wetting_fronts
+    this->realloc_soil();
+  }
+  ar & boost::serialization::make_array(
+    state->lgar_bmi_params.soil_moisture_wetting_fronts, state->lgar_bmi_params.num_wetting_fronts
+  );
+  ar & boost::serialization::make_array(
+    state->lgar_bmi_params.soil_depth_wetting_fronts, state->lgar_bmi_params.num_wetting_fronts
+  );
+
+}
+
+template <class Archive>
+void BmiLGAR::serialize_wetting_front_list(Archive &ar, wetting_front **head, int &count) {
+  wetting_front *current;
+  if (Archive::is_saving::value) {
+    if (count == 0) // assume recalculation needed if 0
+      count = listLength(*head);
+    ar & count;
+    current = *head;
+    while (current != NULL) {
+      ar & (*current);
+      current = current->next;
+    }
+  } else { // loading
+    ar & count;
+    listDelete(*head);
+    *head = NULL;
+    wetting_front *prior;
+    for (int i = 0; i < count; ++i) {
+      current = new wetting_front();
+      ar & (*current);
+      if (i == 0) {
+        *head = current;
+      } else {
+        prior->next = current;
+      }
+      prior = current;
+    }
+  }
+}
+
+void BmiLGAR::new_serialized() {
+  this->m_serialized.clear();
+  boost::archive::binary_oarchive archive(this->m_serialized);
+  try {
+    archive << (*this);
+    this->m_serialized_length = this->m_serialized.size();
+  } catch (const std::exception &e) {
+    Logger::Log(LogLevel::SEVERE, "Serializing LASAM encountered an error: %s", e.what());
+    this->free_serialized();
+    throw;
+  }
+}
+
+void BmiLGAR::load_serialized(const char* data) {
+  std::stringstream stream(data);
+  boost::archive::binary_iarchive archive(stream);
+  try {
+    archive >> (*this);
+  } catch (const std::exception &e) {
+    Logger::Log(LogLevel::SEVERE, "Deserializing LASAM encountered an error: %s", e.what());
+    throw;
+  }
+  this->free_serialized();
+}
+
+void BmiLGAR::free_serialized() {
+  this->m_serialized.clear();
+  this->m_serialized.shrink_to_fit();
+  this->m_serialized_length = 0;
+}
+
 
 #endif
