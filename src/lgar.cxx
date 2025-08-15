@@ -3043,7 +3043,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
       break;
     }
 
-    if (psi_cm_loc > PSI_UPPER_LIM){ //unrealistic pressures
+    if ( (psi_cm_loc > PSI_UPPER_LIM) && (iter > first_speedup_thresh) ){ //unrealistic pressures, but there are some cases where convergence is possible even at large psi values, and there is a case where AET can bring psi above PSI_UPPER_LIM, so we do want to allow a few iterations
       break;
     }
 
@@ -3380,7 +3380,7 @@ extern void lgar_theta_mass_balance_correction(int front_num, double prior_mass,
       break;
     }
 
-    if (psi_cm_loc > PSI_UPPER_LIM){ //unrealistic pressures
+    if ( (psi_cm_loc > PSI_UPPER_LIM) && (iter > first_speedup_thresh) ){ //unrealistic pressures, but there are some cases where convergence is possible even at large psi values, and there is a case where AET can bring psi above PSI_UPPER_LIM, so we do want to allow a few iterations
       break;
     }
 
