@@ -55,6 +55,13 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I/usr/X11/include")
 # add the executable
 #message("CXXLIBS" ${CMAKE_CXX_FLAGS})
 
+# -----------------------------------------------------------------------------
+# Find the Boost library and configure usage
+set(Boost_USE_STATIC_LIBS OFF)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+find_package(Boost 1.79.0 REQUIRED COMPONENTS serialization)
+
 
 IF((NOT ${NGEN}) AND (NOT ${STANDALONE}))
   message("Pseudo-framework build")
@@ -65,11 +72,13 @@ if(STANDALONE)
   			     ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./src/Logger.cpp ./include/Logger.hpp 
 			     ./giuh/giuh.h ./giuh/giuh.c)
   target_link_libraries(${exe_name} PRIVATE m)
+  target_link_libraries(${exe_name} PRIVATE Boost::serialization)
 elseif(UNITTEST)
   add_executable(${exe_name} ./tests/main_unit_test_bmi.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx
   			     ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./src/Logger.cpp ./include/Logger.hpp ./giuh/giuh.h
 			     ./giuh/giuh.c)
   target_link_libraries(${exe_name} PRIVATE m)
+  target_link_libraries(${exe_name} PRIVATE Boost::serialization)
 endif()
 
 
@@ -88,11 +97,14 @@ else()
    			./src/util_funcs.cxx ./src/aet.cxx ./src/Logger.cpp ./include/Logger.hpp ./giuh/giuh.c include/all.hxx ./giuh/giuh.h)
 endif()
 
+
 target_include_directories(lasambmi PRIVATE include)
 
 set_target_properties(lasambmi PROPERTIES VERSION ${PROJECT_VERSION})
 
 set_target_properties(lasambmi PROPERTIES PUBLIC_HEADER ./include/bmi_lgar.hxx)
+
+target_link_libraries(lasambmi PRIVATE Boost::serialization)
 
 include(GNUInstallDirs)
 
