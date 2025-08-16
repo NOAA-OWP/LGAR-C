@@ -2996,6 +2996,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 
     if (psi_cm_loc<0.0){ // addresses the case where psi_cm_loc was 0 at the start so psi_cm_loc_prev is 0
       psi_cm_loc = 0.0;
+      factor = factor * 0.5; // allow factor to smoothly approach 0 in case the solution is slightly above psi = 0
     }
 
     double theta_layer;
@@ -3310,6 +3311,7 @@ extern void lgar_theta_mass_balance_correction(int front_num, double prior_mass,
 
     if (psi_cm_loc<0.0){ // addresses the case where psi_cm_loc was 0 at the start so psi_cm_loc_prev is 0
       psi_cm_loc = 0.0;
+      factor = factor * 0.5; // allow factor to smoothly approach 0 in case the solution is slightly above psi = 0
     }
 
     int layer_num  = current->layer_num;
