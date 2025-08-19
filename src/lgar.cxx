@@ -1157,7 +1157,7 @@ extern void lgar_global_mass_balance(struct model_state *state, double *giuh_run
   printf("------------------------ Mass balance ------------------- \n");
   printf("Initial water in soil       = %14.10f cm\n", volstart);
   printf("Total precipitation         = %14.10f cm\n", volprecip);
-  printf("Total infiltration          = %14.10f cm\n", volin);
+  printf("Total infiltration (matrix) = %14.10f cm\n", volin);
   printf("Final water in soil         = %14.10f cm\n", volend);
   printf("Surface ponded water        = %14.10f cm\n", volon);
   printf("Surface runoff              = %14.10f cm\n", volrunoff);
@@ -1816,8 +1816,10 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
   }
 
 
-  if (verbosity.compare("high") == 0)
+  if (verbosity.compare("high") == 0){
     printf("Moving/merging wetting fronts done... \n");
+    listPrint(*head);
+  }
 
 
   //Just a check to make sure that, when there is only 1 layer, than the existing wetting front is at the correct depth.
@@ -2231,7 +2233,8 @@ extern void lgar_fix_dry_over_wet_wetting_fronts(int num_layers, double *mass_ch
   // iteratively adjust the psi and theta values of the region of the soil column that should have just 1 psi value now that a WF was deleted.
   // mass_change will return any mass balance error and should usually be 0.0
   if (verbosity.compare("high") == 0) {
-    printf("Fix Dry over Wet Wetting Front... \n");
+    printf("Fix Dry over Wet Wetting Front (before) ... \n");
+    listPrint(*head);
   }
 
   struct wetting_front *current;
@@ -2266,6 +2269,10 @@ extern void lgar_fix_dry_over_wet_wetting_fronts(int num_layers, double *mass_ch
 
     }
   }
+if (verbosity.compare("high") == 0) {
+  printf("Fix Dry over Wet Wetting Front (after) ... \n");
+  listPrint(*head);
+}
 }
 
 // ############################################################################################

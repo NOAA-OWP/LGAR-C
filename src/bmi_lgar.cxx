@@ -733,18 +733,39 @@ Update()
     }
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0 || unexpected_local_error) {
-      printf("\nLocal mass balance at this timestep... \n\
-      Error         = %14.10f \n\
-      Initial water = %14.10f \n\
-      Water added   = %14.10f \n\
-      Ponded water  = %14.10f \n\
-      Infiltration  = %14.10f \n\
-      Runoff        = %14.10f \n\
-      AET           = %14.10f \n\
-      Percolation   = %14.10f \n\
-      Final water   = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volon_subtimestep_cm,
-	     volin_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm,
-	     volend_subtimestep_cm);
+      if (!state->lgar_bmi_params.frac_to_CR){
+        printf("\nLocal mass balance at this timestep... \n\
+        Error         = %14.10f \n\
+        Initial water = %14.10f \n\
+        Water added   = %14.10f \n\
+        Ponded water  = %14.10f \n\
+        Infiltration  = %14.10f \n\
+        Runoff        = %14.10f \n\
+        AET           = %14.10f \n\
+        Percolation   = %14.10f \n\
+        Final water   = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volon_subtimestep_cm,
+        volin_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm,
+        volend_subtimestep_cm);
+      }
+      else {
+        printf("\nLocal mass balance at this timestep... \n\
+        Error                   = %14.10f \n\
+        Initial water (LGAR)    = %14.10f \n\
+        Water added (total)     = %14.10f \n\
+        Ponded water            = %14.10f \n\
+        Infiltration (LGAR)     = %14.10f \n\
+        Runoff (total)          = %14.10f \n\
+        AET                     = %14.10f \n\
+        Percolation             = %14.10f \n\
+        Final water (LGAR)      = %14.10f \n\
+        Water added (con res)   = %14.10f \n\
+        Initial water (con res) = %14.10f \n\
+        Final water (con res)   = %14.10f \n\
+        Runoff (con res)        = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volon_subtimestep_cm,
+        volin_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm,
+        volend_subtimestep_cm, (precip_for_CR_subtimestep_cm_per_h + ponded_flux_for_CR)*subtimestep_h + free_drainage_for_CR, CR_storage_start_cm,
+        state->lgar_mass_balance.CR_fast_storage_cm + state->lgar_mass_balance.CR_slow_storage_cm, CR_Q_timestep_cm);
+      }
 
       if (unexpected_local_error) {
 	printf("Local mass balance (in this timestep) is %14.10f, larger than expected, needs some debugging...\n ",local_mb);
