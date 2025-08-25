@@ -856,9 +856,12 @@ extern void frozen_factor_hydraulic_conductivity(struct lgar_bmi_parameters lgar
 	break;
     }
 
-
-    // assert (layer_temp > 100.0); // just a check to ensure the while loop executes at least once
-    assert (count > 0); // just a check to ensure the while loop executes at least once
+    if (count <= 0) { // just a check to ensure the while loop executes at least once
+      std::stringstream error_message;
+      error_message << "The count of layers used for getting layer " << layer << "'s temperature for frozen factor hydraulic conductivity is 0.";
+      LOG(LogLevel::SEVERE, error_message.str());
+      throw std::runtime_error(error_message.str());
+    }
 
     layer_temp /= count;  // layer-averaged temperature
 
@@ -991,6 +994,12 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
 				     int *soil_type, double *frozen_factor, struct wetting_front** head,
 				     struct wetting_front* state_previous, struct soil_properties_ *soil_properties)
 {
+  if (old_mass <= 0.0) {
+    std::stringstream error_message;
+    error_message << "old_mass value must be greater than 0. Current value: " << old_mass;
+    LOG(LogLevel::SEVERE, error_message.str());
+    throw std::invalid_argument(error_message.str());
+  }
 
   if (verbosity.compare("high") == 0) {
     LOG(LogLevel::DEBUG,"State before moving wetting fronts...\n");
@@ -1358,8 +1367,6 @@ extern void lgar_move_wetting_fronts(double timestep_h, double *volin_cm, int wf
       struct wetting_front *wf_free_drainage = listFindFront(wf_free_drainage_demand, *head, NULL);
 
       double mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand + free_drainage_demand);
-
-      assert (old_mass > 0.0);
       
       if (fabs(wf_free_drainage->theta - theta_e_k1) < 1E-15) {
 	
@@ -1616,7 +1623,12 @@ extern void lgar_merge_wetting_fronts(int *soil_type, double *frozen_factor, str
       double current_mass_this_layer = current->depth_cm * (current->theta - next->theta) + next->depth_cm*(next->theta - next_to_next->theta);
       current->depth_cm = current_mass_this_layer / (current->theta - next_to_next->theta);
 
-      assert (current->depth_cm > 0.0);
+      if (current->depth_cm <= 0.0) {
+        std::stringstream error_message;
+        error_message << "Wetting front at index " << wf << " has a depth less than or equal to 0. Current value: " << current->depth_cm;
+        LOG(LogLevel::SEVERE, error_message.str());
+        throw std::runtime_error(error_message.str());
+      }
 
       layer_num = current->layer_num;
       soil_num  = soil_type[layer_num];
@@ -2356,7 +2368,15 @@ extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_
       soil_properties[soil].bc_lambda  = 2.0 / (p - 3.0);
       soil_properties[soil].bc_psib_cm = (p + 3.0) * (147.8 + 8.1 * p + 0.092 * p * p) /
 	(2.0 * vg_alpha_per_cm * p * (p - 1.0) * (55.6 + 7.4 * p + p * p));
-      assert(0.0 < soil_properties[soil].bc_psib_cm);
+      if (soil_properties[soil].bc_psib_cm <= 0.0) {
+        std::stringstream error_message;
+        error_message << "Brooks & Corey bubbling pressure for soil index "
+          << soil << " (" << soil_properties[soil].soil_name
+          << ") must be greater than 0. Current value: " 
+          << soil_properties[soil].bc_psib_cm;
+        LOG(LogLevel::SEVERE, error_message.str());
+        throw std::runtime_error(error_message.str());
+      }
     }
     else {
       fprintf(stderr, "ERROR: van Genuchten parameter n must be greater than 1\n");

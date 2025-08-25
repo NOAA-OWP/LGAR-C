@@ -192,8 +192,18 @@ Update()
     LOG(bmilgar_ss.str(), LogLevel::INFO); bmilgar_ss.str("");  
   }
 
-  assert (state->lgar_bmi_input_params->precipitation_mm_per_h >= 0.0);
-  assert(state->lgar_bmi_input_params->PET_mm_per_h >=0.0);
+  if (state->lgar_bmi_input_params->precipitation_mm_per_h < 0.0) {
+    std::stringstream error_message;
+    error_message << "Pr [mm/h] is less than 0: " << state->lgar_bmi_input_params->precipitation_mm_per_h;
+    LOG(LogLevel::SEVERE, error_message.str());
+    throw std::runtime_error(error_message.str());
+  }
+  if (state->lgar_bmi_input_params->PET_mm_per_h < 0.0) {
+    std::stringstream error_message;
+    error_message << "PET [mm/h] is less than 0: " << state->lgar_bmi_input_params->PET_mm_per_h;
+    LOG(LogLevel::SEVERE, error_message.str());
+    throw std::runtime_error(error_message.str());
+  }
 
   // adaptive time step is set 
   if (adaptive_timestep) {
@@ -488,7 +498,13 @@ Update()
     // store local mass balance error to the struct
     state->lgar_mass_balance.local_mass_balance = local_mb;
 
-    assert (state->head->depth_cm > 0.0); // check on negative layer depth --> move this to somewhere else AJ (later)
+    // check on negative layer depth --> move this to somewhere else AJ (later)
+    if (state->head->depth_cm <= 0.0) {
+      std::stringstream error_message;
+      error_message << "Cycle " << cycle << " has a depth less than or equal to 0: " << state->head->depth_cm;
+      LOG(LogLevel::SEVERE, error_message.str());
+      throw std::runtime_error(error_message.str());
+    }
 
     bool lasam_standalone = true;
 #ifdef NGEN
@@ -519,7 +535,12 @@ Update()
   // update thickness/depth and soil moisture of wetting fronts (used for state coupling)
   struct wetting_front *current = state->head;
   for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
-    assert (current != NULL);
+    if (current == NULL) {
+      std::stringstream error_message;
+      error_message << "Wetting front at index " << i << " is null.";
+      LOG(LogLevel::SEVERE, error_message.str());
+      throw std::runtime_error(error_message.str());
+    }
     state->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
     state->lgar_bmi_params.soil_depth_wetting_fronts[i] = current->depth_cm * state->units.cm_to_m;
     current = current->next;
@@ -577,7 +598,11 @@ Update()
 void BmiLGAR::
 UpdateUntil(double t)
 {
-  assert (t > 0.0);
+  if (t <= 0.0) {
+    const char *error_message = "Time must be greater than 0.";
+    LOG(LogLevel::SEVERE, error_message);
+    throw std::invalid_argument(error_message);
+  }
   this->Update();
 }
 
@@ -607,7 +632,12 @@ update_calibratable_parameters()
     layer_num  = current->layer_num;
     soil = state->lgar_bmi_params.layer_soil_type[layer_num];
     
-    assert (current != NULL);
+    if (current == NULL) {
+      std::stringstream error_message;
+      error_message << "Wetting front at index " << i << " is null.";
+      LOG(LogLevel::SEVERE, error_message.str());
+      throw std::invalid_argument(error_message.str());
+    }
 
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
       bmilgar_ss <<"----------- Calibratable parameters depending on soil layer (initial values) ----------- \n";
