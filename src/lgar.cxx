@@ -100,7 +100,12 @@ extern void lgar_initialize(string config_file, struct model_state *state)
 
   struct wetting_front *current = state->head;
   for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
-    assert (current != NULL);
+    if (current == NULL) {
+      std::stringstream error_message;
+      error_message << "Wetting front at index " << i << " is null.";
+      LOG(LogLevel::SEVERE, error_message.str());
+      throw std::runtime_error(error_message.str());
+    }
     
     soil = state->lgar_bmi_params.layer_soil_type[i+1];
 
@@ -433,7 +438,12 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       else if (param_unit == "[h]" || param_unit == "[hr]")
 	      state->lgar_bmi_params.timestep_h /= 1.0; // convert to hours
 
-      assert (state->lgar_bmi_params.timestep_h > 0);
+      if (state->lgar_bmi_params.timestep_h <= 0) {
+        std::stringstream error_message;
+        error_message << "The timestep must be greater than 0. Current value in hours: " << state->lgar_bmi_params.timestep_h;
+        LOG(LogLevel::SEVERE, error_message.str());
+        throw std::runtime_error(error_message.str());
+      }
       is_timestep_set = true;
 
       state->lgar_bmi_params.minimum_timestep_h = state->lgar_bmi_params.timestep_h;
@@ -457,7 +467,12 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       else if (param_unit == "[d]" || param_unit == "[day]")
 	      state->lgar_bmi_params.endtime_s = stod(param_value) * 86400.0;
 
-      assert (state->lgar_bmi_params.endtime_s > 0);
+      if (state->lgar_bmi_params.endtime_s <= 0) {
+        std::stringstream error_message;
+        error_message << "The end time must be greater than 0. Current value in seconds: " << state->lgar_bmi_params.endtime_s;
+        LOG(LogLevel::SEVERE, error_message.str());
+        throw std::runtime_error(error_message.str());
+      }
       is_endtime_set = true;
 
       if (verbosity.compare("high") == 0) {
@@ -478,7 +493,12 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       else if (param_unit == "[h]" || param_unit == "[hr]")
 	      state->lgar_bmi_params.forcing_resolution_h /= 1.0;               // convert to hours
 
-      assert (state->lgar_bmi_params.forcing_resolution_h > 0);
+      if (state->lgar_bmi_params.forcing_resolution_h <= 0) {
+        std::stringstream error_message;
+        error_message << "The forcing resolution must be greater than 0. Current value in hours: " << state->lgar_bmi_params.forcing_resolution_h;
+        LOG(LogLevel::SEVERE, error_message.str());
+        throw std::runtime_error(error_message.str());
+      }
       is_forcing_resolution_set = true;
 
       if (verbosity.compare("high") == 0) {
@@ -727,7 +747,13 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   state->lgar_bmi_params.nint               = 120; // hacked, not needed to be an input option
   state->lgar_bmi_params.num_wetting_fronts = state->lgar_bmi_params.num_layers;
 
-  assert (state->lgar_bmi_params.num_layers == listLength(state->head));
+  if (state->lgar_bmi_params.num_layers != listLength(state->head)) {
+    std::stringstream error_message;
+    error_message << "The number of wetting fronts in the configuration (" << state->lgar_bmi_params.num_layers
+      << ") is not the same as the number of wetting fronts created in memory (" << listLength(state->head) << ").";
+    LOG(LogLevel::SEVERE, error_message.str());
+    throw std::runtime_error(error_message.str());
+  }
 
   if (verbosity.compare("high") == 0) {
     lgar_ss <<"Initial ponded depth is set to zero. \n";
