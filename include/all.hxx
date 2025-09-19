@@ -36,7 +36,7 @@ extern string verbosity;
 #define use_bmi_flag FALSE       // TODO set to TRUE to run in BMI environment
 
 #define MAX_NUM_SOIL_LAYERS 4
-#define MAX_NUM_SOIL_TYPES 15
+#define MAX_NUM_SOIL_TYPES 25 //changed back to 25 from 15, because the file that loads soil types for Bushland relies on entries 16, 17, and 18 in the .dat file.
 #define MAX_SOIL_NAME_CHARS 25
 #define MAX_NUM_WETTING_FRONTS 300
 
@@ -132,9 +132,20 @@ struct lgar_bmi_parameters
   double  field_capacity_psi_cm;          // field capacity represented as a capillary head. Note that both wilting point and field capacity are specified for the whole model domain with single values
   bool   use_closed_form_G = false;      /* true if closed form of capillary drive calculation is desired, false if numeric integral
 					    for capillary drive calculation is desired */
+  bool   PET_affects_precip = false;     // set to true in config file if you want PET to be taken from precip 
   bool   adaptive_timestep = false;      // if set to true, model uses adaptive timestep. In this case, the minimum timestep is the timestep specified in the config file. The maximum time step will be equal to the forcing resolution.
+  bool   free_drainage_enabled = false;  // free_drainage_enabled will specify whether the lower boundary condition is no flow (false), or free drainage (true). Defaults to false.
+  bool   free_drainage_to_CR   = false;  // This will specify whether free drainage is sent to the nonlinear conceptual reservoir (true) or lost to deep GW (false). Defaults to false.
+  double mbal_tol;                       // if a substep's mass balance error is larger than this number, the model will abort. By default it is set to a large value (10 cm).
   double ponded_depth_cm;                // amount of water on the surface unavailable for surface runoff
   double ponded_depth_max_cm;            // maximum amount of water on the surface unavailable for surface runoff
+  double a = 0.0;                        // parameter for nonlinear reservoir
+  double b = 0.0;                        // parameter for nonlinear reservoir
+  double frac_to_CR = 0.0;               // parameter for nonlinear reservoir 
+  double a_slow = 0.0;                        // parameter for nonlinear reservoir
+  double b_slow = 0.0;                        // parameter for nonlinear reservoir
+  double frac_slow = 0.0;               // parameter for nonlinear reservoir 
+  double spf_factor = 0.98;              // parameter that controls the theta value above which contributions to the nonlinear reservoir will be made
   double precip_previous_timestep_cm;    // amount of rainfall (previous time step)
 
   int    nint = 120;            // number of trapezoids used in integrating the Geff function
@@ -148,6 +159,13 @@ struct lgar_bmi_parameters
 
   int  calib_params_flag = 0;  // flag for calibratable parameters; if true, then calibratable params are updated otherwise not
   bool is_invalid_soil_type  = true;  // checks if the provided soil type is valid for the model, if not then return Q_out = precip
+
+  bool   runoff_in_prev_step = false; // true if there was there runoff in the previous time step. Used for simple preferential flow
+  bool   allow_flux_caching = false; //if set to true, allows for the use of cached fluxes rather than computing new ones when internal states are changing slowly. 
+  int    cache_count = 1;            //used for caching to accumulate fluxes
+
+  bool   log_mode = false; // mode where log-normally distributed parameters are expected to be input as their log_10 values rather than their normal values. This is to ensure the calibration searches the parameter space effectively.
+                           // for example, instead if using 0.1 cm/h for a K_s value, we would use -1.0 because 10^-1 = 0.1. In this case, the parameter names are not updated, so be careful with this.
 };
 
 // Define a data structure for local (timestep) and global mass balance parameters
@@ -178,6 +196,17 @@ struct lgar_mass_balance_variables
   double volAET_cm;           // volume of AET
   double volPET_cm;           // volume of PET
 
+  double CR_fast_storage_cm = 0.0;    //water stored in the conceptual reservoir
+  double CR_slow_storage_cm = 0.0;    //water stored in the conceptual reservoir
+  double volrunoff_CR_cm = 0.0;  //discharge to stream from conceptual reservoir
+
+  double previous_AET = 0.0;  // used to determine if fluxes can be cached rather than computed
+  double previous_PET = 0.0;  // used to determine if fluxes can be cached rather than computed
+  double previous_recharge = 0.0;  // used to determine if fluxes can be cached rather than computed
+  bool cache_fluxes = FALSE;
+  double accumulated_PET = 0.0;
+  double accumulated_free_drainage = 0.0;
+
   double volrech_cm;          // volume of water leaving soil through the bottom of the domain (ground water recharge)
   double volrunoff_giuh_cm;   // volume of giuh runoff
   double volQ_cm;             // total outgoing water
@@ -190,13 +219,41 @@ struct lgar_mass_balance_variables
 // the structure holds pointer bmi output variables
 struct lgar_calib_parameters
 {
-  double *theta_e;               // theta_e = smcmax [-]
-  double *theta_r;               // theta_r = smcmin [-]
-  double *vg_n;                  // Van Genuchten n [-]
-  double *vg_alpha;              // Van Genuchten alpha [1/cm]
-  double *Ksat;                  // Hydraulic conductivity [cm/hr]
+  // // the old approach to calibration was to make arrays for parameters that depend on soil layer. 
+  // // however, I beleive that ngen cal does not handle arrays as parameters.
+  // // therefore, the solution is to support layered soil parameter calibration up to a fixed number of layers where each parameter is not an array.
+  // double *theta_e;               // theta_e = smcmax [-]
+  // double *theta_r;               // theta_r = smcmin [-]
+  // double *vg_n;                  // Van Genuchten n [-]
+  // double *vg_alpha;              // Van Genuchten alpha [1/cm]
+  // double *Ksat;                  // Hydraulic conductivity [cm/hr]
+
+  //supports up to 3 layers in calibration
+  double theta_e_1;               // theta_e = smcmax [-]
+  double theta_r_1;               // theta_r = smcmin [-]
+  double vg_n_1;                  // Van Genuchten n [-]
+  double vg_alpha_1;              // Van Genuchten alpha [1/cm]
+  double Ksat_1;                  // Hydraulic conductivity [cm/hr]
+  double theta_e_2;               // theta_e = smcmax [-]
+  double theta_r_2;               // theta_r = smcmin [-]
+  double vg_n_2;                  // Van Genuchten n [-]
+  double vg_alpha_2;              // Van Genuchten alpha [1/cm]
+  double Ksat_2;                  // Hydraulic conductivity [cm/hr]
+  double theta_e_3;               // theta_e = smcmax [-]
+  double theta_r_3;               // theta_r = smcmin [-]
+  double vg_n_3;                  // Van Genuchten n [-]
+  double vg_alpha_3;              // Van Genuchten alpha [1/cm]
+  double Ksat_3;                  // Hydraulic conductivity [cm/hr]
+
   double field_capacity_psi;    // field capacity in capillary head [cm]
   double ponded_depth_max;      // maximum ponded depth of surface water [cm]
+  double a;                      // parameter for nonlinear reservoir
+  double b;                      // parameter for nonlinear reservoir
+  double frac_to_CR;             // parameter for nonlinear reservoir
+  double a_slow;                      // parameter for nonlinear reservoir
+  double b_slow;                      // parameter for nonlinear reservoir
+  double frac_slow;             // parameter for nonlinear reservoir
+  double spf_factor;             // parameter for nonlinear reservoir
 
 };
 
@@ -233,7 +290,7 @@ extern int                      listLength(struct wetting_front* head);
 extern bool                     listIsEmpty();
 extern struct wetting_front*    listDeleteFirst(struct wetting_front** head);
 extern struct wetting_front*    listFindFront(int i, struct wetting_front* head, struct wetting_front* head_old);
-extern struct wetting_front*    listDeleteFront(int i, struct wetting_front** head);
+extern struct wetting_front*    listDeleteFront(int front_num, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
 extern void                     listSortFrontsByDepth(struct wetting_front *head);
 extern void                     listInsertFirst(double d, double t, int f, int l, bool b, struct wetting_front** head);
 extern struct wetting_front*    listInsertFront(double d, double t, int f, int l, bool b, struct wetting_front** head);
@@ -265,9 +322,11 @@ extern double calc_Geff(bool use_closed_form_G, double theta1, double theta2, do
 // computed mass balance
 extern double lgar_calc_mass_bal(double *cum_layer_thickness, struct wetting_front* head);
 
+extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
+
 // computes derivatives; called derivs() in Python code
-extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, double h_p, int *soil_type, double *cum_layer_thickness,
-			   double *frozen_factor, struct wetting_front* head, struct soil_properties_ *soil_properties);
+extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, int num_layers, double h_p, double subtimestep_h, int *soil_type, double *cum_layer_thickness,
+			   double *frozen_factor, struct wetting_front* head, struct soil_properties_ *soil_properties, bool switch_caching, int cache_count, int new_front);
 
 // computes dry depth
 extern double lgar_calc_dry_depth(bool use_closed_form_G, int nint, double timestep_h, double *deltheta, int *soil_type,
@@ -276,7 +335,7 @@ extern double lgar_calc_dry_depth(bool use_closed_form_G, int nint, double times
 
 // reads van Genuchten parameters from a file
 extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_types, double wilting_point_psi_cm,
-                                    struct soil_properties_ *soil_properties);
+                                    struct soil_properties_ *soil_properties, bool log_mode);
 
 // creates a surficial front (new top most wetting front)
 extern void lgar_create_surficial_front(int num_layers, double *ponded_depth_cm, double *volin, double dry_depth,
@@ -284,14 +343,14 @@ extern void lgar_create_surficial_front(int num_layers, double *ponded_depth_cm,
 					double *frozen_factor, struct wetting_front **head, struct soil_properties_ *soil_properties);
 
 // computes the infiltration capacity, fp, of the soil
-extern double lgar_insert_water(bool use_closed_form_G, int nint, double timestep_h, double AET_demand_cm, double *ponded_depth,
+extern double lgar_insert_water(bool use_closed_form_G, int nint, double timestep_h, double AET_demand_cm, double free_drainage_subtimestep_cm, double *ponded_depth,
 				double *volin_this_timestep, double precip_timestep_cm, int wf_free_drainge_demand,
 				int num_layers, double ponded_depth_max_cm, int *soil_type, double *cum_layer_thickness_cm,
 				double *frozen_factor, struct wetting_front* head, struct soil_properties_ *soil_properties);
 
 // the subroutine moves wetting fronts, merges wetting fronts, and does the mass balance correction if needed
-extern void lgar_move_wetting_fronts(double timestep_h, double *ponded_depth_cm, int wf_free_drainage_demand,
-				     double old_mass, int number_of_layers, double *actual_ET_demand,
+extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_subtimestep_cm, double *ponded_depth_cm, int wf_free_drainage_demand,
+				     double old_mass, double mass_correction_for_cached_free_drainage_fluxes, int number_of_layers, double *actual_ET_demand,
 				     double *cum_layer_thickness_cm, int *soil_type_by_layer, double *frozen_factor,
 				     struct wetting_front** head, struct wetting_front* state_previous, struct soil_properties_ *soil_properties);
 
@@ -311,7 +370,7 @@ extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, i
 						       struct wetting_front** head, struct soil_properties_ *soil_properties);
 
 // subroutine to handle wet over dry wetting fronts condtions
-extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
+extern void lgar_fix_dry_over_wet_wetting_fronts(int num_layers, double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
 						 struct wetting_front** head, struct soil_properties_ *soil_properties);
 
 // checks if dry over wet wetting front exists or not
@@ -322,8 +381,15 @@ extern int wetting_front_free_drainage(struct wetting_front* head);
 
 // computes updated theta (soil moisture content) after moving down a wetting front; called for each wetting front to ensure mass is conserved
 extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm, double new_mass,
-				      double prior_mass, double *AET_demand_cm, double *delta_theta, double *layer_thickness_cm,
+				      double prior_mass, double precip_mass_to_add, double *AET_demand_cm, double *delta_theta, double *layer_thickness_cm,
 				      int *soil_type, struct soil_properties_ *soil_properties);
+
+// computes updated theta (soil moisture content) after fixing a dry over wet front or after layer boundary crossing to address edge cases 
+extern void lgar_theta_mass_balance_correction(int front_num, double prior_mass, struct wetting_front** head, double *cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
+
+extern double calc_min_water_possible_for_free_drainage_wetting_front(int wf_free_drainage, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
+
+extern double calc_storage_in_free_drainage_wetting_front(int wf_free_drainage, struct wetting_front** head);
 
 /********************************************************************/
 // Bmi functions
@@ -341,6 +407,9 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
 
 extern double calc_aet(double PET_timestep_cm, double timestep_h, double wilting_point_psi_cm, double field_capacity_psi_cm, int *soil_type,
 		       double AET_thresh_Theta, double AET_expon, struct wetting_front* head, struct soil_properties_ *soil_props);
+
+//returns an integer that describes which type of layer boundary crossing or WF merging is necessary
+extern int lgarto_correction_type_surf(int num_layers, double* cum_layer_thickness_cm, struct wetting_front** head);
 
 /********************************************************************/
 /* Input/Output functions, etc.  */
@@ -374,5 +443,15 @@ extern void f_alloc(float **var,int size);
 /*   utility function prototypes */
 /*###############################*/
 extern bool is_epsilon_less_than(double a, double eps);
+
+//function for contribtion to streamflow from conceptual reservoir
+extern double calc_CR_Q(
+    double subtimestep_h,
+    double a_fast, double a_slow,
+    double b_fast, double b_slow,
+    double frac_slow,  // fraction (0 - 1) of recharge going to slow reservoir
+    double precip_for_CR_subtimestep_cm,
+    double *CR_fast_storage_cm,
+    double *CR_slow_storage_cm);
 
 #endif  // _ALL_HXX

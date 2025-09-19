@@ -17,6 +17,46 @@
 // default verbosity is set to 'none' other option 'high' or 'low' needs to be specified in the config file
 string verbosity="none";
 
+// some macros for flux caching, these are not relevant if flux caching is disabled in the config file.
+// precip intensity above which flux caching does not occur
+#ifndef PRECIP_THRESHOLD_MM_PER_H
+#define PRECIP_THRESHOLD_MM_PER_H ((double)1.0e-6)
+#endif
+
+// Small epsilon added to PET denominator to prevent division by 0, and in another case to check if there is significant PET
+#ifndef PET_EPSILON
+#define PET_EPSILON ((double)1.0e-8)
+#endif
+
+// Threshold for AET/PET ratio to indicate low enough AET for flux caching to start
+#ifndef AET_PET_RATIO_THRESHOLD
+#define AET_PET_RATIO_THRESHOLD ((double)0.75)
+#endif
+
+// while ponded head is greater than this, flux caching will not occur
+#ifndef VOLON_TIMESTEP_THRESHOLD_CM
+#define VOLON_TIMESTEP_THRESHOLD_CM ((double)1.0e-16)
+#endif
+
+// While the vadose zone lower boundary flux is greater than this, flux caching will not happen
+#ifndef BOTTOM_BDY_FLUX_THRESHOLD_CM
+#define BOTTOM_BDY_FLUX_THRESHOLD_CM ((double)1.0e-4)
+#endif
+
+// While the top most wetting front has a dzdt value greater than this, flux caching will not happen
+#ifndef THRESHOLD_DZDT_CM_PER_H
+#define THRESHOLD_DZDT_CM_PER_H ((double)1.0e0)
+#endif
+
+// Number of timesteps before flux cache reset
+#ifndef NUM_TIMESTEPS_BEFORE_RESET_CACHE
+#define NUM_TIMESTEPS_BEFORE_RESET_CACHE 24
+#endif
+
+// small epsillon that is used to determine if the difference between two quantities is 0 while avoiding machine precision errors
+#define SMALL_EPS 1.E-12
+
+
 /**
  * @brief Delete dynamic arrays allocated in Initialize() and held by this object
  * 
@@ -148,6 +188,7 @@ Update()
   double volrunoff_giuh_timestep_cm = 0.0;
   double volQ_timestep_cm           = 0.0;
   double volQ_gw_timestep_cm        = 0.0;
+  double CR_Q_timestep_cm           = 0.0;
   
   // local variables for a subtimestep (i.e., timestep of the model)
   double precip_subtimestep_cm;
@@ -170,8 +211,17 @@ Update()
   int nint = state->lgar_bmi_params.nint;
   double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
   double field_capacity_psi_cm = state->lgar_bmi_params.field_capacity_psi_cm;
+  double a = state->lgar_bmi_params.a;
+  double b = state->lgar_bmi_params.b;
+  double frac_to_CR = state->lgar_bmi_params.frac_to_CR;
+  double a_slow = state->lgar_bmi_params.a_slow;
+  double b_slow = state->lgar_bmi_params.b_slow;
+  double frac_slow = state->lgar_bmi_params.frac_slow;
+  double spf_factor = state->lgar_bmi_params.spf_factor;
   bool use_closed_form_G = state->lgar_bmi_params.use_closed_form_G; 
   bool adaptive_timestep = state->lgar_bmi_params.adaptive_timestep;
+  bool PET_affects_precip = state->lgar_bmi_params.PET_affects_precip;
+  double mbal_tol = state->lgar_bmi_params.mbal_tol;
 
   // constant value used in the AET function
   double AET_thresh_Theta = 0.85;    // scaled soil moisture (0-1) above which AET=PET (fix later!)
@@ -200,18 +250,98 @@ Update()
     state->lgar_bmi_params.timestep_h = subtimestep_h;
   }
 
+  bool caching_at_start = state->lgar_mass_balance.cache_fluxes;
+  bool switch_caching = FALSE;
+
+  double wf_free_drain_dzdt = 0.0;
+
+  if (!caching_at_start){
+    struct wetting_front *wf_free_drainage_for_cache = listFindFront(wetting_front_free_drainage(state->head), state->head, NULL);
+    wf_free_drain_dzdt = wf_free_drainage_for_cache->dzdt_cm_per_h;
+  }
+
+  if (state->lgar_bmi_params.allow_flux_caching){
+    //The idea here is that, during dry periods, AET will become a small fraction of PET and wetting fronts will be very slow moving. In these cases, it is not necessary to compute fluxes for every time step.
+    //To save on runtime, and if allow_flux_caching is set to true in the config file, we simply cache computed fluxes to be used for subsequent time steps rather than recomputing them.
+    //The current implementation is to not move the wetting fronts under these conditions, but then move them more rapidly once it is time to calculate fluxes again. Also, during these periods, PET will be 0 but made to be larger to conserve mass when it is time to recalculate fluxes.
+    //Recharge is copied from the last time step. If free drainage is enabled, this will technically result in a small mass balance error. 
+    //There is very little change to the simulation when this is enabled.
+    //Note that for NextGen models, it is ultimately desirable that there is technically output for every hour, so simply relaxing the adaptive time step to be coarser than 1 hour isn't the best solution
+    if (subtimestep_h == state->lgar_bmi_params.forcing_resolution_h){
+      if ( (state->lgar_bmi_input_params->precipitation_mm_per_h < PRECIP_THRESHOLD_MM_PER_H) && ( (state->lgar_mass_balance.previous_AET / (state->lgar_mass_balance.previous_PET + PET_EPSILON )) < AET_PET_RATIO_THRESHOLD) && (state->lgar_bmi_params.cache_count!=NUM_TIMESTEPS_BEFORE_RESET_CACHE) && 
+           (volon_timestep_cm<VOLON_TIMESTEP_THRESHOLD_CM) && (state->lgar_mass_balance.previous_recharge<BOTTOM_BDY_FLUX_THRESHOLD_CM) ){
+        state->lgar_mass_balance.cache_fluxes = TRUE;
+      }
+      if ( wf_free_drain_dzdt>THRESHOLD_DZDT_CM_PER_H ){
+        state->lgar_mass_balance.cache_fluxes = FALSE;
+      }
+      if (volon_timestep_cm>=VOLON_TIMESTEP_THRESHOLD_CM){
+        state->lgar_mass_balance.cache_fluxes = FALSE;
+      }
+      if ( (state->lgar_bmi_params.cache_count==NUM_TIMESTEPS_BEFORE_RESET_CACHE ) || (state->lgar_bmi_input_params->precipitation_mm_per_h >= PRECIP_THRESHOLD_MM_PER_H) ){
+        state->lgar_mass_balance.cache_fluxes = FALSE;
+      }
+    }
+    else {
+      state->lgar_mass_balance.cache_fluxes = FALSE;
+    }
+  }
+
+  if (caching_at_start && !state->lgar_mass_balance.cache_fluxes){
+    switch_caching = TRUE;//if you switch from cached to not, you need to add the "missing" PET back into the mass balance and AET calculation 
+  }
+
+  if (state->lgar_mass_balance.cache_fluxes){
+    state->lgar_bmi_params.cache_count ++;
+  }
+
   state->lgar_bmi_params.forcing_interval = int(state->lgar_bmi_params.forcing_resolution_h/state->lgar_bmi_params.timestep_h+1.0e-08); // add 1.0e-08 to prevent truncation error
   subcycles = state->lgar_bmi_params.forcing_interval;
 
   if (verbosity.compare("high") == 0) {
     printf("time step size in hours: %lf \n", state->lgar_bmi_params.timestep_h);
   }
+
+  // ensure precip and PET are non-negative
+  if (state->lgar_bmi_input_params->precipitation_mm_per_h < 0.0) {
+      std::cerr << "Warning: Pr [mm/h] (timestep) is negative ("
+                << state->lgar_bmi_input_params->precipitation_mm_per_h
+                << "), setting to 0.\n";
+      state->lgar_bmi_input_params->precipitation_mm_per_h = 0.0;
+  }
+
+  if (state->lgar_bmi_input_params->PET_mm_per_h < 0.0) {
+      std::cerr << "Warning: PET [mm/h] (timestep) is negative ("
+                << state->lgar_bmi_input_params->PET_mm_per_h
+                << "), setting to 0.\n";
+      state->lgar_bmi_input_params->PET_mm_per_h = 0.0;
+  }
+
+  if (PET_affects_precip){ // if the user wants PET subtracted from precip
+    if (state->lgar_bmi_input_params->precipitation_mm_per_h > state->lgar_bmi_input_params->PET_mm_per_h){
+      state->lgar_bmi_input_params->precipitation_mm_per_h = state->lgar_bmi_input_params->precipitation_mm_per_h - state->lgar_bmi_input_params->PET_mm_per_h;
+      state->lgar_bmi_input_params->PET_mm_per_h = 0.0;
+    }
+    else{
+      state->lgar_bmi_input_params->PET_mm_per_h = state->lgar_bmi_input_params->PET_mm_per_h - state->lgar_bmi_input_params->precipitation_mm_per_h;
+      state->lgar_bmi_input_params->precipitation_mm_per_h = 0.0;
+    }
+  }
+
+  if ( (verbosity.compare("high") == 0) && (PET_affects_precip)) {
+    std::cerr<<"Pr  [cm/h] (timestep), after PET is subtracted from precip = "<<state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<"\n";
+    std::cerr<<"PET [cm/h] (timestep), after PET is subtracted from precip = "<<state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<"\n"; 
+  }
   
   // subcycling loop (loop over model's timestep)
   for (int cycle=1; cycle <= subcycles; cycle++) {
 
+    bool top_near_sat = false;
     this->state->lgar_bmi_params.time_s    += subtimestep_h * state->units.hr_to_sec;
     this->state->lgar_bmi_params.timesteps ++;
+
+    double precip_for_CR_subtimestep_cm_per_h = 0.0;
+    precip_subtimestep_cm_per_h = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm; // rate [cm/hour]
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
       std::cerr<<"BMI Update |---------------------------------------------------------------|\n";
@@ -224,9 +354,17 @@ Update()
     }
     state->state_previous = listCopy(state->head);
 
-    // ensure precip and PET are non-negative
-    state->lgar_bmi_input_params->precipitation_mm_per_h = fmax(state->lgar_bmi_input_params->precipitation_mm_per_h, 0.0);
-    state->lgar_bmi_input_params->PET_mm_per_h           = fmax(state->lgar_bmi_input_params->PET_mm_per_h, 0.0);
+    double ponded_flux_for_CR = 0.0;
+
+    // allocates some water to conceptual reservoir storage via conditional preferential flow
+    if (state->lgar_bmi_params.runoff_in_prev_step){
+      double precip_subtimestep_cm_per_h_total = precip_subtimestep_cm_per_h;
+      precip_for_CR_subtimestep_cm_per_h = frac_to_CR * precip_subtimestep_cm_per_h_total;
+      precip_subtimestep_cm_per_h = (1.0 - frac_to_CR) * precip_subtimestep_cm_per_h_total;
+
+      ponded_flux_for_CR = volon_timestep_cm/subtimestep_h*frac_to_CR;
+      volon_timestep_cm = volon_timestep_cm*(1 - frac_to_CR);
+    }
 
     /* Note unit conversion:
        Pr and PET are rates (fluxes) in mm/h
@@ -237,7 +375,15 @@ Update()
        in the code below, subtimestep_h is this 300/3600 factor (see initialize from config in lgar.cxx)
     */
 
-    precip_subtimestep_cm_per_h = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm; // rate [cm/hour]
+    AET_subtimestep_cm            = 0.0;
+    volstart_subtimestep_cm       = 0.0;
+    volin_subtimestep_cm          = 0.0;
+    volrunoff_subtimestep_cm      = 0.0;
+    volrech_subtimestep_cm        = 0.0;
+    surface_runoff_subtimestep_cm = 0.0;
+    double temp_rch               = 0.0; //handles case when a fraction of a wetting front technically crosses the lower boundary of the vadose zone
+    double free_drainage_subtimestep_cm = 0.0;
+    double free_drainage_for_CR = 0.0;
 
     PET_subtimestep_cm_per_h = state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm;
 
@@ -248,194 +394,312 @@ Update()
     precip_subtimestep_cm = precip_subtimestep_cm_per_h * subtimestep_h; // rate x dt = amount (portion of the water on the suface for model's timestep [cm])
     PET_subtimestep_cm = PET_subtimestep_cm_per_h * subtimestep_h;      // potential ET for this subtimestep [cm]
 
-    //using cerr instead of cout due to some cout buffering issues when running in the ngen framework, cerr doesn't buffer so it prints immediately to the sreeen.
-    if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-
-      std::cerr<<"Pr [cm/h], Pr [cm] (subtimestep), subtimestep [h] = "<<state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<", "<< precip_subtimestep_cm <<", "<< subtimestep_h<<" ("<<subtimestep_h*3600<<" sec)"<<"\n";
-      std::cerr<<"PET [cm/h], PET [cm] (subtimestep) = "<<state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<", "<< PET_subtimestep_cm<<"\n";
-    }
-
-    AET_subtimestep_cm            = 0.0;
-    volstart_subtimestep_cm       = 0.0;
-    volin_subtimestep_cm          = 0.0;
-    volrunoff_subtimestep_cm      = 0.0;
-    volrech_subtimestep_cm        = 0.0;
-    surface_runoff_subtimestep_cm = 0.0;
-
-    precip_previous_subtimestep_cm = state->lgar_bmi_params.precip_previous_timestep_cm; // creation of a new wetting front depends on previous timestep's rainfall
-
-    num_layers = state->lgar_bmi_params.num_layers;
-    double delta_theta;   // the width of a front, such that its volume=depth*delta_theta
-    double dry_depth;
-
-
-    // Calculate AET from PET if PET is non-zero
-    if (PET_subtimestep_cm_per_h > 0.0) {
-      AET_subtimestep_cm = calc_aet(PET_subtimestep_cm_per_h, subtimestep_h, wilting_point_psi_cm, field_capacity_psi_cm,
-                                    state->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon,
-                                    state->head, state->soil_properties);
-    }
-
-
-    precip_timestep_cm += precip_subtimestep_cm;
-    PET_timestep_cm += fmax(PET_subtimestep_cm,0.0); // ensures non-negative PET
-
     volstart_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
 
-    //addressed machine precision issues where volon_timestep_error could be for example -1E-17 or 1.E-20 or smaller
-    volon_timestep_cm = fmax(volon_timestep_cm,0.0);
-    volon_timestep_cm = volon_timestep_cm > 1.0E-12 ? volon_timestep_cm : 0.0;
+    if (!state->lgar_mass_balance.cache_fluxes){
 
-    int wf_free_drainage_demand = wetting_front_free_drainage(state->head);
-
-     /*----------------------------------------------------------------------*/
-    // Should a new wetting front be created?
-    int soil_num = state->lgar_bmi_params.layer_soil_type[state->head->layer_num];
-    double theta_e = state->soil_properties[soil_num].theta_e;
-    bool is_top_wf_saturated = (state->head->theta+1.0E-12) >= theta_e ? true : false; //sometimes a machine precision error would erroneously create a new wetting front during saturated conditions. The + 1.0E-12 seems to prevent this.
-
-    // checks on creatign a new surficial front
-    // 1. check current and previous timestep precipitation
-    bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0);
-    
-    // 2. check soil top wetting front condition (saturated/unsaturated), and surface ponded water
-    if (is_top_wf_saturated || volon_timestep_cm > 0.0)
-      create_surficial_front = false;
-
-    if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
-      std::string flag        = (create_surficial_front && !is_top_wf_saturated) == true ? "Yes" : "No";
-      std::string flag_top_wf = is_top_wf_saturated == true ? "Yes" : "No";
-      std::cerr<<"Is top wetting front saturated? "<< flag_top_wf  << "\n";
-      std::cerr<<"Create superficial wetting front? "<< flag << "\n";
-    }
-
-    /*----------------------------------------------------------------------*/
-    /* create a new wetting front if the following is true. Meaning there is no
-       wetting front in the top layer to accept the water, must create one. */
-    if(create_surficial_front) {
-
-      double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
-
-      // move the wetting fronts without adding any water; this is done to close the mass balance
-      // and also to merge / cross if necessary 
-      lgar_move_wetting_fronts(subtimestep_h, &temp_pd, wf_free_drainage_demand, volend_subtimestep_cm,
-			       num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
-			       state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
-			       &state->head, state->state_previous, state->soil_properties);
-
-      if (temp_pd != 0.0){ //if temp_pd != 0.0, that means that some water left the model through the lower model bdy
-        volrech_subtimestep_cm = temp_pd;
-        volrech_timestep_cm += volrech_subtimestep_cm;
-        temp_pd = 0.0;
+      //this code makes sure that AET or free drainage will not be extracted in a way that would result in an impossible storage
+      double min_storage = 0.0;
+      double mass_used_to_check_impossible_storages = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
+      for (int k = 1; k < num_layers+1; k++) {
+        int layer_num_min_check = k;
+        int soil_num_min_check = state->lgar_bmi_params.layer_soil_type[layer_num_min_check];
+        min_storage += state->soil_properties[soil_num_min_check].theta_r * (state->lgar_bmi_params.cum_layer_thickness_cm[k]-state->lgar_bmi_params.cum_layer_thickness_cm[k-1]);
       }
+
+      int wf_free_drainage_demand = wetting_front_free_drainage(state->head);
+
+      double min_water_possible_for_FD_WF = calc_min_water_possible_for_free_drainage_wetting_front(wf_free_drainage_demand,  &state->head, state->lgar_bmi_params.layer_soil_type, state->soil_properties);
+      double storage_in_FD_WF = calc_storage_in_free_drainage_wetting_front(wf_free_drainage_demand, &state->head);
+
+      double mass_correction_for_cached_free_drainage_fluxes = 0.0;
+
+      if (switch_caching){
+        PET_subtimestep_cm_per_h += state->lgar_mass_balance.accumulated_PET;
+        state->lgar_mass_balance.accumulated_PET = 0.0;
+        mass_correction_for_cached_free_drainage_fluxes += state->lgar_mass_balance.accumulated_free_drainage;
+        state->lgar_mass_balance.accumulated_free_drainage = 0.0;
+      }
+
+      if (state->lgar_bmi_params.free_drainage_enabled){
+        struct wetting_front *front = listFindFront(listLength(state->head), state->head, NULL);
+        free_drainage_subtimestep_cm += subtimestep_h*front->K_cm_per_h;
+        int iter_mass_check_FD = 0;
+        while ( (mass_used_to_check_impossible_storages - free_drainage_subtimestep_cm < min_storage) || (storage_in_FD_WF - free_drainage_subtimestep_cm < min_water_possible_for_FD_WF) ){
+          free_drainage_subtimestep_cm *= 0.5; //give it a chance to merely become smaller before setting to 0
+          if (iter_mass_check_FD > 5){
+            free_drainage_subtimestep_cm = 0.0;
+            break;
+          }
+          iter_mass_check_FD ++;
+        }
+        if (free_drainage_subtimestep_cm<1.E-7){
+          free_drainage_subtimestep_cm = 0.0;
+        }
+        if (front->psi_cm>1.E6){
+          free_drainage_subtimestep_cm = 0.0;
+        }
+      }
+
+      if ((state->lgar_bmi_params.free_drainage_enabled) && verbosity.compare("high") == 0){
+        printf("free_drainage_subtimestep_cm: %.10lf \n", free_drainage_subtimestep_cm);
+      }
+
+      //using cerr instead of cout due to some cout buffering issues when running in the ngen framework, cerr doesn't buffer so it prints immediately to the sreeen.
+      if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
+
+        std::cerr<<"Pr [cm/h], Pr [cm] (subtimestep), subtimestep [h] = "<<state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm <<", "<< precip_subtimestep_cm <<", "<< subtimestep_h<<" ("<<subtimestep_h*3600<<" sec)"<<"\n";
+        std::cerr<<"PET [cm/h], PET [cm] (subtimestep) = "<<state->lgar_bmi_input_params->PET_mm_per_h * mm_to_cm <<", "<< PET_subtimestep_cm<<"\n";
+      }
+
+      precip_previous_subtimestep_cm = state->lgar_bmi_params.precip_previous_timestep_cm; // creation of a new wetting front depends on previous timestep's rainfall
+
+      num_layers = state->lgar_bmi_params.num_layers;
+      double delta_theta;   // the width of a front, such that its volume=depth*delta_theta
+      double dry_depth;
+
+      // Calculate AET from PET if PET is non-zero
+      if (PET_subtimestep_cm_per_h > 0.0) {
+        AET_subtimestep_cm = calc_aet(PET_subtimestep_cm_per_h, subtimestep_h, wilting_point_psi_cm, field_capacity_psi_cm,
+                                      state->lgar_bmi_params.layer_soil_type, AET_thresh_Theta, AET_expon,
+                                      state->head, state->soil_properties);
+      }
+
+      int iter_mass_check_AET = 0;
+      while ( (mass_used_to_check_impossible_storages - AET_subtimestep_cm < min_storage) || (storage_in_FD_WF - AET_subtimestep_cm < min_water_possible_for_FD_WF) ){
+        AET_subtimestep_cm *= 0.5; //give it a chance to merely become smaller before setting to 0
+        if (iter_mass_check_AET > 5){
+          AET_subtimestep_cm = 0.0;
+          break;
+        }
+        iter_mass_check_AET ++;
+      }
+
+      int iter_mass_check_AET_and_FD = 0;
+      while ( ( (mass_used_to_check_impossible_storages - AET_subtimestep_cm - free_drainage_subtimestep_cm - mass_correction_for_cached_free_drainage_fluxes) < min_storage) || ( (storage_in_FD_WF - AET_subtimestep_cm - free_drainage_subtimestep_cm - mass_correction_for_cached_free_drainage_fluxes) < min_water_possible_for_FD_WF) ){ 
+        // both should also be checked at the same because while individually these might not make an impossible storage, together they might
+        AET_subtimestep_cm *= 0.5;
+        free_drainage_subtimestep_cm *= 0.5;
+        mass_correction_for_cached_free_drainage_fluxes *=0.5;
+        if (iter_mass_check_AET_and_FD > 5){
+          AET_subtimestep_cm = 0.0;
+          free_drainage_subtimestep_cm = 0.0;
+          mass_correction_for_cached_free_drainage_fluxes = 0.0;
+          break;
+        }
+        iter_mass_check_AET_and_FD ++;
+      }
+
+      // precip_timestep_cm += precip_subtimestep_cm;
+      precip_timestep_cm += precip_subtimestep_cm + precip_for_CR_subtimestep_cm_per_h*subtimestep_h;
+      PET_timestep_cm += fmax(PET_subtimestep_cm,0.0); // ensures non-negative PET
+
+      //addressed machine precision issues where volon_timestep_error could be for example -1E-17 or 1.E-20 or smaller
+      volon_timestep_cm = fmax(volon_timestep_cm,0.0);
+      volon_timestep_cm = volon_timestep_cm > SMALL_EPS ? volon_timestep_cm : 0.0;
+
+      /*----------------------------------------------------------------------*/
+      // Should a new wetting front be created?
+      int soil_num = state->lgar_bmi_params.layer_soil_type[state->head->layer_num];
+      double theta_e = state->soil_properties[soil_num].theta_e;
+      bool is_top_wf_saturated = (state->head->theta+SMALL_EPS) >= theta_e ? true : false; //sometimes a machine precision error would erroneously create a new wetting front during saturated conditions. The epsillon seems to prevent this.
+      double theta_above_which_precip_contribs_to_GW = theta_e * spf_factor;
+      top_near_sat = state->head->theta > theta_above_which_precip_contribs_to_GW ? true : false; //is the top WF near saturation, thus triggering simple preferential flow if enabled
+
+      // checks on creatign a new surficial front
+      // 1. check current and previous timestep precipitation
+      // bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0);
+      bool create_surficial_front = (precip_previous_subtimestep_cm == 0.0 && precip_subtimestep_cm > 0.0 && volon_timestep_cm == 0) || ( (precip_subtimestep_cm > 0.0 || volon_timestep_cm > 0) && (listLength(state->head)==num_layers) );
       
-      // depth of the surficial front to be created
-      dry_depth = lgar_calc_dry_depth(use_closed_form_G, nint, subtimestep_h, &delta_theta, state->lgar_bmi_params.layer_soil_type,
-				      state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
-				      state->head, state->soil_properties);
+      // 2. check soil top wetting front condition (saturated/unsaturated), and surface ponded water
+      if (is_top_wf_saturated || volon_timestep_cm > 0.0)
+        create_surficial_front = false;
 
-      if (verbosity.compare("high") == 0) {
-        printf("State before moving creating new WF...\n");
-        listPrint(state->head);
-      }
-      
-      lgar_create_surficial_front(num_layers, &ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth, state->head->theta,
-				  state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
-				  state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
-
-      if (verbosity.compare("high") == 0) {
-        printf("State after moving creating new WF...\n");
-        listPrint(state->head);
+      if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
+        std::string flag        = (create_surficial_front && !is_top_wf_saturated) == true ? "Yes" : "No";
+        std::string flag_top_wf = is_top_wf_saturated == true ? "Yes" : "No";
+        std::cerr<<"Is top wetting front saturated? "<< flag_top_wf  << "\n";
+        std::cerr<<"Create superficial wetting front? "<< flag << "\n";
       }
 
-      if(state->state_previous != NULL ){
-        listDelete(state->state_previous);
-        state->state_previous = NULL;
+      /*----------------------------------------------------------------------*/
+      /* create a new wetting front if the following is true. Meaning there is no
+        wetting front in the top layer to accept the water, must create one. */
+      if(create_surficial_front) {
+
+        double temp_pd = 0.0; // necessary to assign zero precip due to the creation of new wetting front; AET will still be taken out of the layers
+
+        // move the wetting fronts without adding any water; this is done to close the mass balance
+        // and also to merge / cross if necessary 
+        temp_rch = lgar_move_wetting_fronts(subtimestep_h, &free_drainage_subtimestep_cm, &temp_pd, wf_free_drainage_demand, volend_subtimestep_cm, mass_correction_for_cached_free_drainage_fluxes,
+              num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
+              state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
+              &state->head, state->state_previous, state->soil_properties);
+
+        // if (temp_pd != 0.0){ //if temp_pd != 0.0, that means that some water left the model through the lower model bdy. For LGARTO preparation, this has been refactored such that temp_rch handles this now.
+        //   // volrech_subtimestep_cm = temp_pd;
+        //   // volrech_timestep_cm += volrech_subtimestep_cm;
+        //   // temp_pd = 0.0;
+        // }
+        
+        // depth of the surficial front to be created
+        dry_depth = lgar_calc_dry_depth(use_closed_form_G, nint, subtimestep_h, &delta_theta, state->lgar_bmi_params.layer_soil_type,
+                state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
+                state->head, state->soil_properties);
+
+        if (verbosity.compare("high") == 0) {
+          printf("State before moving creating new WF...\n");
+          listPrint(state->head);
+        }
+        
+        lgar_create_surficial_front(num_layers, &ponded_depth_subtimestep_cm, &volin_subtimestep_cm, dry_depth, state->head->theta,
+            state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
+            state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
+
+        if (verbosity.compare("high") == 0) {
+          printf("State after moving creating new WF...\n");
+          listPrint(state->head);
+        }
+
+        if(state->state_previous != NULL ){
+          listDelete(state->state_previous);
+          state->state_previous = NULL;
+        }
+        state->state_previous = listCopy(state->head);
+
+        // volin_timestep_cm += volin_subtimestep_cm;
+
+        if (verbosity.compare("high") == 0) {
+    std::cerr<<"New wetting front created...\n";
+    listPrint(state->head);
+        }
       }
-      state->state_previous = listCopy(state->head);
 
-      volin_timestep_cm += volin_subtimestep_cm;
+      /*----------------------------------------------------------------------*/
+      /* infiltrate water based on the infiltration capacity given no new wetting front
+        is created and that there is water on the surface (or raining). */
 
-      if (verbosity.compare("high") == 0) {
-	std::cerr<<"New wetting front created...\n";
-	listPrint(state->head);
-      }
-    }
-
-    /*----------------------------------------------------------------------*/
-    /* infiltrate water based on the infiltration capacity given no new wetting front
-       is created and that there is water on the surface (or raining). */
-
-    if (ponded_depth_subtimestep_cm > 0 && !create_surficial_front) {
-
-      volrunoff_subtimestep_cm = lgar_insert_water(use_closed_form_G, nint, subtimestep_h, AET_subtimestep_cm, &ponded_depth_subtimestep_cm,
-						   &volin_subtimestep_cm, precip_subtimestep_cm_per_h,
-						   wf_free_drainage_demand, num_layers,
-						   ponded_depth_max_cm, state->lgar_bmi_params.layer_soil_type,
-						   state->lgar_bmi_params.cum_layer_thickness_cm,
-						   state->lgar_bmi_params.frozen_factor, state->head,
-						   state->soil_properties); 
-
-      volin_timestep_cm += volin_subtimestep_cm;
-      volrunoff_timestep_cm += volrunoff_subtimestep_cm;
-      volrech_subtimestep_cm = volin_subtimestep_cm; // this gets updated later, probably not needed here
-
-      volon_subtimestep_cm = ponded_depth_subtimestep_cm;
-      if (volrunoff_subtimestep_cm < 0) abort();
-    }
-    else {
-
-      if (ponded_depth_subtimestep_cm < ponded_depth_max_cm) {
-	volrunoff_timestep_cm += 0.0;
-	volon_subtimestep_cm = ponded_depth_subtimestep_cm;
-	ponded_depth_subtimestep_cm = 0.0;
-	volrunoff_subtimestep_cm = 0.0;
+      if (ponded_depth_subtimestep_cm > 0 && !create_surficial_front) {
+        volrunoff_subtimestep_cm = lgar_insert_water(use_closed_form_G, nint, subtimestep_h, AET_subtimestep_cm, free_drainage_subtimestep_cm, &ponded_depth_subtimestep_cm,
+                &volin_subtimestep_cm, precip_subtimestep_cm_per_h,
+                wf_free_drainage_demand, num_layers,
+                ponded_depth_max_cm, state->lgar_bmi_params.layer_soil_type,
+                state->lgar_bmi_params.cum_layer_thickness_cm,
+                state->lgar_bmi_params.frozen_factor, state->head,
+                state->soil_properties); 
+        // volin_timestep_cm += volin_subtimestep_cm;
+        // volrunoff_timestep_cm += volrunoff_subtimestep_cm;
+        
+        volrech_subtimestep_cm = volin_subtimestep_cm;
+        volon_subtimestep_cm = ponded_depth_subtimestep_cm;
+        if (volrunoff_subtimestep_cm < 0) {
+          std::cerr<<"Runoff is less than 0, which should not happen.\n";
+          abort();
+        }
       }
       else {
-	volrunoff_subtimestep_cm = (ponded_depth_subtimestep_cm - ponded_depth_max_cm);
-	volrunoff_timestep_cm += (ponded_depth_subtimestep_cm - ponded_depth_max_cm);
-	volon_subtimestep_cm = ponded_depth_max_cm;
-	ponded_depth_subtimestep_cm = ponded_depth_max_cm;
+
+        if (ponded_depth_subtimestep_cm < ponded_depth_max_cm) {
+          volrunoff_timestep_cm += 0.0;
+          volon_subtimestep_cm = ponded_depth_subtimestep_cm;
+          ponded_depth_subtimestep_cm = 0.0;
+          volrunoff_subtimestep_cm = 0.0;
+        }
+        else {
+          volrunoff_subtimestep_cm = (ponded_depth_subtimestep_cm - ponded_depth_max_cm);
+          volon_subtimestep_cm = ponded_depth_max_cm;
+          ponded_depth_subtimestep_cm = ponded_depth_max_cm;
+        }
       }
+      /*----------------------------------------------------------------------*/
+
+      /* move wetting fronts if no new wetting front is created. Otherwise, movement
+        of wetting fronts has already happened at the time of creating surficial front,
+        so no need to move them here. */
+      if (!create_surficial_front) {
+        double volin_subtimestep_cm_temp = volin_subtimestep_cm;  /* passing this for mass balance only, the method modifies it
+                    and returns percolated value, so we need to keep its original
+                    value stored to copy it back*/
+        temp_rch = lgar_move_wetting_fronts(subtimestep_h, &free_drainage_subtimestep_cm, &volin_subtimestep_cm, wf_free_drainage_demand, volend_subtimestep_cm, mass_correction_for_cached_free_drainage_fluxes,
+              num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
+              state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
+              &state->head, state->state_previous, state->soil_properties);
+
+        // this is the volume of water leaving through the bottom
+        volrech_subtimestep_cm = volin_subtimestep_cm;
+        // volrech_timestep_cm += volrech_subtimestep_cm;
+
+        volin_subtimestep_cm = volin_subtimestep_cm_temp;
+      }
+
+      lgar_clean_redundant_fronts(&state->head, state->lgar_bmi_params.layer_soil_type, state->soil_properties); //deletes WFs that are very close in capillary head value
+
+      /*----------------------------------------------------------------------*/
+      // calculate derivative (dz/dt) for all wetting fronts
+      int new_front = -1;
+      if (switch_caching){
+        if (create_surficial_front){
+          new_front = state->head->front_num;
+        }
+      }
+      lgar_dzdt_calc(use_closed_form_G, nint, num_layers, ponded_depth_subtimestep_cm, subtimestep_h, state->lgar_bmi_params.layer_soil_type,
+        state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
+        state->head, state->soil_properties, switch_caching, state->lgar_bmi_params.cache_count, new_front);
+
+      if (switch_caching){
+        state->lgar_bmi_params.cache_count = 1;
+      }
+
+      volrech_subtimestep_cm = temp_rch;
+      if (!state->lgar_bmi_params.free_drainage_to_CR){
+        volrech_subtimestep_cm += free_drainage_subtimestep_cm;
+      }
+      else {
+        free_drainage_for_CR += free_drainage_subtimestep_cm + volrech_subtimestep_cm;
+        volrech_subtimestep_cm = 0.0;
+      }
+
     }
-    /*----------------------------------------------------------------------*/
 
-    /* move wetting fronts if no new wetting front is created. Otherwise, movement
-       of wetting fronts has already happened at the time of creating surficial front,
-       so no need to move them here. */
-    if (!create_surficial_front) {
-      double volin_subtimestep_cm_temp = volin_subtimestep_cm;  /* passing this for mass balance only, the method modifies it
-								   and returns percolated value, so we need to keep its original
-								   value stored to copy it back*/
-      lgar_move_wetting_fronts(subtimestep_h, &volin_subtimestep_cm, wf_free_drainage_demand, volend_subtimestep_cm,
-			       num_layers, &AET_subtimestep_cm, state->lgar_bmi_params.cum_layer_thickness_cm,
-			       state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.frozen_factor,
-			       &state->head, state->state_previous, state->soil_properties);
+    else {//in this case, we just use cached fluxes in order to save time. No direct computation of fluxes are necessary, and the ones from the last time step are used.
+      //also in this case, there will be no runoff due to precipitation partitioning because there is no precipitation 
+      PET_timestep_cm += fmax(PET_subtimestep_cm,0.0); // ensures non-negative PET
+      state->lgar_mass_balance.accumulated_PET += PET_timestep_cm;
 
-      // this is the volume of water leaving through the bottom
-      volrech_subtimestep_cm = volin_subtimestep_cm;
-      volrech_timestep_cm += volrech_subtimestep_cm;
-
-      volin_subtimestep_cm = volin_subtimestep_cm_temp;
+      if (!state->lgar_bmi_params.free_drainage_to_CR){
+        volrech_subtimestep_cm += state->lgar_mass_balance.previous_recharge;
+      }
+      else {
+        free_drainage_for_CR += state->lgar_mass_balance.previous_recharge;
+      }
+      state->lgar_mass_balance.accumulated_free_drainage += state->lgar_mass_balance.previous_recharge;
     }
-    /*----------------------------------------------------------------------*/
-    // calculate derivative (dz/dt) for all wetting fronts
-    lgar_dzdt_calc(use_closed_form_G, nint, ponded_depth_subtimestep_cm, state->lgar_bmi_params.layer_soil_type,
-		   state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.frozen_factor,
-		   state->head, state->soil_properties);
 
     volend_subtimestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
     volend_timestep_cm = volend_subtimestep_cm;
     state->lgar_bmi_params.precip_previous_timestep_cm = precip_subtimestep_cm;
 
+    double CR_storage_start_cm = state->lgar_mass_balance.CR_fast_storage_cm + state->lgar_mass_balance.CR_slow_storage_cm;
+    double CR_Q_subtimestep_cm = calc_CR_Q(subtimestep_h, a, a_slow, b, b_slow, frac_slow, precip_for_CR_subtimestep_cm_per_h + ponded_flux_for_CR + free_drainage_for_CR/subtimestep_h, &state->lgar_mass_balance.CR_fast_storage_cm, &state->lgar_mass_balance.CR_slow_storage_cm);
+    state->lgar_mass_balance.volrunoff_CR_cm += CR_Q_subtimestep_cm;
+    CR_Q_timestep_cm += CR_Q_subtimestep_cm;
+
+    // set runoff_in_prev_step for next step
+    if ((volrunoff_subtimestep_cm > SMALL_EPS) || (top_near_sat)){
+      state->lgar_bmi_params.runoff_in_prev_step = true;
+    }
+    else {
+      state->lgar_bmi_params.runoff_in_prev_step = false;
+    }
+
+    //add precip_for_CR_subtimestep_cm_per_h back into precip for mass balance
+    precip_subtimestep_cm += precip_for_CR_subtimestep_cm_per_h * subtimestep_h;
+
     /*----------------------------------------------------------------------*/
     // mass balance at the subtimestep (local mass balance)
 
-    double local_mb = volstart_subtimestep_cm + precip_subtimestep_cm + volon_timestep_cm - volrunoff_subtimestep_cm
+    double local_mb = volstart_subtimestep_cm + precip_subtimestep_cm + volon_timestep_cm - volrunoff_subtimestep_cm - CR_Q_subtimestep_cm - state->lgar_mass_balance.CR_fast_storage_cm - state->lgar_mass_balance.CR_slow_storage_cm + CR_storage_start_cm 
                       - AET_subtimestep_cm - volon_subtimestep_cm - volrech_subtimestep_cm - volend_subtimestep_cm;
-
-    AET_timestep_cm += AET_subtimestep_cm;
-    volon_timestep_cm = volon_subtimestep_cm; // surface ponded water at the end of the timestep 
 
 
     /*----------------------------------------------------------------------*/
@@ -445,27 +709,63 @@ Update()
 
     // adding groundwater flux to stream channel (note: this will be updated/corrected after adding the groundwater reservoir)
     volQ_gw_timestep_cm += volQ_gw_subtimestep_cm;
+
+
+    ///////
+    //separating code such that most non substep vars (so xxx_timestep and not xxx_subtimestep) are updated in just one place. not all, because some must be set before substepping.
+    volin_timestep_cm += volin_subtimestep_cm;
+    volrech_timestep_cm += volrech_subtimestep_cm;
+
+    volrunoff_timestep_cm += volrunoff_subtimestep_cm;
+
+    AET_timestep_cm += AET_subtimestep_cm;
+    volon_timestep_cm = volon_subtimestep_cm; // surface ponded water at the end of the timestep 
+    ///////
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
       printf("Printing wetting fronts at this subtimestep... \n");
       listPrint(state->head);
     }
 
-    bool unexpected_local_error = fabs(local_mb) > 1.0E-4 ? true : false;
+    bool unexpected_local_error = fabs(local_mb) > mbal_tol ? true : false; //1.0E-4 was the default for LASAM stability testing 
+    if (isinf(local_mb)){
+      unexpected_local_error = true;
+    }
     
     if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0 || unexpected_local_error) {
-      printf("\nLocal mass balance at this timestep... \n\
-      Error         = %14.10f \n\
-      Initial water = %14.10f \n\
-      Water added   = %14.10f \n\
-      Ponded water  = %14.10f \n\
-      Infiltration  = %14.10f \n\
-      Runoff        = %14.10f \n\
-      AET           = %14.10f \n\
-      Percolation   = %14.10f \n\
-      Final water   = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volon_subtimestep_cm,
-	     volin_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm,
-	     volend_subtimestep_cm);
+      if (!state->lgar_bmi_params.frac_to_CR){
+        printf("\nLocal mass balance at this timestep... \n\
+        Error         = %14.10f \n\
+        Initial water = %14.10f \n\
+        Water added   = %14.10f \n\
+        Ponded water  = %14.10f \n\
+        Infiltration  = %14.10f \n\
+        Runoff        = %14.10f \n\
+        AET           = %14.10f \n\
+        Percolation   = %14.10f \n\
+        Final water   = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volon_subtimestep_cm,
+        volin_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm,
+        volend_subtimestep_cm);
+      }
+      else {
+        printf("\nLocal mass balance at this timestep... \n\
+        Error                   = %14.10f \n\
+        Initial water (LGAR)    = %14.10f \n\
+        Water added (total)     = %14.10f \n\
+        Ponded water            = %14.10f \n\
+        Infiltration (LGAR)     = %14.10f \n\
+        Runoff (total)          = %14.10f \n\
+        AET                     = %14.10f \n\
+        Percolation             = %14.10f \n\
+        Final water (LGAR)      = %14.10f \n\
+        Water added (con res)   = %14.10f \n\
+        Initial water (con res) = %14.10f \n\
+        Final water (con res)   = %14.10f \n\
+        Runoff (con res)        = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volon_subtimestep_cm,
+        volin_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm,
+        volend_subtimestep_cm, (precip_for_CR_subtimestep_cm_per_h + ponded_flux_for_CR)*subtimestep_h + free_drainage_for_CR, CR_storage_start_cm,
+        state->lgar_mass_balance.CR_fast_storage_cm + state->lgar_mass_balance.CR_slow_storage_cm, CR_Q_timestep_cm);
+      }
 
       if (unexpected_local_error) {
 	printf("Local mass balance (in this timestep) is %14.10f, larger than expected, needs some debugging...\n ",local_mb);
@@ -490,7 +790,7 @@ Update()
   } // end of subcycling
 
   //update giuh at the time step level (was previously updated at the sub time step level)
-  volrunoff_giuh_timestep_cm = giuh_convolution_integral(volrunoff_timestep_cm, num_giuh_ordinates, giuh_ordinates, giuh_runoff_queue);
+  volrunoff_giuh_timestep_cm = giuh_convolution_integral(volrunoff_timestep_cm + CR_Q_timestep_cm , num_giuh_ordinates, giuh_ordinates, giuh_runoff_queue);
 
   // total mass of water leaving the system, at this time it is the giuh-only, but later will add groundwater component as well.
   // when groundwater component is added, it should probably happen inside of the subcycling loop.
@@ -507,7 +807,16 @@ Update()
 
   // update thickness/depth and soil moisture of wetting fronts (used for state coupling)
   struct wetting_front *current = state->head;
+  int to_bottom_count = 0;
   for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
+    if (current->to_bottom){
+      to_bottom_count ++;
+    }
+    if (to_bottom_count>num_layers){
+      std::cerr << "Error: too many to_bottom WFs! This should be equal to the number of layers.\n";
+      listPrint(state->head);
+	    abort();
+    }
     assert (current != NULL);
     state->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
     state->lgar_bmi_params.soil_depth_wetting_fronts[i] = current->depth_cm * state->units.cm_to_m;
@@ -530,6 +839,13 @@ Update()
   state->lgar_mass_balance.volQ_gw_timestep_cm    = volQ_gw_timestep_cm;
   state->lgar_mass_balance.volPET_timestep_cm     = PET_timestep_cm;
   state->lgar_mass_balance.volrunoff_giuh_timestep_cm = volrunoff_giuh_timestep_cm;
+
+  //for caching
+  state->lgar_mass_balance.previous_AET         = AET_subtimestep_cm;
+  state->lgar_mass_balance.previous_PET         = PET_subtimestep_cm;
+  if (!state->lgar_mass_balance.cache_fluxes){
+    state->lgar_mass_balance.previous_recharge    = volrech_subtimestep_cm;
+  }
 
   // add to mass balance accumulated variables
   state->lgar_mass_balance.volprecip_cm  += precip_timestep_cm;
@@ -590,7 +906,9 @@ update_calibratable_parameters()
   
   double volstart_before = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
 
-  for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {//first we update the parameters that depend on soil layer, for each layer
+  // first we update the parameters that depend on soil layer, for each layer. 
+  // This no longer relies on arrays (for compatability with ngen-cal) and instead supports calibration of up to 3 soil layers with scalar parameters.
+  for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
     layer_num  = current->layer_num;
     soil = state->lgar_bmi_params.layer_soil_type[layer_num];
     
@@ -607,12 +925,51 @@ update_calibratable_parameters()
 	       <<", theta = "    << current->theta <<"\n";
     }
     
-    state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e[layer_num-1];
-    state->soil_properties[soil].theta_r = state->lgar_calib_params.theta_r[layer_num-1];
-    state->soil_properties[soil].vg_n    = state->lgar_calib_params.vg_n[layer_num-1];
-    state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
-    state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha[layer_num-1];
-    state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat[layer_num-1];
+    // state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e[layer_num-1];
+    // state->soil_properties[soil].theta_r = state->lgar_calib_params.theta_r[layer_num-1];
+    // state->soil_properties[soil].vg_n    = state->lgar_calib_params.vg_n[layer_num-1];
+    // state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
+    // state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha[layer_num-1];
+    // state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat[layer_num-1];
+
+    if (layer_num==1){
+      state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e_1;
+      state->soil_properties[soil].theta_r = state->lgar_calib_params.theta_r_1;
+      state->soil_properties[soil].vg_n    = state->lgar_calib_params.vg_n_1;
+      state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
+      state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha_1;
+      state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat_1;
+      if (state->lgar_bmi_params.log_mode){
+        state->soil_properties[soil].vg_alpha_per_cm = pow(10.0, state->lgar_calib_params.vg_alpha_1);
+        state->soil_properties[soil].Ksat_cm_per_h   = pow(10.0, state->lgar_calib_params.Ksat_1);
+      }
+    }
+
+    if (layer_num==2){
+      state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e_2;
+      state->soil_properties[soil].theta_r = state->lgar_calib_params.theta_r_2;
+      state->soil_properties[soil].vg_n    = state->lgar_calib_params.vg_n_2;
+      state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
+      state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha_2;
+      state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat_2;
+      if (state->lgar_bmi_params.log_mode){
+        state->soil_properties[soil].vg_alpha_per_cm = pow(10.0, state->lgar_calib_params.vg_alpha_2);
+        state->soil_properties[soil].Ksat_cm_per_h   = pow(10.0, state->lgar_calib_params.Ksat_2);
+      }
+    }
+
+    if (layer_num==3){
+      state->soil_properties[soil].theta_e = state->lgar_calib_params.theta_e_3;
+      state->soil_properties[soil].theta_r = state->lgar_calib_params.theta_r_3;
+      state->soil_properties[soil].vg_n    = state->lgar_calib_params.vg_n_3;
+      state->soil_properties[soil].vg_m    = 1.0 - 1.0/state->soil_properties[soil].vg_n;
+      state->soil_properties[soil].vg_alpha_per_cm = state->lgar_calib_params.vg_alpha_3;
+      state->soil_properties[soil].Ksat_cm_per_h   = state->lgar_calib_params.Ksat_3;
+      if (state->lgar_bmi_params.log_mode){
+        state->soil_properties[soil].vg_alpha_per_cm = pow(10.0, state->lgar_calib_params.vg_alpha_3);
+        state->soil_properties[soil].Ksat_cm_per_h   = pow(10.0, state->lgar_calib_params.Ksat_3);
+      }
+    }
     
     current->theta = calc_theta_from_h(current->psi_cm, state->soil_properties[soil].vg_alpha_per_cm,
 				       state->soil_properties[soil].vg_m, state->soil_properties[soil].vg_n,
@@ -636,16 +993,59 @@ update_calibratable_parameters()
   if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
     std::cerr<<"----------- Calibratable parameters independent of soil layer (initial values) ----------- \n";
     std::cerr<<"field_capacity_psi = "   << state->lgar_bmi_params.field_capacity_psi_cm
-      <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm <<"\n";
+      <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm
+      <<", a = "     << state->lgar_bmi_params.a
+      <<", b = "     << state->lgar_bmi_params.b
+      <<", frac_to_CR = "     << state->lgar_bmi_params.frac_to_CR
+      <<", spf_factor = "     << state->lgar_bmi_params.spf_factor <<
+      "\n";
+    if (state->lgar_bmi_params.frac_slow){
+      std::cerr
+      <<", a_slow = "     << state->lgar_bmi_params.a_slow
+      <<", b_slow = "     << state->lgar_bmi_params.b_slow
+      <<", frac__slow = "     << state->lgar_bmi_params.frac_slow <<
+      "\n";
+    }
   }
+
+
 
   state->lgar_bmi_params.field_capacity_psi_cm = state->lgar_calib_params.field_capacity_psi;
   state->lgar_bmi_params.ponded_depth_max_cm   = state->lgar_calib_params.ponded_depth_max;
+  state->lgar_bmi_params.a                     = state->lgar_calib_params.a;
+  state->lgar_bmi_params.b                     = state->lgar_calib_params.b;
+  state->lgar_bmi_params.frac_to_CR            = state->lgar_calib_params.frac_to_CR;
+  state->lgar_bmi_params.spf_factor            = state->lgar_calib_params.spf_factor;
+
+  if (state->lgar_bmi_params.frac_slow){
+    state->lgar_bmi_params.a_slow              = state->lgar_calib_params.a_slow;
+    state->lgar_bmi_params.b_slow              = state->lgar_calib_params.b_slow;
+    state->lgar_bmi_params.frac_slow           = state->lgar_calib_params.frac_slow;
+  }
+
+  if (state->lgar_bmi_params.log_mode){
+    state->lgar_bmi_params.a = pow(10.0, state->lgar_calib_params.a);
+    if (state->lgar_bmi_params.frac_slow){
+      state->lgar_bmi_params.a_slow = pow(10.0, state->lgar_calib_params.a_slow);
+    }
+  }
 
   if (verbosity.compare("high") == 0 || verbosity.compare("low") == 0) {
     std::cerr<<"----------- Calibratable parameters independent of soil layer (updated values) ----------- \n";
     std::cerr<<"field_capacity_psi = "   << state->lgar_bmi_params.field_capacity_psi_cm
-      <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm <<"\n";
+      <<", ponded_depth_max = "     << state->lgar_bmi_params.ponded_depth_max_cm
+      <<", a = "     << state->lgar_bmi_params.a
+      <<", b = "     << state->lgar_bmi_params.b
+      <<", frac_to_CR = "     << state->lgar_bmi_params.frac_to_CR
+      <<", spf_factor = "     << state->lgar_bmi_params.spf_factor <<
+      "\n";
+    if (state->lgar_bmi_params.frac_slow){
+      std::cerr
+      <<", a_slow = "     << state->lgar_bmi_params.a_slow
+      <<", b_slow = "     << state->lgar_bmi_params.b_slow
+      <<", frac__slow = "     << state->lgar_bmi_params.frac_slow << 
+      "\n";
+    }
   }
   
   if (verbosity.compare("high") == 0)
@@ -675,11 +1075,12 @@ Finalize()
   delete [] state->lgar_bmi_params.soil_temperature_z;
   delete [] state->lgar_bmi_params.layer_soil_type;
 
-  delete [] state->lgar_calib_params.theta_e;
-  delete [] state->lgar_calib_params.theta_r;
-  delete [] state->lgar_calib_params.vg_n;
-  delete [] state->lgar_calib_params.vg_alpha;
-  delete [] state->lgar_calib_params.Ksat;
+  // no longer needed as per layer calibratable parameters are no longer handled with arrays
+  // delete [] state->lgar_calib_params.theta_e;
+  // delete [] state->lgar_calib_params.theta_r;
+  // delete [] state->lgar_calib_params.vg_n;
+  // delete [] state->lgar_calib_params.vg_alpha;
+  // delete [] state->lgar_calib_params.Ksat;
 
   delete [] state->lgar_bmi_params.layer_thickness_cm;
   delete [] state->lgar_bmi_params.cum_layer_thickness_cm;
@@ -701,17 +1102,30 @@ GetVarGrid(std::string name)
 	   || name.compare("potential_evapotranspiration") == 0
 	   || name.compare("actual_evapotranspiration") == 0) // double
     return 1;
-  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
-	   || name.compare("soil_storage") == 0 || name.compare("field_capacity") == 0 || name.compare("ponded_depth_max") == 0)// double
+  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("a") == 0 || name.compare("b") == 0 || name.compare("frac_to_CR") == 0 || name.compare("spf_factor") == 0
+	   || name.compare("a_slow") == 0 || name.compare("b_slow") == 0 || name.compare("frac_slow") == 0 || name.compare("soil_storage") == 0 || name.compare("field_capacity") == 0 || name.compare("ponded_depth_max") == 0)// double
     return 1;
   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
 	   || name.compare("percolation") == 0  || name.compare("groundwater_to_stream_recharge") == 0) // double
     return 1;
   else if (name.compare("mass_balance") == 0)
     return 1;
-  else if (name.compare("soil_depth_layers") == 0  || name.compare("smcmax") == 0 || name.compare("smcmin") == 0
-	   || name.compare("van_genuchten_m") == 0 || name.compare("van_genuchten_alpha") == 0 || name.compare("van_genuchten_n") == 0 
-	   || name.compare("hydraulic_conductivity") == 0) // array of doubles (fixed length)
+  else if (name.compare("smcmax_1") == 0 || name.compare("smcmin_1") == 0 // per layer parameters are now handled with scalars and not arrays
+	   || name.compare("van_genuchten_m_1") == 0 || name.compare("van_genuchten_alpha_1") == 0 || name.compare("van_genuchten_n_1") == 0 
+	   || name.compare("hydraulic_conductivity_1") == 0)
+    return 1;
+  else if (name.compare("smcmax_2") == 0 || name.compare("smcmin_2") == 0 // per layer parameters are now handled with scalars and not arrays
+	   || name.compare("van_genuchten_m_2") == 0 || name.compare("van_genuchten_alpha_2") == 0 || name.compare("van_genuchten_n_2") == 0 
+	   || name.compare("hydraulic_conductivity_2") == 0)
+    return 1;
+  else if (name.compare("smcmax_2") == 0 || name.compare("smcmin_2") == 0 // per layer parameters are now handled with scalars and not arrays
+	   || name.compare("van_genuchten_m_2") == 0 || name.compare("van_genuchten_alpha_2") == 0 || name.compare("van_genuchten_n_2") == 0 
+	   || name.compare("hydraulic_conductivity_2") == 0)
+    return 1;
+  // else if (name.compare("soil_depth_layers") == 0  || name.compare("smcmax") == 0 || name.compare("smcmin") == 0
+	//    || name.compare("van_genuchten_m") == 0 || name.compare("van_genuchten_alpha") == 0 || name.compare("van_genuchten_n") == 0 
+	//    || name.compare("hydraulic_conductivity") == 0) // array of doubles (fixed length)
+  else if (name.compare("soil_depth_layers") == 0 )// array of doubles (fixed length)
     return 2;
   else if (name.compare("soil_moisture_wetting_fronts") == 0 || name.compare("soil_depth_wetting_fronts") == 0) // array of doubles (dynamic length)
     return 3;
@@ -758,7 +1172,7 @@ GetVarUnits(std::string name)
   else if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0
 	   || name.compare("actual_evapotranspiration") == 0) // double
     return "m";
-  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
+  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 
 	   || name.compare("soil_storage") == 0) // double
     return "m";
   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
@@ -797,8 +1211,8 @@ GetVarLocation(std::string name)
       name.compare("potential_evapotranspiration") == 0 || name.compare("potential_evapotranspiration_rate") == 0
       || name.compare("actual_evapotranspiration") == 0) // double
     return "node";
-  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
-	   || name.compare("soil_storage") == 0) // double
+  else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0 || name.compare("a") == 0 || name.compare("b") == 0 || name.compare("frac_to_CR") == 0 || name.compare("spf_factor") == 0
+	   || name.compare("a_slow") == 0 || name.compare("b_slow") == 0 || name.compare("frac_slow") == 0 || name.compare("soil_storage") == 0) // double
     return "node";
    else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
 	    || name.compare("percolation") == 0 || name.compare("groundwater_to_stream_recharge") == 0) // double
@@ -923,20 +1337,67 @@ GetValuePtr (std::string name)
     return (void*)(&state->lgar_bmi_params.num_wetting_fronts);
   else if (name.compare("soil_temperature_profile") == 0)
     return (void*)this->state->lgar_bmi_params.soil_temperature;
-  else if (name.compare("smcmax") == 0)
-    return (void*)this->state->lgar_calib_params.theta_e;
-  else if (name.compare("smcmin") == 0)
-    return (void*)this->state->lgar_calib_params.theta_r;
-  else if (name.compare("van_genuchten_n") == 0)
-    return (void*)this->state->lgar_calib_params.vg_n;
-  else if (name.compare("van_genuchten_alpha") == 0)
-    return (void*)this->state->lgar_calib_params.vg_alpha;
-  else if (name.compare("hydraulic_conductivity") == 0)
-    return (void*)this->state->lgar_calib_params.Ksat;
+  // else if (name.compare("smcmax") == 0)
+  //   return (void*)this->state->lgar_calib_params.theta_e;
+  // else if (name.compare("smcmin") == 0)
+  //   return (void*)this->state->lgar_calib_params.theta_r;
+  // else if (name.compare("van_genuchten_n") == 0)
+  //   return (void*)this->state->lgar_calib_params.vg_n;
+  // else if (name.compare("van_genuchten_alpha") == 0)
+  //   return (void*)this->state->lgar_calib_params.vg_alpha;
+  // else if (name.compare("hydraulic_conductivity") == 0)
+  //   return (void*)this->state->lgar_calib_params.Ksat;
+
+  // per layer calibratable params are now scalars and not arrays
+  else if (name.compare("smcmax_1") == 0)
+    return (void*)&this->state->lgar_calib_params.theta_e_1;
+  else if (name.compare("smcmin_1") == 0)
+    return (void*)&this->state->lgar_calib_params.theta_r_1;
+  else if (name.compare("van_genuchten_n_1") == 0)
+    return (void*)&this->state->lgar_calib_params.vg_n_1;
+  else if (name.compare("van_genuchten_alpha_1") == 0)
+    return (void*)&this->state->lgar_calib_params.vg_alpha_1;
+  else if (name.compare("hydraulic_conductivity_1") == 0)
+    return (void*)&this->state->lgar_calib_params.Ksat_1;
+  else if (name.compare("smcmax_2") == 0)
+    return (void*)&this->state->lgar_calib_params.theta_e_2;
+  else if (name.compare("smcmin_2") == 0)
+    return (void*)&this->state->lgar_calib_params.theta_r_2;
+  else if (name.compare("van_genuchten_n_2") == 0)
+    return (void*)&this->state->lgar_calib_params.vg_n_2;
+  else if (name.compare("van_genuchten_alpha_2") == 0)
+    return (void*)&this->state->lgar_calib_params.vg_alpha_2;
+  else if (name.compare("hydraulic_conductivity_2") == 0)
+    return (void*)&this->state->lgar_calib_params.Ksat_2;
+  else if (name.compare("smcmax_3") == 0)
+    return (void*)&this->state->lgar_calib_params.theta_e_3;
+  else if (name.compare("smcmin_3") == 0)
+    return (void*)&this->state->lgar_calib_params.theta_r_3;
+  else if (name.compare("van_genuchten_n_3") == 0)
+    return (void*)&this->state->lgar_calib_params.vg_n_3;
+  else if (name.compare("van_genuchten_alpha_3") == 0)
+    return (void*)&this->state->lgar_calib_params.vg_alpha_3;
+  else if (name.compare("hydraulic_conductivity_3") == 0)
+    return (void*)&this->state->lgar_calib_params.Ksat_3;
+
   else if (name.compare("ponded_depth_max") == 0)
     return (void*)&this->state->lgar_calib_params.ponded_depth_max;
   else if (name.compare("field_capacity") == 0)
     return (void*)&this->state->lgar_calib_params.field_capacity_psi;
+  else if (name.compare("a") == 0)
+    return (void*)&this->state->lgar_calib_params.a;
+  else if (name.compare("b") == 0)
+    return (void*)&this->state->lgar_calib_params.b;
+  else if (name.compare("frac_to_CR") == 0)
+    return (void*)&this->state->lgar_calib_params.frac_to_CR;
+  else if (name.compare("a_slow") == 0)
+    return (void*)&this->state->lgar_calib_params.a_slow;
+  else if (name.compare("b_slow") == 0)
+    return (void*)&this->state->lgar_calib_params.b_slow;
+  else if (name.compare("frac_slow") == 0)
+    return (void*)&this->state->lgar_calib_params.frac_slow;
+  else if (name.compare("spf_factor") == 0)
+    return (void*)&this->state->lgar_calib_params.spf_factor;
   else {
     std::stringstream errMsg;
     errMsg << "variable "<< name << " does not exist";
