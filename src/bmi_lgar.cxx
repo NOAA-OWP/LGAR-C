@@ -133,11 +133,12 @@ Update()
     state->lgar_mass_balance.volin_cm       = 0.0;
     state->lgar_mass_balance.volon_cm       = 0.0;
     state->lgar_mass_balance.volend_cm      = state->lgar_mass_balance.volstart_cm;
+    state->lgar_mass_balance.volCRend_cm    = state->lgar_mass_balance.volCRstart_cm;
     state->lgar_mass_balance.volAET_cm      = 0.0;
     state->lgar_mass_balance.volrech_cm     = 0.0;
     state->lgar_mass_balance.volrunoff_cm  += state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
     state->lgar_mass_balance.volQ_cm       += state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_cm;
-    state->lgar_mass_balance.volQ_gw_cm     = 0.0;
+    state->lgar_mass_balance.volQ_CR_cm     = 0.0;
     state->lgar_mass_balance.volPET_cm      = 0.0;
     state->lgar_mass_balance.volrunoff_giuh_cm  = 0.0;
     state->lgar_mass_balance.volchange_calib_cm = 0.0;
@@ -147,11 +148,12 @@ Update()
     bmi_unit_conv.volprecip_timestep_m  = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_m;
     bmi_unit_conv.volin_timestep_m      = 0.0;
     bmi_unit_conv.volend_timestep_m     = 0.0;
+    bmi_unit_conv.volCRend_timestep_m   = 0.0;
     bmi_unit_conv.volAET_timestep_m     = 0.0;
     bmi_unit_conv.volrech_timestep_m    = 0.0;
     bmi_unit_conv.volrunoff_timestep_m  = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_m;
     bmi_unit_conv.volQ_timestep_m       = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_m;
-    bmi_unit_conv.volQ_gw_timestep_m    = 0.0;
+    bmi_unit_conv.volQ_CR_timestep_m    = 0.0;
     bmi_unit_conv.volPET_timestep_m     = 0.0;
     bmi_unit_conv.volrunoff_giuh_timestep_m = 0.0;
 
@@ -176,19 +178,18 @@ Update()
 
   // local variables for a full timestep (i.e., timestep of the forcing data)
   // see 'struct lgar_mass_balance_variables' in all.hxx for full description of the variables
-  double precip_timestep_cm = 0.0;
-  double PET_timestep_cm    = 0.0;
-  double AET_timestep_cm    = 0.0;
-  double volend_timestep_cm = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head); // this should not be reset to 0.0 in the for loop
-  double volin_timestep_cm  = 0.0;
-  double volon_timestep_cm  = state->lgar_mass_balance.volon_timestep_cm;
+  double precip_timestep_cm   = 0.0;
+  double PET_timestep_cm      = 0.0;
+  double AET_timestep_cm      = 0.0;
+  double volend_timestep_cm   = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head); // this should not be reset to 0.0 in the for loop
+  double volCRend_timestep_cm = state->lgar_mass_balance.CR_fast_storage_cm + state->lgar_mass_balance.CR_slow_storage_cm;
+  double volin_timestep_cm    = 0.0;
+  double volon_timestep_cm    = state->lgar_mass_balance.volon_timestep_cm;
   double volrunoff_timestep_cm      = 0.0;
   double volrech_timestep_cm        = 0.0;
-  double surface_runoff_timestep_cm = 0.0; // direct surface runoff
   double volrunoff_giuh_timestep_cm = 0.0;
   double volQ_timestep_cm           = 0.0;
-  double volQ_gw_timestep_cm        = 0.0;
-  double CR_Q_timestep_cm           = 0.0;
+  double volQ_CR_timestep_cm        = 0.0;
   
   // local variables for a subtimestep (i.e., timestep of the model)
   double precip_subtimestep_cm;
@@ -203,9 +204,9 @@ Update()
   double volon_subtimestep_cm;
   double volrunoff_subtimestep_cm;
   double volrech_subtimestep_cm;
-  double surface_runoff_subtimestep_cm; // direct surface runoff
   double precip_previous_subtimestep_cm;
-  double volQ_gw_subtimestep_cm = 0.0; // fix it for non-zero values after adding groundwater reservoir
+  double volCRstart_subtimestep_cm;
+  double volCRend_subtimestep_cm = volCRend_timestep_cm;
   
   double subtimestep_h = state->lgar_bmi_params.timestep_h;
   int nint = state->lgar_bmi_params.nint;
@@ -380,7 +381,6 @@ Update()
     volin_subtimestep_cm          = 0.0;
     volrunoff_subtimestep_cm      = 0.0;
     volrech_subtimestep_cm        = 0.0;
-    surface_runoff_subtimestep_cm = 0.0;
     double temp_rch               = 0.0; //handles case when a fraction of a wetting front technically crosses the lower boundary of the vadose zone
     double free_drainage_subtimestep_cm = 0.0;
     double free_drainage_for_CR = 0.0;
@@ -679,10 +679,13 @@ Update()
     volend_timestep_cm = volend_subtimestep_cm;
     state->lgar_bmi_params.precip_previous_timestep_cm = precip_subtimestep_cm;
 
-    double CR_storage_start_cm = state->lgar_mass_balance.CR_fast_storage_cm + state->lgar_mass_balance.CR_slow_storage_cm;
-    double CR_Q_subtimestep_cm = calc_CR_Q(subtimestep_h, a, a_slow, b, b_slow, frac_slow, precip_for_CR_subtimestep_cm_per_h + ponded_flux_for_CR + free_drainage_for_CR/subtimestep_h, &state->lgar_mass_balance.CR_fast_storage_cm, &state->lgar_mass_balance.CR_slow_storage_cm);
-    state->lgar_mass_balance.volrunoff_CR_cm += CR_Q_subtimestep_cm;
-    CR_Q_timestep_cm += CR_Q_subtimestep_cm;
+    volCRstart_subtimestep_cm = state->lgar_mass_balance.CR_fast_storage_cm + state->lgar_mass_balance.CR_slow_storage_cm;
+    double volin_CR_subtimestep_cm = (precip_for_CR_subtimestep_cm_per_h + ponded_flux_for_CR)*subtimestep_h + free_drainage_for_CR;
+    double volQ_CR_subtimestep_cm = calc_CR_Q(subtimestep_h, a, a_slow, b, b_slow, frac_slow, precip_for_CR_subtimestep_cm_per_h + ponded_flux_for_CR + free_drainage_for_CR/subtimestep_h, &state->lgar_mass_balance.CR_fast_storage_cm, &state->lgar_mass_balance.CR_slow_storage_cm);
+    state->lgar_mass_balance.volrunoff_CR_cm += volQ_CR_subtimestep_cm;
+    volQ_CR_timestep_cm += volQ_CR_subtimestep_cm;
+    volCRend_subtimestep_cm = state->lgar_mass_balance.CR_fast_storage_cm + state->lgar_mass_balance.CR_slow_storage_cm;
+    volCRend_timestep_cm = volCRend_subtimestep_cm;
 
     // set runoff_in_prev_step for next step
     if ((volrunoff_subtimestep_cm > SMALL_EPS) || (top_near_sat)){
@@ -692,24 +695,17 @@ Update()
       state->lgar_bmi_params.runoff_in_prev_step = false;
     }
 
-    //add precip_for_CR_subtimestep_cm_per_h back into precip for mass balance
+    //add precip_for_CR_subtimestep_cm_per_h back into precip for mass balance, note that this means volin_CR_timestep is not necessary for mass balance 
     precip_subtimestep_cm += precip_for_CR_subtimestep_cm_per_h * subtimestep_h;
 
     /*----------------------------------------------------------------------*/
     // mass balance at the subtimestep (local mass balance)
 
-    double local_mb = volstart_subtimestep_cm + precip_subtimestep_cm + volon_timestep_cm - volrunoff_subtimestep_cm - CR_Q_subtimestep_cm - state->lgar_mass_balance.CR_fast_storage_cm - state->lgar_mass_balance.CR_slow_storage_cm + CR_storage_start_cm 
+    double local_mb = volstart_subtimestep_cm + precip_subtimestep_cm + volon_timestep_cm - volrunoff_subtimestep_cm - volQ_CR_subtimestep_cm - volCRend_subtimestep_cm + volCRstart_subtimestep_cm 
                       - AET_subtimestep_cm - volon_subtimestep_cm - volrech_subtimestep_cm - volend_subtimestep_cm;
 
 
     /*----------------------------------------------------------------------*/
-    // increment runoff for the subtimestep
-    surface_runoff_subtimestep_cm = volrunoff_subtimestep_cm;
-    surface_runoff_timestep_cm += surface_runoff_subtimestep_cm ;
-
-    // adding groundwater flux to stream channel (note: this will be updated/corrected after adding the groundwater reservoir)
-    volQ_gw_timestep_cm += volQ_gw_subtimestep_cm;
-
 
     ///////
     //separating code such that most non substep vars (so xxx_timestep and not xxx_subtimestep) are updated in just one place. not all, because some must be set before substepping.
@@ -727,7 +723,7 @@ Update()
       listPrint(state->head);
     }
 
-    bool unexpected_local_error = fabs(local_mb) > mbal_tol ? true : false; //1.0E-4 was the default for LASAM stability testing 
+    bool unexpected_local_error = fabs(local_mb) > mbal_tol ? true : false; //1.0E-4 was the default for initial stability testing 
     if (isinf(local_mb)){
       unexpected_local_error = true;
     }
@@ -763,8 +759,8 @@ Update()
         Final water (con res)   = %14.10f \n\
         Runoff (con res)        = %14.10f \n", local_mb, volstart_subtimestep_cm, precip_subtimestep_cm, volon_subtimestep_cm,
         volin_subtimestep_cm, volrunoff_subtimestep_cm, AET_subtimestep_cm, volrech_subtimestep_cm,
-        volend_subtimestep_cm, (precip_for_CR_subtimestep_cm_per_h + ponded_flux_for_CR)*subtimestep_h + free_drainage_for_CR, CR_storage_start_cm,
-        state->lgar_mass_balance.CR_fast_storage_cm + state->lgar_mass_balance.CR_slow_storage_cm, CR_Q_timestep_cm);
+        volend_subtimestep_cm, volin_CR_subtimestep_cm, volCRstart_subtimestep_cm,
+        volCRend_subtimestep_cm, volQ_CR_subtimestep_cm);
       }
 
       if (unexpected_local_error) {
@@ -790,11 +786,11 @@ Update()
   } // end of subcycling
 
   //update giuh at the time step level (was previously updated at the sub time step level)
-  volrunoff_giuh_timestep_cm = giuh_convolution_integral(volrunoff_timestep_cm + CR_Q_timestep_cm , num_giuh_ordinates, giuh_ordinates, giuh_runoff_queue);
+  volrunoff_giuh_timestep_cm = giuh_convolution_integral(volrunoff_timestep_cm + volQ_CR_timestep_cm , num_giuh_ordinates, giuh_ordinates, giuh_runoff_queue);
 
   // total mass of water leaving the system, at this time it is the giuh-only, but later will add groundwater component as well.
   // when groundwater component is added, it should probably happen inside of the subcycling loop.
-  volQ_timestep_cm = volrunoff_giuh_timestep_cm;
+  volQ_timestep_cm = volrunoff_giuh_timestep_cm; //note that volQ_CR_timestep_cm was added to volQ_timestep_cm in the input for giuh_convolution_integral
 
   /*----------------------------------------------------------------------*/
   // Everything related to lgar state is done at this point, now time to update some dynamic variables
@@ -832,11 +828,12 @@ Update()
   state->lgar_mass_balance.volin_timestep_cm      = volin_timestep_cm;
   state->lgar_mass_balance.volon_timestep_cm      = volon_timestep_cm;
   state->lgar_mass_balance.volend_timestep_cm     = volend_timestep_cm;
+  state->lgar_mass_balance.volCRend_timestep_cm   = volCRend_timestep_cm;
   state->lgar_mass_balance.volAET_timestep_cm     = AET_timestep_cm;
   state->lgar_mass_balance.volrech_timestep_cm    = volrech_timestep_cm;
   state->lgar_mass_balance.volrunoff_timestep_cm  = volrunoff_timestep_cm;
   state->lgar_mass_balance.volQ_timestep_cm       = volQ_timestep_cm;
-  state->lgar_mass_balance.volQ_gw_timestep_cm    = volQ_gw_timestep_cm;
+  state->lgar_mass_balance.volQ_CR_timestep_cm    = volQ_CR_timestep_cm;
   state->lgar_mass_balance.volPET_timestep_cm     = PET_timestep_cm;
   state->lgar_mass_balance.volrunoff_giuh_timestep_cm = volrunoff_giuh_timestep_cm;
 
@@ -852,11 +849,12 @@ Update()
   state->lgar_mass_balance.volin_cm      += volin_timestep_cm;
   state->lgar_mass_balance.volon_cm       = volon_timestep_cm;
   state->lgar_mass_balance.volend_cm      = volend_timestep_cm;
+  state->lgar_mass_balance.volCRend_cm    = volCRend_timestep_cm;
   state->lgar_mass_balance.volAET_cm     += AET_timestep_cm;
   state->lgar_mass_balance.volrech_cm    += volrech_timestep_cm;
   state->lgar_mass_balance.volrunoff_cm  += volrunoff_timestep_cm;
   state->lgar_mass_balance.volQ_cm       += volQ_timestep_cm;
-  state->lgar_mass_balance.volQ_gw_cm    += volQ_gw_timestep_cm;
+  state->lgar_mass_balance.volQ_CR_cm    += volQ_CR_timestep_cm;
   state->lgar_mass_balance.volPET_cm     += PET_timestep_cm;
   state->lgar_mass_balance.volrunoff_giuh_cm  += volrunoff_giuh_timestep_cm;
   state->lgar_mass_balance.volchange_calib_cm += volchange_calib_cm ;
@@ -866,11 +864,12 @@ Update()
   bmi_unit_conv.volprecip_timestep_m  = precip_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volin_timestep_m      = volin_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volend_timestep_m     = volend_timestep_cm * state->units.cm_to_m;
+  bmi_unit_conv.volCRend_timestep_m   = volCRend_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volAET_timestep_m     = AET_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volrech_timestep_m    = volrech_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volrunoff_timestep_m  = volrunoff_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volQ_timestep_m       = volQ_timestep_cm * state->units.cm_to_m;
-  bmi_unit_conv.volQ_gw_timestep_m    = volQ_gw_timestep_cm * state->units.cm_to_m;
+  bmi_unit_conv.volQ_CR_timestep_m    = volQ_CR_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volPET_timestep_m     = PET_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volrunoff_giuh_timestep_m = volrunoff_giuh_timestep_cm * state->units.cm_to_m;
   
@@ -1106,7 +1105,7 @@ GetVarGrid(std::string name)
 	   || name.compare("a_slow") == 0 || name.compare("b_slow") == 0 || name.compare("frac_slow") == 0 || name.compare("soil_storage") == 0 || name.compare("field_capacity") == 0 || name.compare("ponded_depth_max") == 0)// double
     return 1;
   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
-	   || name.compare("percolation") == 0  || name.compare("groundwater_to_stream_recharge") == 0) // double
+	   || name.compare("percolation") == 0  || name.compare("conceptual_reservoir_to_stream_discharge") == 0) // double
     return 1;
   else if (name.compare("mass_balance") == 0)
     return 1;
@@ -1178,7 +1177,7 @@ GetVarUnits(std::string name)
   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
 	   || name.compare("percolation") == 0) // double
     return "m";
-  else if (name.compare("mass_balance") == 0 || name.compare("groundwater_to_stream_recharge") == 0)
+  else if (name.compare("mass_balance") == 0 || name.compare("conceptual_reservoir_to_stream_discharge") == 0)
     return "m";
   else if (name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles
     return "none";
@@ -1215,7 +1214,7 @@ GetVarLocation(std::string name)
 	   || name.compare("a_slow") == 0 || name.compare("b_slow") == 0 || name.compare("frac_slow") == 0 || name.compare("soil_storage") == 0) // double
     return "node";
    else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
-	    || name.compare("percolation") == 0 || name.compare("groundwater_to_stream_recharge") == 0) // double
+	    || name.compare("percolation") == 0 || name.compare("conceptual_reservoir_to_stream_discharge") == 0) // double
     return "node";
   else if (name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles
     return "node";
@@ -1317,14 +1316,16 @@ GetValuePtr (std::string name)
     return (void*)(&bmi_unit_conv.volrunoff_giuh_timestep_m);
   else if (name.compare("soil_storage") == 0)
     return (void*)(&bmi_unit_conv.volend_timestep_m);
+  else if (name.compare("conceptual_reservoir_storage") == 0)
+    return (void*)(&bmi_unit_conv.volCRend_timestep_m);
   else if (name.compare("total_discharge") == 0)
     return (void*)(&bmi_unit_conv.volQ_timestep_m);
   else if (name.compare("infiltration") == 0)
     return (void*)(&bmi_unit_conv.volin_timestep_m);
   else if (name.compare("percolation") == 0)
     return (void*)(&bmi_unit_conv.volrech_timestep_m);
-  else if (name.compare("groundwater_to_stream_recharge") == 0)
-    return (void*)(&bmi_unit_conv.volQ_gw_timestep_m);
+  else if (name.compare("conceptual_reservoir_to_stream_discharge") == 0)
+    return (void*)(&bmi_unit_conv.volQ_CR_timestep_m);
   else if (name.compare("mass_balance") == 0)
     return (void*)(&bmi_unit_conv.mass_balance_m);
   else if (name.compare("soil_depth_layers") == 0)

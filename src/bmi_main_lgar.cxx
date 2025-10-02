@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
   output_var_names[6]  = "total_discharge";
   output_var_names[7]  = "infiltration";
   output_var_names[8]  = "percolation";
-  output_var_names[9]  = "groundwater_to_stream_recharge";
+  output_var_names[9]  = "conceptual_reservoir_to_stream_discharge";
   output_var_names[10] = "mass_balance";
 
 

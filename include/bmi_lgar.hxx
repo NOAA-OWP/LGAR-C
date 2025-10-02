@@ -50,7 +50,7 @@ public:
     this->output_var_names[10] = "total_discharge";
     this->output_var_names[11] = "infiltration";
     this->output_var_names[12] = "percolation";
-    this->output_var_names[13] = "groundwater_to_stream_recharge";
+    this->output_var_names[13] = "conceptual_reservoir_to_stream_discharge";
     this->output_var_names[14] = "mass_balance";
     
     /*
@@ -169,12 +169,13 @@ private:
     double volprecip_timestep_m;
     double volin_timestep_m;
     double volend_timestep_m;
+    double volCRend_timestep_m;
     double volAET_timestep_m;
     double volrech_timestep_m;
     double volrunoff_timestep_m;
     double volrunoff_giuh_timestep_m;
     double volQ_timestep_m;
-    double volQ_gw_timestep_m;
+    double volQ_CR_timestep_m;
     double volPET_timestep_m;
     double mass_balance_m;
   };

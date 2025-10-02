@@ -164,18 +164,18 @@ extern void lgar_initialize(string config_file, struct model_state *state)
   state->lgar_mass_balance.volprecip_cm              = 0.0;
   state->lgar_mass_balance.volin_cm                  = 0.0;
   state->lgar_mass_balance.volend_cm                 = 0.0;
+  state->lgar_mass_balance.volCRend_cm               = 0.0;
   state->lgar_mass_balance.volAET_cm                 = 0.0;
   state->lgar_mass_balance.volrech_cm                = 0.0;
   state->lgar_mass_balance.volrunoff_cm              = 0.0;
   state->lgar_mass_balance.volrunoff_giuh_cm         = 0.0;
   state->lgar_mass_balance.volQ_cm                   = 0.0;
+  state->lgar_mass_balance.volQ_CR_cm                = 0.0;
   state->lgar_mass_balance.volPET_cm                 = 0.0;
   state->lgar_mass_balance.volon_cm                  = 0.0;
   state->lgar_mass_balance.volon_timestep_cm         = 0.0; /* setting volon and precip at the initial time to 0.0
 							       as they determine the creation of surficail wetting front */
   state->lgar_bmi_params.precip_previous_timestep_cm = 0.0;
-  state->lgar_mass_balance.volQ_gw_timestep_cm       = 0.0; /* setting flux from groundwater_reservoir_to_stream to zero,
-							       will be non-zero when groundwater reservoir is added/simulated */
   state->lgar_mass_balance.volchange_calib_cm        = 0.0;
 }
 
@@ -1139,6 +1139,7 @@ extern void lgar_global_mass_balance(struct model_state *state, double *giuh_run
   double volin              = state->lgar_mass_balance.volin_cm;
   double volrech            = state->lgar_mass_balance.volrech_cm;
   double volend             = state->lgar_mass_balance.volend_cm;
+  double volCRend           = state->lgar_mass_balance.volCRend_cm;
   double volrunoff_giuh     = state->lgar_mass_balance.volrunoff_giuh_cm;
   double volend_giuh_cm     = 0.0;
   double total_Q_cm         = state->lgar_mass_balance.volQ_cm;
@@ -1149,7 +1150,7 @@ extern void lgar_global_mass_balance(struct model_state *state, double *giuh_run
   for(int i=0; i <= state->lgar_bmi_params.num_giuh_ordinates; i++)
     volend_giuh_cm += giuh_runoff_queue_cm[i];
 
-  double global_error_cm = volstart + volprecip - volrunoff - volAET - volon - volrech - volend + volchange_calib_cm - volrunoff_CR - state->lgar_mass_balance.CR_fast_storage_cm - state->lgar_mass_balance.CR_slow_storage_cm;
+  double global_error_cm = volstart + volprecip - volrunoff - volAET - volon - volrech - volend + volchange_calib_cm - volrunoff_CR - volCRend;
   
   printf("\n********************************************************* \n");
   printf("-------------------- Simulation Summary ----------------- \n");
