@@ -173,7 +173,9 @@ struct lgar_mass_balance_variables
 {
   // for local mass balance (compute mass balance at each timestep)
   double volstart_timestep_cm;       // initial volume of water in the soil at each timestep
-  double volend_timestep_cm;         // volume of water at the end of timestep
+  double volCRstart_timestep_cm;     // initial volume of water in conceptual reservoir(s) at each timestep
+  double volend_timestep_cm;         // volume of water at the end of timestep (LGAR)
+  double volCRend_timestep_cm;       // volume of water in conceptual reservoir(s) at the end of timestep 
   double volprecip_timestep_cm;      // volume of rainfall at each timestep
   double volin_timestep_cm;          // volume of infiltrated water at each timestep (water that will be added to the soil)
   double volon_timestep_cm;          // volume of water on the surface (ponded water) at each timestep
@@ -182,13 +184,14 @@ struct lgar_mass_balance_variables
   double volPET_timestep_cm;         // volume of PET at each timestep
   double volrech_timestep_cm;        // volume of water leaving soil to the ground water (ground water recharge)
   double volrunoff_giuh_timestep_cm; // volume of giuh runoff at each timestep
-  double volQ_timestep_cm;           // total outgoing water (giuh_runoff + volrech)
-  double volQ_gw_timestep_cm;        /* volume of water from groundwater to stream
-					(i.e., stream water recharge from groundwater reservoir) */
+  double volQ_timestep_cm;           // total outgoing water (surface runoff + water from conceptual reservoirs, both of which go through GIUH)
+  double volQ_CR_timestep_cm;        // outgoing water just from conceptual reservoirs
   
   // for global mass balance (compute cumulative mass balance)
   double volstart_cm;         // initial volume of water in the soil (at timestep 0)
+  double volCRstart_cm;       // initial volume of water in CRs (at timestep 0)
   double volend_cm;           // volume of water
+  double volCRend_cm;         // volume of water in conceptual reservoir(s)
   double volprecip_cm;        // volume of rainfall
   double volin_cm;            // volume of infiltrated water
   double volon_cm;            // volume of water on the surface (ponded water)
@@ -210,7 +213,7 @@ struct lgar_mass_balance_variables
   double volrech_cm;          // volume of water leaving soil through the bottom of the domain (ground water recharge)
   double volrunoff_giuh_cm;   // volume of giuh runoff
   double volQ_cm;             // total outgoing water
-  double volQ_gw_cm;          // outgoing water from ground reservoir to stream channel
+  double volQ_CR_cm;          // water outgoing just from conceptual reservoirs
   double volchange_calib_cm;  // change in the amount of water due to calibratable parameters
   double local_mass_balance;  // local (per timestep) mass balance error
 };

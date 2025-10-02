@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 					       "precipitation", "potential_evapotranspiration",
 					       "actual_evapotranspiration", "surface_runoff",
 					       "giuh_runoff", "soil_storage", "total_discharge",
-					       "infiltration", "percolation", "groundwater_to_stream_recharge",
+					       "infiltration", "percolation", "conceptual_reservoir_to_stream_discharge",
 					       "mass_balance"};
 
   int nbytes_input[] = {sizeof(double), sizeof(double), sizeof(double)};
