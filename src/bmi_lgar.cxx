@@ -792,6 +792,7 @@ GetVarGrid(std::string name)
     return 5;
   else if (
     name.compare("serialization_create") == 0
+    || name.compare("serialization_size") == 0
   ) // uint64_t
     return 6;
   else
@@ -943,7 +944,7 @@ GetGridRank(const int grid)
 int BmiLGAR::
 GetGridSize(const int grid)
 {
-  if (grid == 0 || grid == 1)
+  if (grid == 0 || grid == 1 || grid == 6)
     return 1;
   else if (grid == 2) // number of layers (fixed)
     return this->state->lgar_bmi_params.num_layers;
@@ -966,13 +967,8 @@ GetValue (std::string name, void *dest)
   int nbytes = 0;
 
   src = this->GetValuePtr(name);
-
-  if (name.compare("serialization_state") == 0) {
-    memcpy(dest, src, this->m_serialized_length);
-  } else {
-    nbytes = this->GetVarNbytes(name);
-    memcpy (dest, src, nbytes);
-  }
+  nbytes = this->GetVarNbytes(name);
+  memcpy (dest, src, nbytes);
 }
 
 
@@ -1031,8 +1027,7 @@ GetValuePtr (std::string name)
     return (void*)&this->state->lgar_calib_params.field_capacity_psi;
   else if (name.compare("serialization_state") == 0)
     return (void*)(this->m_serialized.data());
-  else if (name.compare("serialization_create") == 0) {
-    this->new_serialized();
+  else if (name.compare("serialization_size") == 0) {
     return (void*)(&this->m_serialized_length);
   } else {
     std::stringstream errMsg;
@@ -1079,9 +1074,8 @@ SetValue (std::string name, void *src)
     this->free_serialized();
     return;
   } else if (name.compare("serialization_create") == 0) {
-    auto msg = "Cannot set values with \"serialization_create\".";
-    Logger::Log(LogLevel::WARNING, msg);
-    throw std::runtime_error(msg);
+    this->new_serialized();
+    return;
   }
   void * dest = NULL;
   dest = this->GetValuePtr(name);
