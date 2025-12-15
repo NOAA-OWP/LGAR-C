@@ -121,7 +121,7 @@ Update()
     bmi_unit_conv.volQ_gw_timestep_m    = 0.0;
     bmi_unit_conv.volPET_timestep_m     = 0.0;
     bmi_unit_conv.volrunoff_giuh_timestep_m = 0.0;
-    bmi_unit_conv.volrunoff_guih_ponded_m = 0.0;
+    bmi_unit_conv.volrunoff_giuh_ponded_m = 0.0;
 
     return;
   }
@@ -598,7 +598,7 @@ Update()
   bmi_unit_conv.volQ_gw_timestep_m    = volQ_gw_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volPET_timestep_m     = PET_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volrunoff_giuh_timestep_m = volrunoff_giuh_timestep_cm * state->units.cm_to_m;
-  bmi_unit_conv.volrunoff_guih_ponded_m = volrunoff_giuh_ponded_cm * state->units.cm_to_m;
+  bmi_unit_conv.volrunoff_giuh_ponded_m = volrunoff_giuh_ponded_cm * state->units.cm_to_m;
 }
 
 
@@ -1010,7 +1010,7 @@ GetValuePtr (std::string name)
   else if (name.compare("mass_balance") == 0)
     return (void*)(&bmi_unit_conv.mass_balance_m);
   else if (name.compare(NWM_PONDED_DEPTH_OUT_VAR) == 0)
-    return (void*)(&this->bmi_unit_conv.volrunoff_guih_ponded_m);
+    return (void*)(&this->bmi_unit_conv.volrunoff_giuh_ponded_m);
   else if (name.compare("soil_depth_layers") == 0)
     return (void*)this->state->lgar_bmi_params.cum_layer_thickness_cm;  // this too and, if needed, change soil_moisture_layers to soil_thickness_layers
   else if (name.compare("soil_moisture_wetting_fronts") == 0)
@@ -1326,7 +1326,7 @@ serialize(Archive& ar, const unsigned int version) {
   ar & this->bmi_unit_conv.volQ_gw_timestep_m;
   ar & this->bmi_unit_conv.mass_balance_m;
   ar & this->bmi_unit_conv.volrunoff_timestep_m;
-  ar & this->bmi_unit_conv.volrunoff_guih_ponded_m;
+  ar & this->bmi_unit_conv.volrunoff_giuh_ponded_m;
   ar & state->lgar_bmi_params.num_wetting_fronts;
   ar & state->lgar_calib_params.ponded_depth_max;
   ar & state->lgar_calib_params.field_capacity_psi;

@@ -169,7 +169,7 @@ private:
     double volrech_timestep_m;
     double volrunoff_timestep_m;
     double volrunoff_giuh_timestep_m;
-    double volrunoff_guih_ponded_m;
+    double volrunoff_giuh_ponded_m;
     double volQ_timestep_m;
     double volQ_gw_timestep_m;
     double volPET_timestep_m;
