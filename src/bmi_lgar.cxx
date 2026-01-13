@@ -121,6 +121,7 @@ Update()
     bmi_unit_conv.volQ_gw_timestep_m    = 0.0;
     bmi_unit_conv.volPET_timestep_m     = 0.0;
     bmi_unit_conv.volrunoff_giuh_timestep_m = 0.0;
+    bmi_unit_conv.volrunoff_giuh_ponded_m = 0.0;
 
     return;
   }
@@ -153,6 +154,7 @@ Update()
   double volrech_timestep_cm        = 0.0;
   double surface_runoff_timestep_cm = 0.0; // direct surface runoff
   double volrunoff_giuh_timestep_cm = 0.0;
+  double volrunoff_giuh_ponded_cm   = 0.0;
   double volQ_timestep_cm           = 0.0;
   double volQ_gw_timestep_cm        = 0.0;
   
@@ -523,6 +525,11 @@ Update()
   // when groundwater component is added, it should probably happen inside of the subcycling loop.
   volQ_timestep_cm = volrunoff_giuh_timestep_cm;
 
+  // calculate compounded runoff
+  for (int i = 0; i < num_giuh_ordinates; ++i) {
+    volrunoff_giuh_ponded_cm += giuh_runoff_queue[i];
+  }
+
   /*----------------------------------------------------------------------*/
   // Everything related to lgar state is done at this point, now time to update some dynamic variables
 
@@ -591,7 +598,7 @@ Update()
   bmi_unit_conv.volQ_gw_timestep_m    = volQ_gw_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volPET_timestep_m     = PET_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volrunoff_giuh_timestep_m = volrunoff_giuh_timestep_cm * state->units.cm_to_m;
-  
+  bmi_unit_conv.volrunoff_giuh_ponded_m = volrunoff_giuh_ponded_cm * state->units.cm_to_m;
 }
 
 
@@ -765,6 +772,7 @@ GetVarGrid(std::string name)
 	  || name.compare("percolation") == 0
     || name.compare("groundwater_to_stream_recharge") == 0
     || name.compare("mass_balance") == 0
+    || name.compare(NWM_PONDED_DEPTH_OUT_VAR) == 0
   ) // double
     return 1;
   else if (
@@ -845,7 +853,7 @@ GetVarUnits(std::string name)
 	   || name.compare("actual_evapotranspiration") == 0) // double
     return "m";
   else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
-	   || name.compare("soil_storage") == 0) // double
+	   || name.compare("soil_storage") == 0 || name.compare(NWM_PONDED_DEPTH_OUT_VAR) == 0) // double
     return "m";
   else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
 	   || name.compare("percolation") == 0) // double
@@ -884,7 +892,7 @@ GetVarLocation(std::string name)
       || name.compare("actual_evapotranspiration") == 0) // double
     return "node";
   else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
-	   || name.compare("soil_storage") == 0) // double
+	   || name.compare("soil_storage") == 0 || name.compare(NWM_PONDED_DEPTH_OUT_VAR)) // double
     return "node";
    else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
 	    || name.compare("percolation") == 0 || name.compare("groundwater_to_stream_recharge") == 0) // double
@@ -1001,6 +1009,8 @@ GetValuePtr (std::string name)
     return (void*)(&bmi_unit_conv.volQ_gw_timestep_m);
   else if (name.compare("mass_balance") == 0)
     return (void*)(&bmi_unit_conv.mass_balance_m);
+  else if (name.compare(NWM_PONDED_DEPTH_OUT_VAR) == 0)
+    return (void*)(&this->bmi_unit_conv.volrunoff_giuh_ponded_m);
   else if (name.compare("soil_depth_layers") == 0)
     return (void*)this->state->lgar_bmi_params.cum_layer_thickness_cm;  // this too and, if needed, change soil_moisture_layers to soil_thickness_layers
   else if (name.compare("soil_moisture_wetting_fronts") == 0)
@@ -1316,6 +1326,7 @@ serialize(Archive& ar, const unsigned int version) {
   ar & this->bmi_unit_conv.volQ_gw_timestep_m;
   ar & this->bmi_unit_conv.mass_balance_m;
   ar & this->bmi_unit_conv.volrunoff_timestep_m;
+  ar & this->bmi_unit_conv.volrunoff_giuh_ponded_m;
   ar & state->lgar_bmi_params.num_wetting_fronts;
   ar & state->lgar_calib_params.ponded_depth_max;
   ar & state->lgar_calib_params.field_capacity_psi;
