@@ -21,6 +21,8 @@ extern "C" {
 #include "../giuh/giuh.h"
 }
 
+#define NWM_PONDED_DEPTH_OUT_VAR "nwm_ponded_depth"
+
 namespace bmi_lgar {
 class NotImplemented : public std::logic_error {
   public:
@@ -58,6 +60,7 @@ public:
     this->output_var_names[12] = "percolation";
     this->output_var_names[13] = "groundwater_to_stream_recharge";
     this->output_var_names[14] = "mass_balance";
+    this->output_var_names[15] = NWM_PONDED_DEPTH_OUT_VAR;
     
     /*
     this->output_var_names[13] = "cum_precipitation";
@@ -142,7 +145,7 @@ private:
   void realloc_soil();
   struct model_state* state;
   static const int input_var_name_count  = 3;
-  static const int output_var_name_count = 15;
+  static const int output_var_name_count = 16;
   static const int calib_var_name_count  = 7;
   
   std::string input_var_names[input_var_name_count];
@@ -166,6 +169,7 @@ private:
     double volrech_timestep_m;
     double volrunoff_timestep_m;
     double volrunoff_giuh_timestep_m;
+    double volrunoff_giuh_ponded_m;
     double volQ_timestep_m;
     double volQ_gw_timestep_m;
     double volPET_timestep_m;
