@@ -773,6 +773,7 @@ GetVarGrid(std::string name)
     || name.compare("groundwater_to_stream_recharge") == 0
     || name.compare("mass_balance") == 0
     || name.compare(NWM_PONDED_DEPTH_OUT_VAR) == 0
+    || name.compare("reset_time") == 0
   ) // double
     return 1;
   else if (
@@ -1085,6 +1086,11 @@ SetValue (std::string name, void *src)
     return;
   } else if (name.compare("serialization_create") == 0) {
     this->new_serialized();
+    return;
+  } else if (name.compare("reset_time") == 0) {
+    // time_s and timesteps seems to be used exclusively for reporting current time
+    this->state->lgar_bmi_params.time_s = this->GetStartTime();
+    this->state->lgar_bmi_params.timesteps = 0;
     return;
   }
   void * dest = NULL;
