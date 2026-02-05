@@ -184,7 +184,7 @@ private:
   void serialize_wetting_front_list(Archive &ar, wetting_front **head, int &count);
   
   void new_serialized();
-  void load_serialized(const char* data);
+  void load_serialized(char* data);
   void free_serialized();
 };
 
