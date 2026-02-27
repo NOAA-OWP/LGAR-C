@@ -4,10 +4,9 @@
 
 ## Unittest
 ### Build
-```
-mkdir build && cd build (inside LGAR-C directory)
-cmake ../ -DUNITTEST=ON
-make && cd ../tests
+```shell
+cmake --B build -S . # (inside LGAR-C directory)
+cmake --build build --target lasam_unitest
 ```
 
 ### Run:
@@ -15,10 +14,9 @@ run `./run_unittest.sh`
 
 ## Synthetic tests
 ### Build
-```
-mkdir build && cd build (inside LGAR-C directory; if build already exists then clean it)
-cmake ../ -DSTANDALONE=ON
-make && cd ../tests
+```shell
+cmake --B build -S . # (inside LGAR-C directory)
+cmake --build build --target lasam_standalone
 ```
 
 ### Run:
