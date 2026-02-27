@@ -3,9 +3,6 @@ cmake_minimum_required(VERSION 3.10)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_C_COMPILER $ENV{CC})
-set(CMAKE_CXX_COMPILER $ENV{CXX})
-
 string(ASCII 27 Esc)
 set(ColourReset "${Esc}[m")
 set(Red         "${Esc}[31m")
@@ -32,9 +29,6 @@ endif()
 
 # set the project name
 project(lasambmi VERSION 1.0.0 DESCRIPTION "OWP LASAM BMI Module Shared Library")
-#project(lgarc)
-
-set(CMAKE_BUILD_TYPE Debug)
 
 IF(CMAKE_BUILD_TYPE MATCHES Debug)
     message("Debug build.")
@@ -44,8 +38,6 @@ message(CMAKE_CXX_COMPILER " ${CMAKE_CXX_COMPILER}")
 message(CMAKE_C_COMPILER " ${CMAKE_C_COMPILER}")
 message("CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0")
 
 # -I option adds path to find header files
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -I/usr/X11/include")
@@ -72,10 +64,6 @@ elseif(UNITTEST)
   target_link_libraries(${exe_name} PRIVATE m)
 endif()
 
-
-# ngen LASAM (add shared library)
-set(LASAM_LIB_NAME_CMAKE lasambmi)
-set(LASAM_LIB_DESC_CMAKE "OWP LASAM BMI Module Shared Library")
 
 # Make sure these are compiled with this directive
 add_compile_definitions(BMI_ACTIVE)
