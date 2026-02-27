@@ -5,9 +5,10 @@ Detailed instructions on how to build and run LASAM in two modes (standalone and
 ## Standalone mode example
 The examples provided here simulate infiltration and surface runoff using the data from field sites located in Phillipsburg, Kansas, and Bushland, Texas. 
 ### Build
- - mkdir build && cd build (inside LGAR-C directory)
- - cmake ../ -DSTANDALONE=ON
- - make && cd ..
+```shell
+cmake -B build -S .
+cmake --build build --target lasam_standalone
+```
 ### Run
 ```
 ./build/lasam_standalone configs/config_lasam_X.txt (X = Phillipsburg, Bushland; run from LGAR-C directory)
@@ -17,10 +18,18 @@ The examples provided here simulate infiltration and surface runoff using the da
 See general [instructions](https://github.com/NOAA-OWP/ngen/wiki/NGen-Tutorial#running-cfe) for building models in the nextgen framework. Assuming you have a running nextgen framework, follow the below instructions to build LASAM and SLoTH, and then run the example.
 ### Build
 - #### LASAM
-   - cd extern
-   - git clone https://github.com/NOAA-OWP/LGAR-C (this should be removed when LGAR-C becomes a subrepo of the framework)
-   - cmake -B extern/LGAR-C/cmake_build -S extern/LGAR-C/ -DNGEN=ON
-   - make -C extern/LGAR-C/cmake_build/
+  - Building from a clone of this repo:
+    ```shell
+    cmake -B build -S .
+    cmake --build build --target lasambmi
+    ```
+  - Building from the `extern` dir  in a clone of the `ngen` repo:
+    ```shell
+    cd extern
+    git clone https://github.com/NOAA-OWP/LGAR-C
+    cmake -B extern/LGAR-C/cmake_build -S extern/LGAR-C/
+    cmake --build extern/LGAR-C/cmake_build --target lasambmi
+    ```
 
 - #### SLoTH
    SLoTH is also needed to run LASAM in the ngen framework. SLoTH is a BMI that is used to set a bmi variable(s) that is not provided by other BMIs but required by the model. So build [SLoTH](https://github.com/NOAA-OWP/SLoTH) using the following instructions
