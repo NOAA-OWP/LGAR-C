@@ -378,6 +378,7 @@ Update()
     AET_subtimestep_cm            = 0.0;
     volstart_subtimestep_cm       = 0.0;
     volin_subtimestep_cm          = 0.0;
+    volon_subtimestep_cm          = 0.0;
     volrunoff_subtimestep_cm      = 0.0;
     volrech_subtimestep_cm        = 0.0;
     surface_runoff_subtimestep_cm = 0.0;
