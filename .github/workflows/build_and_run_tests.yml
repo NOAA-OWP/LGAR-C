@@ -31,35 +31,26 @@ jobs:
     steps:
     - name: Checkout the commit
       uses: actions/checkout@v4
-    
-    - name: Build and Run Unittest
-      run: |
-        mkdir build && cd build
-        cmake ../ -DUNITTEST=ON
-        make && cd ../tests
-        ./run_unittest.sh && cd ..
 
-    - name: Build and Run Synthetic Tests
+    - name: Build all targets
       run: |
-        if [ -d "./build/" ]
-        then
-          rm -rf build
-        fi
-        mkdir build && cd build
-        cmake ../ -DSTANDALONE=ON
-        make && cd ../tests
+        export CXXFLAGS='-Wall -Wextra -Werror -fsanitize=address,undefined'
+        cmake -B build -S .
+        cmake --build build --target all
+    
+    - name: Run Unittest
+      run: |
+        cd tests/
+        ./run_unittest.sh
+
+    - name: Run Synthetic Tests
+      run: |
+        cd tests/
         ./run_synthetic.sh 0
         ./run_synthetic.sh 1
         ./run_synthetic.sh 2
 
-    - name: Build and Run Standalone
+    - name: Run Standalone
       run: |
-        if [ -d "./build/" ]
-        then
-          rm -rf build
-        fi
-        mkdir build && cd build
-        cmake ../ -DSTANDALONE=ON
-        make && cd ..
         ./build/lasam_standalone configs/config_lasam_Phillipsburg.txt
         ./build/lasam_standalone configs/config_lasam_Bushland.txt
