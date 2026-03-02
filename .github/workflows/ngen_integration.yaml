@@ -45,6 +45,20 @@ jobs:
           mkdir ${{runner.temp}}/lgar
           mv ./* ${{runner.temp}}/lgar
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: false
+
+      - name: Install python via uv
+        run: uv python install --default
+
+      - name: Install gcc12 on MacOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install gcc@12
+
       # Checkout and build the SoilMoistureProfiles
       - name: Checkout the commit
         uses: actions/checkout@v4
@@ -89,6 +103,7 @@ jobs:
         id: submod_build_6
         uses: ./.github/actions/ngen-submod-build
         with:
+          cmake-flags: -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           mod-dir: "extern/sloth/"
           targets: "slothmodel"
 
