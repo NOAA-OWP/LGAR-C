@@ -2690,11 +2690,12 @@ extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_
       vg_alpha_per_cm = pow(10.0, vg_alpha_per_cm);
       Ksat_cm_per_h   = pow(10.0, Ksat_cm_per_h);
     }
+    vg_m = 1-1/vg_n;
     soil_properties[soil].theta_r         = theta_r;
     soil_properties[soil].theta_e         = theta_e;
     soil_properties[soil].vg_alpha_per_cm = vg_alpha_per_cm; // cm^(-1)
     soil_properties[soil].vg_n            = vg_n;
-    soil_properties[soil].vg_m            = 1-1/vg_n;
+    soil_properties[soil].vg_m            = vg_m;
     soil_properties[soil].Ksat_cm_per_h   = Ksat_cm_per_h;
     soil_properties[soil].theta_wp = calc_theta_from_h(wilting_point_psi_cm, vg_alpha_per_cm,
 						       vg_m, vg_n, theta_e, theta_r);
