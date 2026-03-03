@@ -2227,7 +2227,7 @@ extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, i
   and the front gets drier than the lower wetting front, or if free 
   drainage is enabled it can do the same thing */
 // ############################################################################################
-extern void lgar_fix_dry_over_wet_wetting_fronts(int num_layers, double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
+extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
 					 struct wetting_front** head, struct soil_properties_ *soil_properties)
 {
   // This function will delete the wetting front that is drier than the WF below it that is in the same layer, and then it will 

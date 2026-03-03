@@ -373,7 +373,7 @@ extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, i
 						       struct wetting_front** head, struct soil_properties_ *soil_properties);
 
 // subroutine to handle wet over dry wetting fronts condtions
-extern void lgar_fix_dry_over_wet_wetting_fronts(int num_layers, double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
+extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
 						 struct wetting_front** head, struct soil_properties_ *soil_properties);
 
 // checks if dry over wet wetting front exists or not
