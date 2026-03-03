@@ -541,7 +541,7 @@ int main(int argc, char *argv[])
   assert (test_status == true);
   
   // to print global mass balance
-  //model.Finalize();
+  model.Finalize();
 
   if (fabs(infiltration_check_mm - infiltration_computed * m_to_mm) > 1.E-5) {
     std::stringstream errMsg;
@@ -845,6 +845,6 @@ int main(int argc, char *argv[])
   model_calib.SetValue("potential_evapotranspiration_rate", &evapotran);
   model_calib.Update();
   
-  //model_calib.Finalize();
+  model_calib.Finalize();
   return FAILURE;
 }
