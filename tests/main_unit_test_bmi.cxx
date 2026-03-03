@@ -398,44 +398,43 @@ int main(int argc, char *argv[])
     std::string var_name = names_in[i];
     std::cout<<"Variable name: "<< var_name <<"\n";
 
-    double *var = new double[1];
-    double *dest = new double[1];
+    double var;
+    double dest;
     int indices[] = {0};
     int len = 1;
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++/
     // Test get_value() at each timestep
-    model.GetValue(var_name, &(var[0]));
-    std::cout<<" Get value: "<< var[0] <<"\n";
+    model.GetValue(var_name, &var);
+    std::cout<<" Get value: "<< var <<"\n";
 
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++/
     // Test get_value_at_indices()
-    model.GetValueAtIndices(var_name, dest, indices, len);
-    std::cout<<" Get value at indices: " << dest[0]<<"\n";
+    model.GetValueAtIndices(var_name, &dest, indices, len);
+    std::cout<<" Get value at indices: " << dest <<"\n";
 
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++/
     // Test get_value_ptr()
-    double *var_ptr = new double[1];
-    var_ptr = (double*) model.GetValuePtr(var_name);
+    double *var_ptr = static_cast<double*>(model.GetValuePtr(var_name));
     std::cout<<" Get value ptr: "<<*var_ptr<<"\n";
 
     //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++/
     // Test BMI set_value_at_indices()
-    double dest_new[] = {0.0};
+    double dest_new = 0.0;
 
     if (var_name == "precipitation_rate")
-      dest_new[0] = 1.896; // in mm/hr
+      dest_new = 1.896; // in mm/hr
     else if (var_name == "potential_evapotranspiration_rate")
-      dest_new[0] = 0.104; // in mm/hr
+      dest_new = 0.104; // in mm/hr
 
-    double *dest_new_up = new double[1];
+    double dest_new_up;
 
-    model.SetValueAtIndices(var_name, &indices[0], len, &dest_new[0]);
+    model.SetValueAtIndices(var_name, &indices[0], len, &dest_new);
 
-    std::cout<<" Set value at indices: "<<dest_new[0]<<"\n";
+    std::cout<<" Set value at indices: "<<dest_new<<"\n";
     // get_value_at_indices to see if changed
-    model.GetValueAtIndices(var_name, dest_new_up,  &indices[0], len);
-    std::cout<<" Get value at indices: "<<dest_new_up[0]<<"\n";
-    if (dest_new[0] == dest_new_up[0])
+    model.GetValueAtIndices(var_name, &dest_new_up,  &indices[0], len);
+    std::cout<<" Get value at indices: "<<dest_new_up<<"\n";
+    if (dest_new == dest_new_up)
       test_status &= true;
     else
       test_status &= false;
@@ -463,8 +462,8 @@ int main(int argc, char *argv[])
 
   int num_wf_base = 4; // number of wetting fronts after the rainfall
   // computed values (c is for computed) ; 4 = number of computed wetting fronts
-  double *depth_wf_c = new double[num_wf_base];
-  double *theta_wf_c = new double[num_wf_base];
+  std::vector<double> depth_wf_c(num_wf_base);
+  std::vector<double> theta_wf_c(num_wf_base);
 
   for (int i=0; i<count_out; i++) {
 
@@ -472,7 +471,7 @@ int main(int argc, char *argv[])
     if (var_name == "soil_moisture_wetting_fronts") {
       std::cout<<"variable name: "<< var_name <<" "<<test_status<<"\n";
 
-      model.GetValue(var_name, &theta_wf_c[0]);
+      model.GetValue(var_name, theta_wf_c.data());
       std::cout<<" Get value: "<< theta_wf_c[0] <<"\n";
 
       for (int k=0; k<num_wf_base; k++)
@@ -485,7 +484,7 @@ int main(int argc, char *argv[])
     else if (var_name == "soil_depth_wetting_fronts") {
       std::cout<<"variable name: "<< var_name <<" "<<test_status<<"\n";
 
-      model.GetValue(var_name, &depth_wf_c[0]);
+      model.GetValue(var_name, depth_wf_c.data());
 
       for (int k=0; k<num_wf_base; k++)
 	if (fabs(depth_wf_b[k] - depth_wf_c[k]*m_to_cm) < 0.0001)
