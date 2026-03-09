@@ -281,7 +281,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   bool is_a_slow_set                = false;
   bool is_b_slow_set                = false;
   bool is_frac_slow_set             = false;
-  //bool is_spf_factor_set            = false;
   bool is_soil_params_file_set      = false;
   bool is_max_valid_soil_types_set  = false;
   bool is_giuh_ordinates_set        = false;
@@ -516,7 +515,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     }
     else if (param_key == "spf_factor") {
       state->lgar_bmi_params.spf_factor = stod(param_value);
-      //is_spf_factor_set = true;
 
       if (verbosity.compare("high") == 0) {
 	std::cerr<<"spf_factor : "<<state->lgar_bmi_params.spf_factor<<"\n";
@@ -796,7 +794,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     state->soil_properties = new soil_properties_[state->lgar_bmi_params.num_soil_types+1];
     int num_soil_types = state->lgar_bmi_params.num_soil_types;
     double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
-    //double field_capacity_psi_cm = state->lgar_bmi_params.field_capacity_psi_cm;
     lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types,
 						    wilting_point_psi_cm, state->soil_properties, state->lgar_bmi_params.log_mode);
 
@@ -1481,7 +1478,6 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
 	  current->depth_cm = column_depth + TRUNCATION_DEPTH; //we want WFs to exceed the lower boundary in the event that they must be partially truncated and then WFs above this one will correctly have their moisture corrected, but also want WFs to not exceed the lower boundary much
   }
 
-  //double theta_old = current->theta; //might not be necessary
 	if (current->dzdt_cm_per_h == 0.0 && current->to_bottom == FALSE) // a new front was just created, so don't update it.
 	  current->theta = current->theta;
 	else {
@@ -2396,10 +2392,6 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
 
   }
 
-  // checkpoint # AJ
-  //int soil_num_k = soil_type[head->layer_num];
-  //double theta_e1 = soil_properties[soil_num_k].theta_e; // saturated theta of top layer
-
   //this code checks if there is enough storage available for infiltrating water. That is, f_p can only be as big as there is room for water, but also considering that some water will leave via AET and free drainage. 
   double current_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, head);
   double max_storage = 0.0;
@@ -2529,8 +2521,6 @@ extern void lgar_create_surficial_front(int num_layers, double *ponded_depth_cm,
       // but because all we are doing is adding a new WF onto a linked list that will not need correction because correction was just done on it, it could be that all we need to do here is merge
       // because the resulting depths should all be in the top layer
       lgar_merge_wetting_fronts(soil_type, frozen_factor, head, soil_properties);
-                //struct wetting_front *current_check;
-                //current_check = *head;
       had_to_merge = true;
     }
     if (had_to_merge){ //pretty sure this is not necessary but keeping it in
@@ -3187,7 +3177,6 @@ extern double calc_min_water_possible_for_free_drainage_wetting_front(int wf_fre
   double vg_n;
   double vg_m;
   double vg_a;
-  //double min_theta;
   while (current!=NULL){
     layer_num  = current->layer_num;
     soil_num   = soil_type[layer_num];
@@ -3268,7 +3257,6 @@ extern void lgar_theta_mass_balance_correction(int front_num, double prior_mass,
   }
   bool switched = false; // flag that determines capillary head to be incremented or decremented
 
-  //double theta             = 0.0; // this will be updated and returned
   double psi_cm_loc_prev   = psi_cm_loc;
   double delta_mass_prev   = delta_mass;
   int count_no_mass_change = 0;
