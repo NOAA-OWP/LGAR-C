@@ -758,6 +758,7 @@ GetVarGrid(std::string name)
     return 0;
   else if (
     name.compare("precipitation_rate") == 0
+    || name.compare("precipitation_rate_out") == 0
     || name.compare("precipitation") == 0
     || name.compare("potential_evapotranspiration_rate") == 0
     || name.compare("potential_evapotranspiration") == 0
@@ -847,7 +848,8 @@ GetVarItemsize(std::string name)
 std::string BmiLGAR::
 GetVarUnits(std::string name)
 {
-  if (name.compare("precipitation_rate") == 0 || name.compare("potential_evapotranspiration_rate") == 0)
+  if (name.compare("precipitation_rate") == 0 || name.compare("precipitation_rate_out") == 0 
+           || name.compare("potential_evapotranspiration_rate") == 0)
     return "mm h^-1";
   else if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0
 	   || name.compare("actual_evapotranspiration") == 0) // double
@@ -887,9 +889,11 @@ GetVarNbytes(std::string name)
 std::string BmiLGAR::
 GetVarLocation(std::string name)
 {
-  if (name.compare("precipitation_rate") == 0 || name.compare("precipitation") == 0 ||
-      name.compare("potential_evapotranspiration") == 0 || name.compare("potential_evapotranspiration_rate") == 0
-      || name.compare("actual_evapotranspiration") == 0) // double
+  if (name.compare("precipitation_rate") == 0 || name.compare("precipitation_rate_out") == 0 ||
+    name.compare("precipitation") == 0 ||
+    name.compare("potential_evapotranspiration") == 0 ||
+    name.compare("potential_evapotranspiration_rate") == 0 ||
+    name.compare("actual_evapotranspiration") == 0)
     return "node";
   else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
 	   || name.compare("soil_storage") == 0 || name.compare(NWM_PONDED_DEPTH_OUT_VAR)) // double
@@ -984,6 +988,8 @@ void *BmiLGAR::
 GetValuePtr (std::string name)
 {
   if (name.compare("precipitation_rate") == 0)
+    return (void*)(&this->state->lgar_bmi_input_params->precipitation_mm_per_h);
+  else if (name.compare("precipitation_rate_out") == 0)
     return (void*)(&this->state->lgar_bmi_input_params->precipitation_mm_per_h);
   else if (name.compare("precipitation") == 0)
     return (void*)(&bmi_unit_conv.volprecip_timestep_m);
