@@ -379,6 +379,7 @@ Update()
     AET_subtimestep_cm            = 0.0;
     volstart_subtimestep_cm       = 0.0;
     volin_subtimestep_cm          = 0.0;
+    volon_subtimestep_cm          = 0.0;
     volrunoff_subtimestep_cm      = 0.0;
     volrech_subtimestep_cm        = 0.0;
     double temp_rch               = 0.0; //handles case when a fraction of a wetting front technically crosses the lower boundary of the vadose zone
