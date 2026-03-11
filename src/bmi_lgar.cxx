@@ -76,6 +76,21 @@ Initialize (std::string config_file)
     this->state = new model_state;
     state->head = NULL;
     state->state_previous = NULL;
+
+    state->soil_properties = NULL;
+
+    state->lgar_bmi_params.soil_depth_wetting_fronts = NULL;
+    state->lgar_bmi_params.soil_moisture_wetting_fronts = NULL;
+    state->lgar_bmi_params.soil_temperature = NULL;
+    state->lgar_bmi_params.soil_temperature_z = NULL;
+    state->lgar_bmi_params.layer_soil_type = NULL;
+    state->lgar_bmi_params.layer_thickness_cm = NULL;
+    state->lgar_bmi_params.cum_layer_thickness_cm = NULL;
+    state->lgar_bmi_params.giuh_ordinates = NULL;
+    state->lgar_bmi_params.frozen_factor = NULL;
+
+    state->lgar_bmi_input_params = NULL;
+
     lgar_initialize(config_file, state);
   }
 
@@ -156,6 +171,9 @@ Update()
     bmi_unit_conv.volQ_CR_timestep_m    = 0.0;
     bmi_unit_conv.volPET_timestep_m     = 0.0;
     bmi_unit_conv.volrunoff_giuh_timestep_m = 0.0;
+
+    state->lgar_bmi_params.time_s += state->lgar_bmi_params.forcing_resolution_h * state->units.hr_to_sec;
+    state->lgar_bmi_params.timesteps++;
 
     return;
   }
@@ -239,7 +257,7 @@ Update()
   assert(state->lgar_bmi_input_params->PET_mm_per_h >=0.0);
 
   // adaptive time step is set 
-  if (adaptive_timestep) {
+  if (adaptive_timestep && !state->lgar_bmi_params.is_invalid_soil_type) { //when there is an invalid soil type Q is equal to precip so no subsetpping is needed
     subtimestep_h = state->lgar_bmi_params.forcing_resolution_h;
     if (state->lgar_bmi_input_params->precipitation_mm_per_h > 10.0 || volon_timestep_cm > 0.0 ) {
       subtimestep_h = state->lgar_bmi_params.minimum_timestep_h;  //case where precip > 1 cm/h, or there is ponded head from the last time step
