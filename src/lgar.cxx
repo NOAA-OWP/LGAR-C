@@ -80,80 +80,88 @@ using namespace std;
 // ############################################################################################
 extern void lgar_initialize(string config_file, struct model_state *state)
 {
-  int soil;
-  
   InitFromConfigFile(config_file, state);
-  state->lgar_bmi_params.shape[0] = state->lgar_bmi_params.num_layers;
-  state->lgar_bmi_params.shape[1] = state->lgar_bmi_params.num_wetting_fronts;
-
-  // initial number of wetting fronts are same are number of layers
-  state->lgar_bmi_params.num_wetting_fronts           = state->lgar_bmi_params.num_layers;
-  state->lgar_bmi_params.soil_depth_wetting_fronts    = new double[state->lgar_bmi_params.num_wetting_fronts];
-  state->lgar_bmi_params.soil_moisture_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
-
-  // initialize array for holding calibratable parameters
-  // calibratabale parameters are scalars now not arrays
-  // state->lgar_calib_params.theta_e  = new double[state->lgar_bmi_params.num_layers];
-  // state->lgar_calib_params.theta_r  = new double[state->lgar_bmi_params.num_layers];
-  // state->lgar_calib_params.vg_n     = new double[state->lgar_bmi_params.num_layers];
-  // state->lgar_calib_params.vg_alpha = new double[state->lgar_bmi_params.num_layers];
-  // state->lgar_calib_params.Ksat     = new double[state->lgar_bmi_params.num_layers];
-  
-  // initialize thickness/depth and soil moisture of wetting fronts (used for model coupling)
-  // also initialize calibratable parameters
-  state->lgar_calib_params.field_capacity_psi = state->lgar_bmi_params.field_capacity_psi_cm;
-  state->lgar_calib_params.ponded_depth_max = state->lgar_bmi_params.ponded_depth_max_cm;
-  state->lgar_calib_params.a = state->lgar_bmi_params.a;
-  state->lgar_calib_params.b = state->lgar_bmi_params.b;
-  state->lgar_calib_params.frac_to_CR = state->lgar_bmi_params.frac_to_CR;
-  state->lgar_calib_params.a_slow = state->lgar_bmi_params.a_slow;
-  state->lgar_calib_params.b_slow = state->lgar_bmi_params.b_slow;
-  state->lgar_calib_params.frac_slow = state->lgar_bmi_params.frac_slow;
-  state->lgar_calib_params.spf_factor = state->lgar_bmi_params.spf_factor;
-
-  struct wetting_front *current = state->head;
-  for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) { // note that this only works because at init there is 1 WF per layer, otherwise get soil type from current
-    assert (current != NULL);
+  if (!state->lgar_bmi_params.is_invalid_soil_type){
+    int soil;
     
-    soil = state->lgar_bmi_params.layer_soil_type[i+1];
+    state->lgar_bmi_params.shape[0] = state->lgar_bmi_params.num_layers;
+    state->lgar_bmi_params.shape[1] = state->lgar_bmi_params.num_wetting_fronts;
 
-    state->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
-    state->lgar_bmi_params.soil_depth_wetting_fronts[i]    = current->depth_cm * state->units.cm_to_m;
+    // initial number of wetting fronts are same are number of layers
+    state->lgar_bmi_params.num_wetting_fronts           = state->lgar_bmi_params.num_layers;
+    state->lgar_bmi_params.soil_depth_wetting_fronts    = new double[state->lgar_bmi_params.num_wetting_fronts];
+    state->lgar_bmi_params.soil_moisture_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
 
-    // // we now handle calibration of layered parameters with scalars
-    // state->lgar_calib_params.theta_e[i]  = state->soil_properties[soil].theta_e;
-    // state->lgar_calib_params.theta_r[i]  = state->soil_properties[soil].theta_r;
-    // state->lgar_calib_params.vg_n[i]     = state->soil_properties[soil].vg_n;
-    // state->lgar_calib_params.vg_alpha[i] = state->soil_properties[soil].vg_alpha_per_cm;
-    // state->lgar_calib_params.Ksat[i]     = state->soil_properties[soil].Ksat_cm_per_h;
-
-    if (i==0){
-      state->lgar_calib_params.theta_e_1  = state->soil_properties[soil].theta_e;
-      state->lgar_calib_params.theta_r_1  = state->soil_properties[soil].theta_r;
-      state->lgar_calib_params.vg_n_1     = state->soil_properties[soil].vg_n;
-      state->lgar_calib_params.vg_alpha_1 = state->soil_properties[soil].vg_alpha_per_cm;
-      state->lgar_calib_params.Ksat_1     = state->soil_properties[soil].Ksat_cm_per_h;
-    }
-
-    if (i==1){
-      state->lgar_calib_params.theta_e_2  = state->soil_properties[soil].theta_e;
-      state->lgar_calib_params.theta_r_2  = state->soil_properties[soil].theta_r;
-      state->lgar_calib_params.vg_n_2     = state->soil_properties[soil].vg_n;
-      state->lgar_calib_params.vg_alpha_2 = state->soil_properties[soil].vg_alpha_per_cm;
-      state->lgar_calib_params.Ksat_2     = state->soil_properties[soil].Ksat_cm_per_h;
-    }
-
-    if (i==2){
-      state->lgar_calib_params.theta_e_3  = state->soil_properties[soil].theta_e;
-      state->lgar_calib_params.theta_r_3  = state->soil_properties[soil].theta_r;
-      state->lgar_calib_params.vg_n_3     = state->soil_properties[soil].vg_n;
-      state->lgar_calib_params.vg_alpha_3 = state->soil_properties[soil].vg_alpha_per_cm;
-      state->lgar_calib_params.Ksat_3     = state->soil_properties[soil].Ksat_cm_per_h;
-    }
+    // initialize array for holding calibratable parameters
+    // calibratabale parameters are scalars now not arrays
+    // state->lgar_calib_params.theta_e  = new double[state->lgar_bmi_params.num_layers];
+    // state->lgar_calib_params.theta_r  = new double[state->lgar_bmi_params.num_layers];
+    // state->lgar_calib_params.vg_n     = new double[state->lgar_bmi_params.num_layers];
+    // state->lgar_calib_params.vg_alpha = new double[state->lgar_bmi_params.num_layers];
+    // state->lgar_calib_params.Ksat     = new double[state->lgar_bmi_params.num_layers];
     
-    current = current->next;
+    // initialize thickness/depth and soil moisture of wetting fronts (used for model coupling)
+    // also initialize calibratable parameters
+    state->lgar_calib_params.field_capacity_psi = state->lgar_bmi_params.field_capacity_psi_cm;
+    state->lgar_calib_params.ponded_depth_max = state->lgar_bmi_params.ponded_depth_max_cm;
+    state->lgar_calib_params.a = state->lgar_bmi_params.a;
+    state->lgar_calib_params.b = state->lgar_bmi_params.b;
+    state->lgar_calib_params.frac_to_CR = state->lgar_bmi_params.frac_to_CR;
+    state->lgar_calib_params.a_slow = state->lgar_bmi_params.a_slow;
+    state->lgar_calib_params.b_slow = state->lgar_bmi_params.b_slow;
+    state->lgar_calib_params.frac_slow = state->lgar_bmi_params.frac_slow;
+    state->lgar_calib_params.spf_factor = state->lgar_bmi_params.spf_factor;
+
+    struct wetting_front *current = state->head;
+    for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) { // note that this only works because at init there is 1 WF per layer, otherwise get soil type from current
+      assert (current != NULL);
+      
+      soil = state->lgar_bmi_params.layer_soil_type[i+1];
+
+      state->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
+      state->lgar_bmi_params.soil_depth_wetting_fronts[i]    = current->depth_cm * state->units.cm_to_m;
+
+      // // we now handle calibration of layered parameters with scalars
+      // state->lgar_calib_params.theta_e[i]  = state->soil_properties[soil].theta_e;
+      // state->lgar_calib_params.theta_r[i]  = state->soil_properties[soil].theta_r;
+      // state->lgar_calib_params.vg_n[i]     = state->soil_properties[soil].vg_n;
+      // state->lgar_calib_params.vg_alpha[i] = state->soil_properties[soil].vg_alpha_per_cm;
+      // state->lgar_calib_params.Ksat[i]     = state->soil_properties[soil].Ksat_cm_per_h;
+
+      if (i==0){
+        state->lgar_calib_params.theta_e_1  = state->soil_properties[soil].theta_e;
+        state->lgar_calib_params.theta_r_1  = state->soil_properties[soil].theta_r;
+        state->lgar_calib_params.vg_n_1     = state->soil_properties[soil].vg_n;
+        state->lgar_calib_params.vg_alpha_1 = state->soil_properties[soil].vg_alpha_per_cm;
+        state->lgar_calib_params.Ksat_1     = state->soil_properties[soil].Ksat_cm_per_h;
+      }
+
+      if (i==1){
+        state->lgar_calib_params.theta_e_2  = state->soil_properties[soil].theta_e;
+        state->lgar_calib_params.theta_r_2  = state->soil_properties[soil].theta_r;
+        state->lgar_calib_params.vg_n_2     = state->soil_properties[soil].vg_n;
+        state->lgar_calib_params.vg_alpha_2 = state->soil_properties[soil].vg_alpha_per_cm;
+        state->lgar_calib_params.Ksat_2     = state->soil_properties[soil].Ksat_cm_per_h;
+      }
+
+      if (i==2){
+        state->lgar_calib_params.theta_e_3  = state->soil_properties[soil].theta_e;
+        state->lgar_calib_params.theta_r_3  = state->soil_properties[soil].theta_r;
+        state->lgar_calib_params.vg_n_3     = state->soil_properties[soil].vg_n;
+        state->lgar_calib_params.vg_alpha_3 = state->soil_properties[soil].vg_alpha_per_cm;
+        state->lgar_calib_params.Ksat_3     = state->soil_properties[soil].Ksat_cm_per_h;
+      }
+      
+      current = current->next;
+    }
   }
-
+  else { // invalid soil type, so no WFs should be created and Q will be equal to precip
+    state->lgar_bmi_params.num_wetting_fronts = 0;
+    state->head = NULL;
+    state->lgar_bmi_params.ponded_depth_cm = 0.0;
+    state->lgar_bmi_params.time_s = 0.0;
+    state->lgar_bmi_params.timesteps = 0.0;
+  }
 
   /* initialize bmi input variables to -1.0 (on purpose), this should be assigned (non-negative) and if not,
      the code will throw an error in the Update method */
@@ -766,7 +774,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   }
   
   if(!is_max_valid_soil_types_set)
-     state->lgar_bmi_params.num_soil_types = MAX_NUM_SOIL_TYPES;     // maximum number of valid soil types defaults to 15
+     state->lgar_bmi_params.num_soil_types = MAX_NUM_SOIL_TYPES;     // maximum number of valid soil types defaults to 25
 
   if (verbosity.compare("high") == 0) {
     std::cerr<<"Maximum number of soil types: "<<state->lgar_bmi_params.num_soil_types<<"\n";
@@ -794,8 +802,16 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     state->soil_properties = new soil_properties_[state->lgar_bmi_params.num_soil_types+1];
     int num_soil_types = state->lgar_bmi_params.num_soil_types;
     double wilting_point_psi_cm = state->lgar_bmi_params.wilting_point_psi_cm;
-    lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types,
+    int num_soils_in_file = lgar_read_vG_param_file(soil_params_file.c_str(), num_soil_types,
 						    wilting_point_psi_cm, state->soil_properties, state->lgar_bmi_params.log_mode);
+
+    for (int layer=1; layer <= state->lgar_bmi_params.num_layers; layer++) {
+      if ((state->lgar_bmi_params.layer_soil_type[layer] > num_soils_in_file) && (state->lgar_bmi_params.layer_soil_type[layer]<=state->lgar_bmi_params.num_soil_types)){
+        std::cerr << "Soil type is less than max_valid_soil_types but is greater than the number of lines in the soil data file. \n";
+        std::cerr << "If you intend to include invalid soil types, then set max_valid_soil_types to be equal to the number of soil types in the soil data file and then include a layer_soil_type greater than that.";
+        abort();
+      }
+    }
 
     // check if soil layers provided are within the range
     state->lgar_bmi_params.is_invalid_soil_type = false; // model not valid for soil types = waterbody, glacier, lava, etc.
@@ -813,7 +829,7 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
       }
     }
 
-    if (verbosity.compare("high") == 0) {
+    if ((verbosity.compare("high") == 0) && (!state->lgar_bmi_params.is_invalid_soil_type)) {
       for (int layer=1; layer<=state->lgar_bmi_params.num_layers; layer++) {
 	int soil = state->lgar_bmi_params.layer_soil_type[layer];
 	std::cerr<<"Soil type/name : "<<state->lgar_bmi_params.layer_soil_type[layer]
@@ -947,9 +963,14 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   for (int i=0; i <= state->lgar_bmi_params.num_layers; i++)
     state->lgar_bmi_params.frozen_factor[i] = 1.0;
 
-  InitializeWettingFronts(state->lgar_bmi_params.num_layers, state->lgar_bmi_params.initial_psi_cm,
-			  state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
-			  state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
+  if (!state->lgar_bmi_params.is_invalid_soil_type){
+    InitializeWettingFronts(state->lgar_bmi_params.num_layers, state->lgar_bmi_params.initial_psi_cm,
+          state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
+          state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
+  }
+  else {
+    state->head = NULL;
+  }
   
   if (verbosity.compare("none") != 0) {
     std::cerr<<"--- Initial state/conditions --- \n";
@@ -958,13 +979,23 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   }
 
   // initial mass in the system
-  state->lgar_mass_balance.volstart_cm      = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
+  if (!state->lgar_bmi_params.is_invalid_soil_type){
+    state->lgar_mass_balance.volstart_cm      = lgar_calc_mass_bal(state->lgar_bmi_params.cum_layer_thickness_cm, state->head);
+  }
+  else {
+    state->lgar_mass_balance.volstart_cm      = 0.0;
+  }
 
   state->lgar_bmi_params.ponded_depth_cm    = 0.0; // initially we start with a dry surface (no surface ponding)
   state->lgar_bmi_params.nint               = 120; // hacked, not needed to be an input option
   state->lgar_bmi_params.num_wetting_fronts = state->lgar_bmi_params.num_layers;
-
-  assert (state->lgar_bmi_params.num_layers == listLength(state->head));
+  if (state->lgar_bmi_params.is_invalid_soil_type){
+    state->lgar_bmi_params.num_wetting_fronts = 0;
+  }
+  else {
+    assert (state->lgar_bmi_params.num_layers == listLength(state->head));
+  }
+  
 
   if (verbosity.compare("high") == 0) {
     std::cerr<<"Initial ponded depth is set to zero. \n";
