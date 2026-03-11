@@ -25,7 +25,7 @@ extern double calc_CR_Q(
     if (*CR_fast_storage_cm + delta_fast > 0.0) {
         *CR_fast_storage_cm += delta_fast;
     } else {
-        Q_fast = *CR_fast_storage_cm + input_fast;
+        Q_fast = *CR_fast_storage_cm + subtimestep_h * input_fast;
         *CR_fast_storage_cm = 0.0;
     }
 
@@ -37,7 +37,7 @@ extern double calc_CR_Q(
     if (*CR_slow_storage_cm + delta_slow > 0.0) {
         *CR_slow_storage_cm += delta_slow;
     } else {
-        Q_slow = *CR_slow_storage_cm + input_slow;
+        Q_slow = *CR_slow_storage_cm + subtimestep_h * input_slow;
         *CR_slow_storage_cm = 0.0;
     }
 
