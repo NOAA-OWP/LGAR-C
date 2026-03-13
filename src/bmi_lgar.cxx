@@ -774,6 +774,7 @@ GetVarGrid(std::string name)
     || name.compare("groundwater_to_stream_recharge") == 0
     || name.compare("mass_balance") == 0
     || name.compare(NWM_PONDED_DEPTH_OUT_VAR) == 0
+    || name.compare("reset_time") == 0
   ) // double
     return 1;
   else if (
@@ -1091,6 +1092,11 @@ SetValue (std::string name, void *src)
     return;
   } else if (name.compare("serialization_create") == 0) {
     this->new_serialized();
+    return;
+  } else if (name.compare("reset_time") == 0) {
+    // time_s and timesteps seems to be used exclusively for reporting current time
+    this->state->lgar_bmi_params.time_s = this->GetStartTime();
+    this->state->lgar_bmi_params.timesteps = 0;
     return;
   }
   void * dest = NULL;
@@ -1436,11 +1442,15 @@ void BmiLGAR::serialize_wetting_front_list(Archive &ar, wetting_front **head, in
 }
 
 void BmiLGAR::new_serialized() {
-  this->m_serialized.clear();
+  // resize with reserved space for storing size
+  this->m_serialized.resize(sizeof(uint64_t));
   boost::archive::binary_oarchive archive(this->m_serialized);
   try {
     archive << (*this);
     this->m_serialized_length = this->m_serialized.size();
+    // get serialized size without header and copy size to the beginning of the buffer
+    uint64_t serialized_size = this->m_serialized_length - sizeof(uint64_t);
+    memcpy(this->m_serialized.data(), &serialized_size, sizeof(uint64_t));
   } catch (const std::exception &e) {
     Logger::Log(LogLevel::SEVERE, "Serializing LASAM encountered an error: %s", e.what());
     this->free_serialized();
@@ -1448,8 +1458,12 @@ void BmiLGAR::new_serialized() {
   }
 }
 
-void BmiLGAR::load_serialized(const char* data) {
-  std::stringstream stream(data);
+void BmiLGAR::load_serialized(char* data) {
+  // copy size from the start of data
+  uint64_t size;
+  memcpy(&size, data, sizeof(uint64_t));
+  // create stream from everything past the size header
+  membuf stream(data + sizeof(uint64_t), size);
   boost::archive::binary_iarchive archive(stream);
   try {
     archive >> (*this);
