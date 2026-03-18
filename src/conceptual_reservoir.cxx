@@ -9,13 +9,13 @@ extern double calc_CR_Q(
     double a_fast, double a_slow,
     double b_fast, double b_slow,
     double frac_slow,  // fraction (0 - 1) of recharge going to slow reservoir
-    double precip_for_CR_subtimestep_cm,
+    double precip_for_CR_subtimestep_cm_per_h,
     double *CR_fast_storage_cm,
     double *CR_slow_storage_cm)
 {
     // Partition recharge between fast and slow reservoirs
-    double input_slow = precip_for_CR_subtimestep_cm * frac_slow;
-    double input_fast = precip_for_CR_subtimestep_cm - input_slow; // implicit (1 - frac_slow)
+    double input_slow = precip_for_CR_subtimestep_cm_per_h * frac_slow;
+    double input_fast = precip_for_CR_subtimestep_cm_per_h - input_slow; // implicit (1 - frac_slow)
 
     // === FAST reservoir outflow ===
     double Q_fast = subtimestep_h * (a_fast * pow(*CR_fast_storage_cm, b_fast));
