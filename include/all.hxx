@@ -453,7 +453,7 @@ extern double calc_CR_Q(
     double a_fast, double a_slow,
     double b_fast, double b_slow,
     double frac_slow,  // fraction (0 - 1) of recharge going to slow reservoir
-    double precip_for_CR_subtimestep_cm,
+    double precip_for_CR_subtimestep_cm_per_h,
     double *CR_fast_storage_cm,
     double *CR_slow_storage_cm);
 
