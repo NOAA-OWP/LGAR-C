@@ -37,6 +37,13 @@ BmiLGAR::~BmiLGAR(){
 void BmiLGAR::
 Initialize (std::string config_file)
 {
+    // Initialize the Error, Warning and Trapping System
+#ifdef EWTS_HAVE_NGEN_BRIDGE    
+  EwtsInit(EWTS_ID_LASAM, true);
+#else
+  EwtsInit(EWTS_ID_LASAM, false);
+#endif
+
   LOG("Inside BmiLGAR::Initialize \n", LogLevel::INFO);  
   if (config_file.compare("") != 0 ) {
     this->state = new model_state;
@@ -1452,7 +1459,7 @@ void BmiLGAR::new_serialized() {
     uint64_t serialized_size = this->m_serialized_length - sizeof(uint64_t);
     memcpy(this->m_serialized.data(), &serialized_size, sizeof(uint64_t));
   } catch (const std::exception &e) {
-    Logger::Log(LogLevel::SEVERE, "Serializing LASAM encountered an error: %s", e.what());
+    LOG(LogLevel::SEVERE, "Serializing LASAM encountered an error: %s", e.what());
     this->free_serialized();
     throw;
   }
@@ -1468,7 +1475,7 @@ void BmiLGAR::load_serialized(char* data) {
   try {
     archive >> (*this);
   } catch (const std::exception &e) {
-    Logger::Log(LogLevel::SEVERE, "Deserializing LASAM encountered an error: %s", e.what());
+    LOG(LogLevel::SEVERE, "Deserializing LASAM encountered an error: %s", e.what());
     throw;
   }
   this->free_serialized();
