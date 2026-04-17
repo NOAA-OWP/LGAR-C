@@ -401,7 +401,7 @@ extern double calc_storage_in_free_drainage_wetting_front(int wf_free_drainage, 
 extern void lgar_initialize(string config_file, struct model_state *state);
 extern void InitFromConfigFile(string config_file, struct model_state *state);
 extern vector<double> ReadVectorData(string key);
-extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm,
+extern void InitializeWettingFronts(bool is_invalid_soil_type, int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm,
 				    double *frozen_factor, struct wetting_front** head, struct soil_properties_ *soil_properties);
 
 /********************************************************************/
