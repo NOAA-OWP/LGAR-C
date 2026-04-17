@@ -963,14 +963,10 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   for (int i=0; i <= state->lgar_bmi_params.num_layers; i++)
     state->lgar_bmi_params.frozen_factor[i] = 1.0;
 
-  if (!state->lgar_bmi_params.is_invalid_soil_type){
-    InitializeWettingFronts(state->lgar_bmi_params.num_layers, state->lgar_bmi_params.initial_psi_cm,
-          state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
-          state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
-  }
-  else {
-    state->head = NULL;
-  }
+  state->head = NULL; //this will be updated if there are only valid soil types, but if there are any invalid soil types, it will remain null
+  InitializeWettingFronts(state->lgar_bmi_params.is_invalid_soil_type, state->lgar_bmi_params.num_layers, state->lgar_bmi_params.initial_psi_cm,
+        state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
+        state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
   
   if (verbosity.compare("none") != 0) {
     std::cerr<<"--- Initial state/conditions --- \n";
@@ -1019,42 +1015,44 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   from the prescribed psi value for each of the soil layers
 */
 // #############################################################################
-extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm,
+extern void InitializeWettingFronts(bool is_invalid_soil_type, int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm,
 				    double *frozen_factor, struct wetting_front** head, struct soil_properties_ *soil_properties)
 {
-  int soil;
-  int front = 0;
-  double Se, theta_init;
-  bool bottom_flag;
-  double Ksat_cm_per_h;
-  struct wetting_front *current;
+  if (!is_invalid_soil_type){
+    int soil;
+    int front = 0;
+    double Se, theta_init;
+    bool bottom_flag;
+    double Ksat_cm_per_h;
+    struct wetting_front *current;
 
-  for(int layer=1;layer<=num_layers;layer++) {
-    front++;
+    for(int layer=1;layer<=num_layers;layer++) {
+      front++;
 
-    soil = layer_soil_type[layer];
-    theta_init = calc_theta_from_h(initial_psi_cm,soil_properties[soil].vg_alpha_per_cm,
-				   soil_properties[soil].vg_m,soil_properties[soil].vg_n,
-				   soil_properties[soil].theta_e,soil_properties[soil].theta_r);
+      soil = layer_soil_type[layer];
+      theta_init = calc_theta_from_h(initial_psi_cm,soil_properties[soil].vg_alpha_per_cm,
+            soil_properties[soil].vg_m,soil_properties[soil].vg_n,
+            soil_properties[soil].theta_e,soil_properties[soil].theta_r);
 
-    if (verbosity.compare("high") == 0) {
-      printf("layer, theta, psi, alpha, m, n, theta_e, theta_r = %d, %6.6f, %6.6f, %6.6f, %6.6f, %6.6f, %6.6f, %6.6f \n",
-	     layer, theta_init, initial_psi_cm, soil_properties[soil].vg_alpha_per_cm, soil_properties[soil].vg_m,
-	     soil_properties[soil].vg_n,soil_properties[soil].theta_e,soil_properties[soil].theta_r);
+      if (verbosity.compare("high") == 0) {
+        printf("layer, theta, psi, alpha, m, n, theta_e, theta_r = %d, %6.6f, %6.6f, %6.6f, %6.6f, %6.6f, %6.6f, %6.6f \n",
+        layer, theta_init, initial_psi_cm, soil_properties[soil].vg_alpha_per_cm, soil_properties[soil].vg_m,
+        soil_properties[soil].vg_n,soil_properties[soil].theta_e,soil_properties[soil].theta_r);
+      }
+
+      // the next lines create the initial moisture profile
+      bottom_flag = true;  // all initial wetting fronts are in contact with the bottom of the layer they exist in
+      // NOTE: The listInsertFront function does lots of stuff.
+
+      current = listInsertFront(cum_layer_thickness_cm[layer],theta_init,front,layer,bottom_flag, head);
+
+      current->psi_cm = initial_psi_cm;
+      Se = calc_Se_from_theta(current->theta,soil_properties[soil].theta_e,soil_properties[soil].theta_r);
+
+      Ksat_cm_per_h = frozen_factor[layer] * soil_properties[soil].Ksat_cm_per_h;
+      current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h , soil_properties[soil].vg_m);  // cm/s
+
     }
-
-    // the next lines create the initial moisture profile
-    bottom_flag = true;  // all initial wetting fronts are in contact with the bottom of the layer they exist in
-    // NOTE: The listInsertFront function does lots of stuff.
-
-    current = listInsertFront(cum_layer_thickness_cm[layer],theta_init,front,layer,bottom_flag, head);
-
-    current->psi_cm = initial_psi_cm;
-    Se = calc_Se_from_theta(current->theta,soil_properties[soil].theta_e,soil_properties[soil].theta_r);
-
-    Ksat_cm_per_h = frozen_factor[layer] * soil_properties[soil].Ksat_cm_per_h;
-    current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h , soil_properties[soil].vg_m);  // cm/s
-
   }
 
 }
