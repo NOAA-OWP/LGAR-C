@@ -126,6 +126,7 @@ Update()
 
   double mm_to_cm = 0.1; // unit conversion
   double mm_to_m = 0.001;
+  double hr_to_sec = 3600;
   
   if (state->lgar_bmi_params.is_invalid_soil_type) {
     // add to mass balance accumulated variables
@@ -156,6 +157,9 @@ Update()
     bmi_unit_conv.volQ_CR_timestep_m    = 0.0;
     bmi_unit_conv.volPET_timestep_m     = 0.0;
     bmi_unit_conv.volrunoff_giuh_timestep_m = 0.0;
+
+    state->lgar_bmi_params.time_s += state->lgar_bmi_params.forcing_resolution_h * hr_to_sec;
+    state->lgar_bmi_params.timesteps++;
 
     return;
   }
