@@ -257,7 +257,7 @@ Update()
   assert(state->lgar_bmi_input_params->PET_mm_per_h >=0.0);
 
   // adaptive time step is set 
-  if (adaptive_timestep && !state->lgar_bmi_params.is_invalid_soil_type) { //when there is an invalid soil type Q is equal to precip so no subsetpping is needed
+  if (adaptive_timestep && !state->lgar_bmi_params.is_invalid_soil_type) { //when there is an invalid soil type Q is equal to precip so no substepping is needed
     subtimestep_h = state->lgar_bmi_params.forcing_resolution_h;
     if (state->lgar_bmi_input_params->precipitation_mm_per_h > 10.0 || volon_timestep_cm > 0.0 ) {
       subtimestep_h = state->lgar_bmi_params.minimum_timestep_h;  //case where precip > 1 cm/h, or there is ponded head from the last time step
