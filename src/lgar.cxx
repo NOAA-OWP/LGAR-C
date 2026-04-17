@@ -1609,11 +1609,10 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
     if (wf == 1) { 
 
       wf_free_drainage_demand = wetting_front_free_drainage(*head);
-    // if ((wf == wf_free_drainage_demand) && (current->theta>=theta_e) ) {
-      int soil_num_k1  = soil_type[wf_free_drainage_demand];
-      double theta_e_k1 = soil_properties[soil_num_k1].theta_e;
-
       struct wetting_front *wf_free_drainage = listFindFront(wf_free_drainage_demand, *head, NULL);
+    // if ((wf == wf_free_drainage_demand) && (current->theta>=theta_e) ) {
+      int soil_num_k1  = soil_type[wf_free_drainage->layer_num];
+      double theta_e_k1 = soil_properties[soil_num_k1].theta_e;
 
       double mass_timestep = (old_mass + precip_mass_to_add) - (actual_ET_demand + free_drainage_demand + mass_correction_for_cached_free_drainage_fluxes);
 
