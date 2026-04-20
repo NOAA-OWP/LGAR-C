@@ -161,6 +161,12 @@ extern void lgar_initialize(string config_file, struct model_state *state)
     state->lgar_bmi_params.ponded_depth_cm = 0.0;
     state->lgar_bmi_params.time_s = 0.0;
     state->lgar_bmi_params.timesteps = 0.0;
+
+    // Placeholder allocations so that BMI GetValuePtr doesn't return NULL for these variables
+    state->lgar_bmi_params.soil_depth_wetting_fronts = new double[1];
+    state->lgar_bmi_params.soil_moisture_wetting_fronts = new double[1];
+    state->lgar_bmi_params.soil_depth_wetting_fronts[0] = NAN;
+    state->lgar_bmi_params.soil_moisture_wetting_fronts[0] = NAN;
   }
 
   /* initialize bmi input variables to -1.0 (on purpose), this should be assigned (non-negative) and if not,
