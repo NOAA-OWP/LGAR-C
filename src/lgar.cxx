@@ -2095,7 +2095,7 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
           current->depth_cm = cum_layer_thickness_cm[num_layers] + 1.E-6;
           int front_num_correction = current->front_num;
           // first, lgar_theta_mass_balance_correction will attempt to close the mass balance by adjusting the theta value of the WF that crossed the layer boundary and other WFs sharing a psi value with it.
-          lgar_theta_mass_balance_correction(front_num_correction, prior_mass, head, cum_layer_thickness_cm, soil_type, soil_properties); 
+          lgar_theta_mass_balance_correction(false, front_num_correction, prior_mass, head, cum_layer_thickness_cm, soil_type, soil_properties); 
             if (verbosity.compare("high") == 0) {
               printf("States after wetting fronts cross layer boundary and after theta correction...\n");
               listPrint(*head);
@@ -2285,7 +2285,7 @@ extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cu
         double prior_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
         current = listDeleteFront(current->front_num, head, soil_type, soil_properties); //current will be the WF directly after the one that got deleted
         int front_num_correction = current->front_num;
-        lgar_theta_mass_balance_correction(front_num_correction, prior_mass, head, cum_layer_thickness_cm, soil_type, soil_properties);
+        lgar_theta_mass_balance_correction(true, front_num_correction, prior_mass, head, cum_layer_thickness_cm, soil_type, soil_properties);
         double mass_after = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
         *mass_change += (mass_after - prior_mass);
 
@@ -3259,7 +3259,7 @@ extern double calc_storage_in_free_drainage_wetting_front(int wf_free_drainage, 
    lgar_theta_mass_balance because it does not need information about old WFs or external fluxes
    and is called far less often.*/
 // ############################################################################################
-extern void lgar_theta_mass_balance_correction(int front_num, double prior_mass, struct wetting_front** head, double *cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties){
+extern void lgar_theta_mass_balance_correction(bool use_dry_over_wet, int front_num, double prior_mass, struct wetting_front** head, double *cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties){
   struct wetting_front *current;
   current = listFindFront(front_num, *head, NULL);
 
@@ -3355,7 +3355,14 @@ extern void lgar_theta_mass_balance_correction(int front_num, double prior_mass,
 
     struct wetting_front *next = current->next;
     struct wetting_front *before_next = current;
-    if (next){ // current was previously selected as the top most WF in the region that we want to iteratively adjust. The lowest will be either the lowest WF, or the first WF below current that is not to_bottom.
+    bool skip_bottom_chain_below = false;
+    if (next){
+      skip_bottom_chain_below = use_dry_over_wet && next->to_bottom && !current->to_bottom;
+    }
+
+    if (next && !skip_bottom_chain_below){ // current was previously selected as the top most WF in the region that we want to iteratively adjust. The lowest will be either the lowest WF, or the first WF below current that is not to_bottom.
+      // use_dry_over_wet included because this function is generally used to correct "chains" of WFs that should have the same psi value across layers, including to_bottom WFs below the one that is being corrected. 
+      // In the case of fixing dry over wet WFs this is only desired if the WF being corrected is itself to_bottom. If it is not, it should not attempt to also include the next to_bottom WF in its mass update.
       double theta_e;
       double theta_r;
       double vg_a;

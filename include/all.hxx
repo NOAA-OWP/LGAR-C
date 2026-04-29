@@ -388,7 +388,7 @@ extern double lgar_theta_mass_balance(int layer_num, int soil_num, double psi_cm
 				      int *soil_type, struct soil_properties_ *soil_properties);
 
 // computes updated theta (soil moisture content) after fixing a dry over wet front or after layer boundary crossing to address edge cases 
-extern void lgar_theta_mass_balance_correction(int front_num, double prior_mass, struct wetting_front** head, double *cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
+extern void lgar_theta_mass_balance_correction(bool use_dry_over_wet, int front_num, double prior_mass, struct wetting_front** head, double *cum_layer_thickness_cm, int *soil_type, struct soil_properties_ *soil_properties);
 
 extern double calc_min_water_possible_for_free_drainage_wetting_front(int wf_free_drainage, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
 
