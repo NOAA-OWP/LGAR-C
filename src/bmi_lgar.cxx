@@ -374,6 +374,7 @@ Update()
     state->state_previous = listCopy(state->head);
 
     double ponded_flux_for_CR = 0.0;
+    double volon_start_subtimestep_cm = volon_timestep_cm;
 
     // allocates some water to conceptual reservoir storage via conditional preferential flow
     if (state->lgar_bmi_params.runoff_in_prev_step){
@@ -720,7 +721,7 @@ Update()
     /*----------------------------------------------------------------------*/
     // mass balance at the subtimestep (local mass balance)
 
-    double local_mb = volstart_subtimestep_cm + precip_subtimestep_cm + volon_timestep_cm - volrunoff_subtimestep_cm - volQ_CR_subtimestep_cm - volCRend_subtimestep_cm + volCRstart_subtimestep_cm 
+    double local_mb = volstart_subtimestep_cm + precip_subtimestep_cm + volon_start_subtimestep_cm - volrunoff_subtimestep_cm - volQ_CR_subtimestep_cm - volCRend_subtimestep_cm + volCRstart_subtimestep_cm 
                       - AET_subtimestep_cm - volon_subtimestep_cm - volrech_subtimestep_cm - volend_subtimestep_cm;
 
 
