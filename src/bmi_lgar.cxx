@@ -68,6 +68,9 @@ Initialize (std::string config_file)
     giuh_runoff_queue[i] = 0.0;
   }
 
+  bmi_unit_conv.volQ_gw_timestep_m3_per_s = 0.0;
+  bmi_unit_conv.catchment_area_m2 = 0.0;
+
 }
 
 /**
@@ -126,6 +129,7 @@ Update()
     bmi_unit_conv.volrunoff_timestep_m  = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_m;
     bmi_unit_conv.volQ_timestep_m       = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_m;
     bmi_unit_conv.volQ_gw_timestep_m    = 0.0;
+    bmi_unit_conv.volQ_gw_timestep_m3_per_s = 0.0;
     bmi_unit_conv.volPET_timestep_m     = 0.0;
     bmi_unit_conv.volrunoff_giuh_timestep_m = 0.0;
     bmi_unit_conv.volrunoff_giuh_ponded_m = 0.0;
@@ -603,6 +607,15 @@ Update()
   bmi_unit_conv.volrunoff_timestep_m  = volrunoff_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volQ_timestep_m       = volQ_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volQ_gw_timestep_m    = volQ_gw_timestep_cm * state->units.cm_to_m;
+  if (bmi_unit_conv.catchment_area_m2 > 0.0 && this->GetTimeStep() > 0.0) {
+    bmi_unit_conv.volQ_gw_timestep_m3_per_s =
+      (bmi_unit_conv.volQ_gw_timestep_m * bmi_unit_conv.catchment_area_m2) /
+      this->GetTimeStep();
+  }
+  else {
+    bmi_unit_conv.volQ_gw_timestep_m3_per_s = 0.0;
+  }
+
   bmi_unit_conv.volPET_timestep_m     = PET_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volrunoff_giuh_timestep_m = volrunoff_giuh_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volrunoff_giuh_ponded_m = volrunoff_giuh_ponded_cm * state->units.cm_to_m;
@@ -779,6 +792,7 @@ GetVarGrid(std::string name)
     || name.compare("infiltration") == 0
 	  || name.compare("percolation") == 0
     || name.compare("groundwater_to_stream_recharge") == 0
+    || name.compare("groundwater_to_stream_recharge_m3_per_s") == 0
     || name.compare("mass_balance") == 0
     || name.compare(NWM_PONDED_DEPTH_OUT_VAR) == 0
     || name.compare("reset_time") == 0
@@ -870,6 +884,10 @@ GetVarUnits(std::string name)
     return "m";
   else if (name.compare("mass_balance") == 0 || name.compare("groundwater_to_stream_recharge") == 0)
     return "m";
+  else if (name.compare("groundwater_to_stream_recharge_m3_per_s") == 0)
+    return "m3 s-1";
+  else if (name.compare("mass_balance") == 0)
+    return "m";
   else if (name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles
     return "none";
   else if (name.compare("soil_depth_layers") == 0 || name.compare("soil_depth_wetting_fronts") == 0) // array of doubles
@@ -907,7 +925,8 @@ GetVarLocation(std::string name)
 	   || name.compare("soil_storage") == 0 || name.compare(NWM_PONDED_DEPTH_OUT_VAR)) // double
     return "node";
    else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
-	    || name.compare("percolation") == 0 || name.compare("groundwater_to_stream_recharge") == 0) // double
+	    || name.compare("percolation") == 0 || name.compare("groundwater_to_stream_recharge") == 0
+            || name.compare("groundwater_to_stream_recharge_m3_per_s") == 0) //double
     return "node";
   else if (name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles
     return "node";
@@ -1021,6 +1040,8 @@ GetValuePtr (std::string name)
     return (void*)(&bmi_unit_conv.volrech_timestep_m);
   else if (name.compare("groundwater_to_stream_recharge") == 0)
     return (void*)(&bmi_unit_conv.volQ_gw_timestep_m);
+  else if (name.compare("groundwater_to_stream_recharge_m3_per_s") == 0)
+    return (void*)(&bmi_unit_conv.volQ_gw_timestep_m3_per_s);
   else if (name.compare("mass_balance") == 0)
     return (void*)(&bmi_unit_conv.mass_balance_m);
   else if (name.compare(NWM_PONDED_DEPTH_OUT_VAR) == 0)
