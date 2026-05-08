@@ -61,6 +61,8 @@ public:
     this->output_var_names[13] = "groundwater_to_stream_recharge";
     this->output_var_names[14] = "mass_balance";
     this->output_var_names[15] = NWM_PONDED_DEPTH_OUT_VAR;
+    this->output_var_names[16] = "precipitation_rate_out";
+    this->output_var_names[17] = "groundwater_to_stream_recharge_m3_per_s";
     
     /*
     this->output_var_names[13] = "cum_precipitation";
@@ -145,7 +147,7 @@ private:
   void realloc_soil();
   struct model_state* state;
   static const int input_var_name_count  = 3;
-  static const int output_var_name_count = 16;
+  static const int output_var_name_count = 18;
   static const int calib_var_name_count  = 7;
   
   std::string input_var_names[input_var_name_count];
@@ -174,6 +176,8 @@ private:
     double volQ_gw_timestep_m;
     double volPET_timestep_m;
     double mass_balance_m;
+    double volQ_gw_timestep_m3_per_s;
+    double catchment_area_m2;
   };
 
   struct bmi_unit_conversion bmi_unit_conv;
@@ -184,7 +188,7 @@ private:
   void serialize_wetting_front_list(Archive &ar, wetting_front **head, int &count);
   
   void new_serialized();
-  void load_serialized(const char* data);
+  void load_serialized(char* data);
   void free_serialized();
 };
 

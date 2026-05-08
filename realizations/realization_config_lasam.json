@@ -17,6 +17,7 @@
 			"main_output_variable": "total_discharge",
 			"output_variables" : [
 			    "precipitation",
+			    "precipitation_rate_out",
 			    "potential_evapotranspiration",
 			    "actual_evapotranspiration",
 			    "surface_runoff",
