@@ -39,9 +39,9 @@ Initialize (std::string config_file)
 {
     // Initialize the Error, Warning and Trapping System
 #ifdef EWTS_HAVE_NGEN_BRIDGE    
-  EwtsInit(EWTS_ID_LASAM, true);
+  EwtsInit(LASAM_MODULE_ID, true);
 #else
-  EwtsInit(EWTS_ID_LASAM, false);
+  EwtsInit(LASAM_MODULE_ID, false);
 #endif
 
   LOG("Inside BmiLGAR::Initialize \n", LogLevel::INFO);  
