@@ -77,18 +77,23 @@ public:
 
     // //calibratable parameters have been updated to reflect those used in broad testing, which used a 2 layer instance of LGAR. Edits to this list are absolutely possible.
     this->calib_var_names[0]  = "smcmax_1";
-    this->calib_var_names[1]  = "van_genuchten_n_1";
-    this->calib_var_names[2]  = "van_genuchten_alpha_1";
-    this->calib_var_names[3]  = "hydraulic_conductivity_1";
-    this->calib_var_names[4]  = "van_genuchten_n_2";
-    this->calib_var_names[5]  = "van_genuchten_alpha_2";
-    this->calib_var_names[6]  = "hydraulic_conductivity_2";
-    this->calib_var_names[7]  = "field_capacity";
-    this->calib_var_names[8]  = "a";
-    this->calib_var_names[9]  = "b";
-    this->calib_var_names[10] = "frac_to_CR";
-    this->calib_var_names[11] = "spf_factor";
-
+    this->calib_var_names[1]  = "smcmin_1";
+    this->calib_var_names[2]  = "van_genuchten_n_1";
+    this->calib_var_names[3]  = "van_genuchten_alpha_1";
+    this->calib_var_names[4]  = "hydraulic_conductivity_1";
+    this->calib_var_names[5]  = "smcmax_2";
+    this->calib_var_names[6]  = "smcmin_2";
+    this->calib_var_names[7]  = "van_genuchten_n_2";
+    this->calib_var_names[8]  = "van_genuchten_alpha_2";
+    this->calib_var_names[9]  = "hydraulic_conductivity_2";
+    this->calib_var_names[10] = "field_capacity";
+    this->calib_var_names[11] = "a";
+    this->calib_var_names[12] = "b";
+    this->calib_var_names[13] = "frac_to_CR";
+    this->calib_var_names[14] = "spf_factor";
+    this->calib_var_names[15] = "a_slow";
+    this->calib_var_names[16] = "b_slow";
+    this->calib_var_names[17] = "frac_slow";
 
   };
   
@@ -153,7 +158,7 @@ private:
   struct model_state* state;
   static const int input_var_name_count  = 3;
   static const int output_var_name_count = 15;
-  static const int calib_var_name_count  = 12;
+  static const int calib_var_name_count  = 18;
   
   std::string input_var_names[input_var_name_count];
   std::string output_var_names[output_var_name_count];
