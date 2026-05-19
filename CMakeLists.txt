@@ -119,7 +119,7 @@ target_link_libraries(lasambmi PRIVATE ewts::ewts_cpp)
 # Built with ngen bridge
 target_link_libraries(lasambmi PRIVATE 
     "-Wl,--no-as-needed" ewts::ewts_ngen_bridge "-Wl,--as-needed")
-target_compile_definitions(lasambmi PRIVATE EWTS_HAVE_NGEN_BRIDGE)
+target_compile_definitions(lasambmi PRIVATE USE_EWTS)
 
 include(GNUInstallDirs)
 
