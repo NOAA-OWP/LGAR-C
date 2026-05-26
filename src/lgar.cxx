@@ -789,10 +789,40 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
   double Ksat_cm_per_h;
   struct wetting_front *current;
 
-  for(int layer=1;layer<=num_layers;layer++) {
+  if (layer_soil_type == NULL) {
+    LOG(LogLevel::FATAL, "InitializeWettingFronts: layer_soil_type is NULL");
+    throw std::runtime_error("InitializeWettingFronts: layer_soil_type is NULL");
+  }
+
+  if (cum_layer_thickness_cm == NULL) {
+    LOG(LogLevel::FATAL, "InitializeWettingFronts: cum_layer_thickness_cm is NULL");
+    throw std::runtime_error("InitializeWettingFronts: cum_layer_thickness_cm is NULL");
+  }
+
+  if (frozen_factor == NULL) {
+    LOG(LogLevel::FATAL, "InitializeWettingFronts: frozen_factor is NULL");
+    throw std::runtime_error("InitializeWettingFronts: frozen_factor is NULL");
+  }
+
+  if (soil_properties == NULL) {
+    LOG(LogLevel::FATAL, "InitializeWettingFronts: soil_properties is NULL");
+    throw std::runtime_error("InitializeWettingFronts: soil_properties is NULL");
+  }
+
+  for(int layer=1; layer<=num_layers; layer++) {
     front++;
 
     soil = layer_soil_type[layer];
+
+    if (soil <= 0 || soil > MAX_NUM_SOIL_TYPES) {
+      std::stringstream error_message;
+      error_message << "InitializeWettingFronts found invalid soil type index " << soil
+                    << " at layer " << layer
+                    << ". Valid range is [1," << MAX_NUM_SOIL_TYPES << "].";
+      LOG(LogLevel::FATAL, error_message.str());
+      throw std::runtime_error(error_message.str());
+    }
+
     theta_init = calc_theta_from_h(initial_psi_cm,soil_properties[soil].vg_alpha_per_cm,
 				   soil_properties[soil].vg_m,soil_properties[soil].vg_n,
 				   soil_properties[soil].theta_e,soil_properties[soil].theta_r);
@@ -809,14 +839,19 @@ extern void InitializeWettingFronts(int num_layers, double initial_psi_cm, int *
 
     current = listInsertFront(cum_layer_thickness_cm[layer],theta_init,front,layer,bottom_flag, head);
 
+    if (current == NULL) {
+      std::stringstream error_message;
+      error_message << "InitializeWettingFronts: listInsertFront returned NULL at layer " << layer;
+      LOG(LogLevel::FATAL, error_message.str());
+      throw std::runtime_error(error_message.str());
+    }
+
     current->psi_cm = initial_psi_cm;
     Se = calc_Se_from_theta(current->theta,soil_properties[soil].theta_e,soil_properties[soil].theta_r);
 
     Ksat_cm_per_h = frozen_factor[layer] * soil_properties[soil].Ksat_cm_per_h;
     current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h , soil_properties[soil].vg_m);  // cm/s
-
   }
-
 }
 
 // ##################################################################################

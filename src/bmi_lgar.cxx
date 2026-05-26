@@ -37,6 +37,13 @@ BmiLGAR::~BmiLGAR(){
 void BmiLGAR::
 Initialize (std::string config_file)
 {
+    // Initialize the Error, Warning and Trapping System
+#ifdef EWTS_HAVE_NGEN_BRIDGE    
+  EwtsInit(LASAM_MODULE_ID, true);
+#else
+  EwtsInit(LASAM_MODULE_ID, false);
+#endif
+
   LOG("Inside BmiLGAR::Initialize \n", LogLevel::INFO);  
   if (config_file.compare("") != 0 ) {
     this->state = new model_state;
@@ -60,6 +67,9 @@ Initialize (std::string config_file)
   for (int i=0; i<=num_giuh_ordinates;i++){
     giuh_runoff_queue[i] = 0.0;
   }
+
+  bmi_unit_conv.volQ_gw_timestep_m3_per_s = 0.0;
+  bmi_unit_conv.catchment_area_m2 = 0.0;
 
 }
 
@@ -119,6 +129,7 @@ Update()
     bmi_unit_conv.volrunoff_timestep_m  = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_m;
     bmi_unit_conv.volQ_timestep_m       = state->lgar_bmi_input_params->precipitation_mm_per_h * mm_to_m;
     bmi_unit_conv.volQ_gw_timestep_m    = 0.0;
+    bmi_unit_conv.volQ_gw_timestep_m3_per_s = 0.0;
     bmi_unit_conv.volPET_timestep_m     = 0.0;
     bmi_unit_conv.volrunoff_giuh_timestep_m = 0.0;
     bmi_unit_conv.volrunoff_giuh_ponded_m = 0.0;
@@ -596,6 +607,15 @@ Update()
   bmi_unit_conv.volrunoff_timestep_m  = volrunoff_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volQ_timestep_m       = volQ_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volQ_gw_timestep_m    = volQ_gw_timestep_cm * state->units.cm_to_m;
+  if (bmi_unit_conv.catchment_area_m2 > 0.0 && this->GetTimeStep() > 0.0) {
+    bmi_unit_conv.volQ_gw_timestep_m3_per_s =
+      (bmi_unit_conv.volQ_gw_timestep_m * bmi_unit_conv.catchment_area_m2) /
+      this->GetTimeStep();
+  }
+  else {
+    bmi_unit_conv.volQ_gw_timestep_m3_per_s = 0.0;
+  }
+
   bmi_unit_conv.volPET_timestep_m     = PET_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volrunoff_giuh_timestep_m = volrunoff_giuh_timestep_cm * state->units.cm_to_m;
   bmi_unit_conv.volrunoff_giuh_ponded_m = volrunoff_giuh_ponded_cm * state->units.cm_to_m;
@@ -758,6 +778,7 @@ GetVarGrid(std::string name)
     return 0;
   else if (
     name.compare("precipitation_rate") == 0
+    || name.compare("precipitation_rate_out") == 0
     || name.compare("precipitation") == 0
     || name.compare("potential_evapotranspiration_rate") == 0
     || name.compare("potential_evapotranspiration") == 0
@@ -771,8 +792,10 @@ GetVarGrid(std::string name)
     || name.compare("infiltration") == 0
 	  || name.compare("percolation") == 0
     || name.compare("groundwater_to_stream_recharge") == 0
+    || name.compare("groundwater_to_stream_recharge_m3_per_s") == 0
     || name.compare("mass_balance") == 0
     || name.compare(NWM_PONDED_DEPTH_OUT_VAR) == 0
+    || name.compare("reset_time") == 0
   ) // double
     return 1;
   else if (
@@ -847,7 +870,8 @@ GetVarItemsize(std::string name)
 std::string BmiLGAR::
 GetVarUnits(std::string name)
 {
-  if (name.compare("precipitation_rate") == 0 || name.compare("potential_evapotranspiration_rate") == 0)
+  if (name.compare("precipitation_rate") == 0 || name.compare("precipitation_rate_out") == 0 
+           || name.compare("potential_evapotranspiration_rate") == 0)
     return "mm h^-1";
   else if (name.compare("precipitation") == 0 || name.compare("potential_evapotranspiration") == 0
 	   || name.compare("actual_evapotranspiration") == 0) // double
@@ -859,6 +883,10 @@ GetVarUnits(std::string name)
 	   || name.compare("percolation") == 0) // double
     return "m";
   else if (name.compare("mass_balance") == 0 || name.compare("groundwater_to_stream_recharge") == 0)
+    return "m";
+  else if (name.compare("groundwater_to_stream_recharge_m3_per_s") == 0)
+    return "m3 s-1";
+  else if (name.compare("mass_balance") == 0)
     return "m";
   else if (name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles
     return "none";
@@ -887,15 +915,18 @@ GetVarNbytes(std::string name)
 std::string BmiLGAR::
 GetVarLocation(std::string name)
 {
-  if (name.compare("precipitation_rate") == 0 || name.compare("precipitation") == 0 ||
-      name.compare("potential_evapotranspiration") == 0 || name.compare("potential_evapotranspiration_rate") == 0
-      || name.compare("actual_evapotranspiration") == 0) // double
+  if (name.compare("precipitation_rate") == 0 || name.compare("precipitation_rate_out") == 0 ||
+    name.compare("precipitation") == 0 ||
+    name.compare("potential_evapotranspiration") == 0 ||
+    name.compare("potential_evapotranspiration_rate") == 0 ||
+    name.compare("actual_evapotranspiration") == 0)
     return "node";
   else if (name.compare("surface_runoff") == 0 || name.compare("giuh_runoff") == 0
 	   || name.compare("soil_storage") == 0 || name.compare(NWM_PONDED_DEPTH_OUT_VAR)) // double
     return "node";
    else if (name.compare("total_discharge") == 0 || name.compare("infiltration") == 0
-	    || name.compare("percolation") == 0 || name.compare("groundwater_to_stream_recharge") == 0) // double
+	    || name.compare("percolation") == 0 || name.compare("groundwater_to_stream_recharge") == 0
+            || name.compare("groundwater_to_stream_recharge_m3_per_s") == 0) //double
     return "node";
   else if (name.compare("soil_moisture_wetting_fronts") == 0) // array of doubles
     return "node";
@@ -985,6 +1016,8 @@ GetValuePtr (std::string name)
 {
   if (name.compare("precipitation_rate") == 0)
     return (void*)(&this->state->lgar_bmi_input_params->precipitation_mm_per_h);
+  else if (name.compare("precipitation_rate_out") == 0)
+    return (void*)(&this->state->lgar_bmi_input_params->precipitation_mm_per_h);
   else if (name.compare("precipitation") == 0)
     return (void*)(&bmi_unit_conv.volprecip_timestep_m);
   else if (name.compare("potential_evapotranspiration_rate") == 0)
@@ -1007,6 +1040,8 @@ GetValuePtr (std::string name)
     return (void*)(&bmi_unit_conv.volrech_timestep_m);
   else if (name.compare("groundwater_to_stream_recharge") == 0)
     return (void*)(&bmi_unit_conv.volQ_gw_timestep_m);
+  else if (name.compare("groundwater_to_stream_recharge_m3_per_s") == 0)
+    return (void*)(&bmi_unit_conv.volQ_gw_timestep_m3_per_s);
   else if (name.compare("mass_balance") == 0)
     return (void*)(&bmi_unit_conv.mass_balance_m);
   else if (name.compare(NWM_PONDED_DEPTH_OUT_VAR) == 0)
@@ -1085,6 +1120,11 @@ SetValue (std::string name, void *src)
     return;
   } else if (name.compare("serialization_create") == 0) {
     this->new_serialized();
+    return;
+  } else if (name.compare("reset_time") == 0) {
+    // time_s and timesteps seems to be used exclusively for reporting current time
+    this->state->lgar_bmi_params.time_s = this->GetStartTime();
+    this->state->lgar_bmi_params.timesteps = 0;
     return;
   }
   void * dest = NULL;
@@ -1430,25 +1470,33 @@ void BmiLGAR::serialize_wetting_front_list(Archive &ar, wetting_front **head, in
 }
 
 void BmiLGAR::new_serialized() {
-  this->m_serialized.clear();
+  // resize with reserved space for storing size
+  this->m_serialized.resize(sizeof(uint64_t));
   boost::archive::binary_oarchive archive(this->m_serialized);
   try {
     archive << (*this);
     this->m_serialized_length = this->m_serialized.size();
+    // get serialized size without header and copy size to the beginning of the buffer
+    uint64_t serialized_size = this->m_serialized_length - sizeof(uint64_t);
+    memcpy(this->m_serialized.data(), &serialized_size, sizeof(uint64_t));
   } catch (const std::exception &e) {
-    Logger::Log(LogLevel::SEVERE, "Serializing LASAM encountered an error: %s", e.what());
+    LOG(LogLevel::SEVERE, "Serializing LASAM encountered an error: %s", e.what());
     this->free_serialized();
     throw;
   }
 }
 
-void BmiLGAR::load_serialized(const char* data) {
-  std::stringstream stream(data);
+void BmiLGAR::load_serialized(char* data) {
+  // copy size from the start of data
+  uint64_t size;
+  memcpy(&size, data, sizeof(uint64_t));
+  // create stream from everything past the size header
+  membuf stream(data + sizeof(uint64_t), size);
   boost::archive::binary_iarchive archive(stream);
   try {
     archive >> (*this);
   } catch (const std::exception &e) {
-    Logger::Log(LogLevel::SEVERE, "Deserializing LASAM encountered an error: %s", e.what());
+    LOG(LogLevel::SEVERE, "Deserializing LASAM encountered an error: %s", e.what());
     throw;
   }
   this->free_serialized();
