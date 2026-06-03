@@ -110,16 +110,24 @@ set_target_properties(lasambmi PROPERTIES PUBLIC_HEADER ./include/bmi_lgar.hxx)
 
 target_link_libraries(lasambmi PRIVATE Boost::serialization)
 
-# --- EWTS (installed from nwm-ewts) ---
-find_package(ewts CONFIG REQUIRED)
+option(USE_EWTS "Build LASAM with EWTS logging" ON)
+message("-- LASAM CMakeLists USE_EWTS = ${USE_EWTS}")
+if(USE_EWTS)
+    message("-- LASAM compiled with EWTS logging")
 
-# Always use EWTS runtime logger for CPP
-target_link_libraries(lasambmi PRIVATE ewts::ewts_cpp)
+    # --- EWTS (installed from nwm-ewts) ---
+    find_package(ewts CONFIG REQUIRED)
 
-# Built with ngen bridge
-target_link_libraries(lasambmi PRIVATE 
-    "-Wl,--no-as-needed" ewts::ewts_ngen_bridge "-Wl,--as-needed")
-target_compile_definitions(lasambmi PRIVATE EWTS_HAVE_NGEN_BRIDGE)
+    # Always use EWTS runtime logger for CPP
+    target_link_libraries(lasambmi PRIVATE ewts::ewts_cpp)
+
+    # Built with ngen bridge
+    target_link_libraries(lasambmi PRIVATE 
+        "-Wl,--no-as-needed" ewts::ewts_ngen_bridge "-Wl,--as-needed")
+    target_compile_definitions(lasambmi PRIVATE LASAM_USE_EWTS)
+else()
+    message("-- LASAM compiled with stdout fallback logging")
+endif()
 
 include(GNUInstallDirs)
 

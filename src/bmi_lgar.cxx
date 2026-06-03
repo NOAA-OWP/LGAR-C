@@ -37,11 +37,12 @@ BmiLGAR::~BmiLGAR(){
 void BmiLGAR::
 Initialize (std::string config_file)
 {
-    // Initialize the Error, Warning and Trapping System
-#ifdef EWTS_HAVE_NGEN_BRIDGE    
-  EwtsInit(LASAM_MODULE_ID, true);
+#ifdef LASAM_USE_EWTS    
+    // Initialize the Error and Warning Trapping System
+    #pragma message("LASAM.bmi_lgar.Initialize: LASAM_USE_EWTS ON")
+    EwtsInit(LASAM_MODULE_ID, true);
 #else
-  EwtsInit(LASAM_MODULE_ID, false);
+    #pragma message("ueb-bmi.bmi_ueb.Initialize: LASAM_USE_EWTS OFF")
 #endif
 
   LOG("Inside BmiLGAR::Initialize \n", LogLevel::INFO);  
