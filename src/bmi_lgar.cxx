@@ -1433,6 +1433,7 @@ serialize(Archive& ar, const unsigned int version) {
     // reallocate arrays based on new num_wetting_fronts
     this->realloc_soil();
   }
+  // size of wetting fronts controlled above, so no need for overhead of serialize_c_array
   ar & boost::serialization::make_array(
     state->lgar_bmi_params.soil_moisture_wetting_fronts, state->lgar_bmi_params.num_wetting_fronts
   );
@@ -1474,6 +1475,7 @@ void BmiLGAR::serialize_wetting_front_list(Archive &ar, wetting_front **head, in
     wetting_front *prior;
     for (int i = 0; i < count; ++i) {
       current = new wetting_front();
+      current->next = NULL;
       ar & (*current);
       if (i == 0) {
         *head = current;
