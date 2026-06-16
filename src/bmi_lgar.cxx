@@ -47,9 +47,7 @@ Initialize (std::string config_file)
 
   LOG("Inside BmiLGAR::Initialize \n", LogLevel::INFO);  
   if (config_file.compare("") != 0 ) {
-    this->state = new model_state;
-    state->head = NULL;
-    state->state_previous = NULL;
+    this->state = static_cast<model_state *>(calloc(1, sizeof(model_state)));
     lgar_initialize(config_file, state);
   }
 
@@ -739,31 +737,35 @@ update_calibratable_parameters()
 void BmiLGAR::
 Finalize()
 {
+  if (!state)
+    return;
   global_mass_balance();
   listDelete(state->head);
   listDelete(state->state_previous);
+  #define DELETE_ARRAY(prop) if (prop) delete[] prop;
+  DELETE_ARRAY(state->soil_properties)
 
-  delete [] state->soil_properties;
+  DELETE_ARRAY(state->lgar_bmi_params.soil_depth_wetting_fronts)
+  DELETE_ARRAY(state->lgar_bmi_params.soil_moisture_wetting_fronts)
 
-  delete [] state->lgar_bmi_params.soil_depth_wetting_fronts;
-  delete [] state->lgar_bmi_params.soil_moisture_wetting_fronts;
+  DELETE_ARRAY(state->lgar_bmi_params.soil_temperature)
+  DELETE_ARRAY(state->lgar_bmi_params.soil_temperature_z)
+  DELETE_ARRAY(state->lgar_bmi_params.layer_soil_type)
 
-  delete [] state->lgar_bmi_params.soil_temperature;
-  delete [] state->lgar_bmi_params.soil_temperature_z;
-  delete [] state->lgar_bmi_params.layer_soil_type;
+  DELETE_ARRAY(state->lgar_calib_params.theta_e)
+  DELETE_ARRAY(state->lgar_calib_params.theta_r)
+  DELETE_ARRAY(state->lgar_calib_params.vg_n)
+  DELETE_ARRAY(state->lgar_calib_params.vg_alpha)
+  DELETE_ARRAY(state->lgar_calib_params.Ksat)
 
-  delete [] state->lgar_calib_params.theta_e;
-  delete [] state->lgar_calib_params.theta_r;
-  delete [] state->lgar_calib_params.vg_n;
-  delete [] state->lgar_calib_params.vg_alpha;
-  delete [] state->lgar_calib_params.Ksat;
-
-  delete [] state->lgar_bmi_params.layer_thickness_cm;
-  delete [] state->lgar_bmi_params.cum_layer_thickness_cm;
-  delete [] state->lgar_bmi_params.giuh_ordinates;
-  delete [] state->lgar_bmi_params.frozen_factor;
-  delete state->lgar_bmi_input_params;
-  delete state;
+  DELETE_ARRAY(state->lgar_bmi_params.layer_thickness_cm)
+  DELETE_ARRAY(state->lgar_bmi_params.cum_layer_thickness_cm)
+  DELETE_ARRAY(state->lgar_bmi_params.giuh_ordinates)
+  DELETE_ARRAY(state->lgar_bmi_params.frozen_factor)
+  #undef DELETE_ARRAY
+  if (state->lgar_bmi_input_params)
+    delete state->lgar_bmi_input_params;
+  free(state);
   this->state = NULL;
 }
 
@@ -1398,14 +1400,14 @@ serialize(Archive& ar, const unsigned int version) {
   ar & state->lgar_mass_balance.volrunoff_giuh_cm;
   ar & state->lgar_mass_balance.volchange_calib_cm;
 
-  ar & boost::serialization::make_array(state->lgar_bmi_params.cum_layer_thickness_cm, state->lgar_bmi_params.num_layers);
+  this->serialize_c_array(ar, &state->lgar_bmi_params.cum_layer_thickness_cm, &state->lgar_bmi_params.num_layers);
 
   // giuh state
-  ar & boost::serialization::make_array(this->giuh_runoff_queue, state->lgar_bmi_params.num_giuh_ordinates);
+  this->serialize_c_array(ar, &this->giuh_runoff_queue, &state->lgar_bmi_params.num_giuh_ordinates);
 
   // in frozen_factor_hydraulic_conductivity
   if (state->lgar_bmi_params.sft_coupled) {
-    ar & boost::serialization::make_array(state->lgar_bmi_params.frozen_factor, state->lgar_bmi_params.num_layers);
+    this->serialize_c_array(ar, &state->lgar_bmi_params.frozen_factor, &state->lgar_bmi_params.num_layers);
   }
 
   // update_calibratable_parameters
@@ -1424,7 +1426,7 @@ serialize(Archive& ar, const unsigned int version) {
   // serialization of arbitrarily-lengthed linked-lists
   int num_fronts = state->lgar_bmi_params.num_wetting_fronts;
   this->serialize_wetting_front_list(ar, &state->head, state->lgar_bmi_params.num_wetting_fronts);
-  int num_previous = 0;
+  int num_previous = 0; // 0 forces a recalculation in the serialize_wetting_front_list function
   this->serialize_wetting_front_list(ar, &state->state_previous, num_previous);
 
   if (Archive::is_loading::value && num_fronts != state->lgar_bmi_params.num_wetting_fronts) {
@@ -1437,7 +1439,20 @@ serialize(Archive& ar, const unsigned int version) {
   ar & boost::serialization::make_array(
     state->lgar_bmi_params.soil_depth_wetting_fronts, state->lgar_bmi_params.num_wetting_fronts
   );
+}
 
+template <class Archive>
+void BmiLGAR::serialize_c_array(Archive &ar, double **array, int *size) {
+  // store and check the size of the stored array to ensure loading doesn't start writing to out-of-bounds addresses
+  int size_copy = *size;
+  ar & *size;
+  if (Archive::is_loading::value) {
+    if (size_copy != *size) {
+      delete[] *array;
+      *array = new double[*size];
+    }
+  }
+  ar & boost::serialization::make_array(*array, *size);
 }
 
 template <class Archive>
