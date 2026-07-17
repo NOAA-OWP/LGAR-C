@@ -37,7 +37,7 @@ extern string verbosity;
 
 #define MAX_NUM_SOIL_LAYERS 4
 #define MAX_NUM_SOIL_TYPES 25 //changed back to 25 from 15, because the file that loads soil types for Bushland relies on entries 16, 17, and 18 in the .dat file.
-#define MAX_SOIL_NAME_CHARS 25
+#define MAX_SOIL_NAME_CHARS 30
 #define MAX_NUM_WETTING_FRONTS 300
 
 

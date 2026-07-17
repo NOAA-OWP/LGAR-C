@@ -3207,7 +3207,7 @@ extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_
   // local vars
   FILE *in_vG_params_fptr = NULL;
   char jstr[256];
-  char soil_name[30];
+  char soil_name[MAX_SOIL_NAME_CHARS];
   // bool error;
   int length;
   int num_soils_in_file = 0;             // soil counter
@@ -3225,14 +3225,34 @@ extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_
   //for(soil=1;soil<=num_soil_types;soil++) {// read the num_soil_types lines with data
   while (fgets(jstr,255,in_vG_params_fptr) != NULL) {
 
-    sscanf(jstr,"%s %lf %lf %lf %lf %lf",soil_name,&theta_r,&theta_e,&vg_alpha_per_cm,&vg_n,&Ksat_cm_per_h);
-    length=strlen(soil_name);
+    // The soil name must be double-quoted and may contain spaces (e.g. "Sandy-clay loam"),
+    // so it cannot be read with a %s conversion, which stops at the first space.
+    char *cp = jstr;
+    length = 0;
+    // soil type names must be quoted
+    if (*cp != '"') {
+        printf("van Genuchten parameter file soil type names must be quoted.");
+        exit(-1);
+    }
+    cp++; // skip the opening quote
+    while (*cp != '"' && *cp != '\n' && length < MAX_SOIL_NAME_CHARS-1){
+	    soil_name[length] = *cp;
+        length++;
+        cp++;
+    }
+    if (*cp != '"') {
+	printf("While reading vG soil parameter file: %s, soil name unterminated quote or longer than allowed.\n",
+	       vG_param_file_name);
+	exit(-1);
+    }
+    cp++; // skip the closing quote
+    soil_name[length] = '\0';
 
-    if(length>MAX_SOIL_NAME_CHARS) {
-      printf("While reading vG soil parameter file: %s, soil name longer than allowed.  Increase MAX_SOIL_NAME_CHARS\n",
-	     vG_param_file_name);
-      printf("Program stopped.\n");
-      exit(0);
+    if (sscanf(cp,"%lf %lf %lf %lf %lf",&theta_r,&theta_e,&vg_alpha_per_cm,&vg_n,&Ksat_cm_per_h) != 5) {
+      printf("While reading vG soil parameter file: %s, soil %s: expected 5 numeric values after the soil name.\n"
+             "theta_r theta_e vg_alpha_per_cm vg_n Ksat_cm_per_h\n",
+	     vG_param_file_name, soil_name);
+      exit(-1);
     }
 
     strcpy(soil_properties[soil].soil_name,soil_name);
