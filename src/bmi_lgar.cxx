@@ -1370,7 +1370,6 @@ serialize(Archive& ar, const unsigned int version) {
   ar & this->bmi_unit_conv.mass_balance_m;
   ar & this->bmi_unit_conv.volrunoff_timestep_m;
   ar & this->bmi_unit_conv.volrunoff_giuh_ponded_m;
-  ar & state->lgar_bmi_params.num_wetting_fronts;
   ar & state->lgar_calib_params.ponded_depth_max;
   ar & state->lgar_calib_params.field_capacity_psi;
 
