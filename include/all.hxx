@@ -132,6 +132,9 @@ struct lgar_bmi_parameters
   double  field_capacity_psi_cm;          // field capacity represented as a capillary head. Note that both wilting point and field capacity are specified for the whole model domain with single values
   bool   use_closed_form_G = false;      /* true if closed form of capillary drive calculation is desired, false if numeric integral
 					    for capillary drive calculation is desired */
+  string init_state_path;                // optional path for saved wetting front state
+  string init_non_vadose_state_path;      // optional path for conceptual reservoir / restart state
+  string init_giuh_state_path;            // optional path for saved GIUH queue state
   bool   PET_affects_precip = false;     // set to true in config file if you want PET to be taken from precip 
   bool   adaptive_timestep = false;      // if set to true, model uses adaptive timestep. In this case, the minimum timestep is the timestep specified in the config file. The maximum time step will be equal to the forcing resolution.
   bool   free_drainage_enabled = false;  // free_drainage_enabled will specify whether the lower boundary condition is no flow (false), or free drainage (true). Defaults to false.
@@ -194,6 +197,7 @@ struct lgar_mass_balance_variables
   // for global mass balance (compute cumulative mass balance)
   double volstart_cm;         // initial volume of water in the soil (at timestep 0)
   double volCRstart_cm;       // initial volume of water in CRs (at timestep 0)
+  double volon_start_cm;      // initial volume of ponded surface water (at timestep 0)
   double volend_cm;           // volume of water
   double volCRend_cm;         // volume of water in conceptual reservoir(s)
   double volprecip_cm;        // volume of rainfall
@@ -411,6 +415,21 @@ extern void InitFromConfigFile(string config_file, struct model_state *state);
 extern vector<double> ReadVectorData(string key);
 extern void InitializeWettingFronts(bool is_invalid_soil_type, int num_layers, double initial_psi_cm, int *layer_soil_type, double *cum_layer_thickness_cm,
 				    double *frozen_factor, struct wetting_front** head, struct soil_properties_ *soil_properties);
+extern void InitializeWettingFrontsFromCSV(
+    int num_layers,
+    const char *data_layers_csv_path,
+    int *layer_soil_type,
+    double *cum_layer_thickness_cm,
+    double *frozen_factor,
+    struct wetting_front **head,
+    struct soil_properties_ *soil_properties);
+extern void InitializenonvadoseStateFromCSV(
+    const char *non_vadose_state_csv_path,
+    struct model_state *state);
+extern void InitializeGIUHRunoffQueueFromCSV(
+    const char *giuh_state_csv_path,
+    double *giuh_runoff_queue,
+    int num_giuh_ordinates);
 
 /********************************************************************/
 /*Other function prototypes for doing hydrology calculations, etc.  */
@@ -431,6 +450,11 @@ extern void lgar_global_mass_balance(struct model_state *state, double *giuh_run
 
 // writes full state of wetting fronts (depth, theta, no. of wetting front, no. of layer, dz/dt, psi) to a file at each time step
 extern void write_state(FILE *out, struct wetting_front* head);
+extern void write_non_vadose_state(FILE *out, struct model_state *state);
+extern void write_giuh_runoff_queue_state(
+    FILE *out,
+    const double *giuh_runoff_queue,
+    int num_giuh_ordinates);
 
 
 /********************************************************************/

@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string.h>
 #include <sstream>
+#include <iomanip>
 
 using namespace std;
 
@@ -69,6 +70,91 @@ using namespace std;
 #define DEPTH_AVOIDS_SAME_WF_DEPTH 1.E-6       // in the event that multiple WFs all would cross a layer boundary and would each have their depth in the new layer limited by FACTOR_LIMITS_LAYER_CROSSING_SPEED, this just prevents these WFs from being exactly at the same depth.
 #define PSI_UPPER_LIM 1.E7                     // in loops that close the mass balance by iterating theta and psi, we impose an upper limit on capillary head because some values are just not physically realistic
 
+static void PrintSavedStateInitializationDetails(struct model_state *state,
+    bool is_state_path_set,
+    bool is_non_vadose_state_path_set,
+    bool is_giuh_state_path_set)
+{
+  if (verbosity.compare("high") != 0) return;
+  if (!(is_state_path_set || is_non_vadose_state_path_set || is_giuh_state_path_set)) return;
+
+  streamsize old_precision = std::cerr.precision();
+  ios::fmtflags old_flags = std::cerr.flags();
+
+  std::cerr << "--- Saved-state initialization details --- \n";
+
+  if (state->lgar_bmi_params.is_invalid_soil_type) {
+    std::cerr << "Restart files were provided but are ignored because an "
+              << "invalid soil type makes the model return input precipitation "
+              << "as output Qout. \n";
+    std::cerr << "No wetting fronts, non-vadose state, or GIUH queue were "
+              << "initialized from saved state. \n";
+    std::cerr.flags(old_flags);
+    std::cerr.precision(old_precision);
+    std::cerr << "          *****         \n";
+    return;
+  }
+
+  std::cerr << "Restart files are read from the last data row. \n";
+
+  if (is_state_path_set) {
+    std::cerr << "Wetting fronts initialized from: "
+              << state->lgar_bmi_params.init_state_path << "\n";
+    std::cerr << "No. of wetting fronts initialized: "
+              << state->lgar_bmi_params.num_wetting_fronts << "\n";
+    std::cerr << std::fixed << std::setprecision(12)
+              << "Initial soil water from saved wetting fronts: "
+              << state->lgar_mass_balance.volstart_cm << " cm\n";
+  }
+
+  if (is_non_vadose_state_path_set) {
+    std::cerr << "Non-vadose restart variables initialized from: "
+              << state->lgar_bmi_params.init_non_vadose_state_path << "\n";
+    std::cerr << std::fixed << std::setprecision(12)
+              << "Initial fast reservoir storage: "
+              << state->lgar_mass_balance.CR_fast_storage_cm << " cm\n";
+    std::cerr << "Initial slow reservoir storage: "
+              << state->lgar_mass_balance.CR_slow_storage_cm << " cm\n";
+    std::cerr << "Saved volon_timestep_cm: "
+              << state->lgar_mass_balance.volon_timestep_cm << " cm\n";
+    std::cerr << "Saved precip_previous_timestep_cm: "
+              << state->lgar_bmi_params.precip_previous_timestep_cm << " cm\n";
+    std::cerr << "Saved runoff_in_prev_step: "
+              << (state->lgar_bmi_params.runoff_in_prev_step ? "true" : "false")
+              << "\n";
+    std::cerr << "Saved cache_fluxes: "
+              << (state->lgar_mass_balance.cache_fluxes ? "true" : "false")
+              << "\n";
+    std::cerr << "Saved cache_count: "
+              << state->lgar_bmi_params.cache_count << "\n";
+    std::cerr << "Saved previous_AET: "
+              << state->lgar_mass_balance.previous_AET << " cm\n";
+    std::cerr << "Saved previous_PET: "
+              << state->lgar_mass_balance.previous_PET << " cm\n";
+    std::cerr << "Saved previous_recharge: "
+              << state->lgar_mass_balance.previous_recharge << " cm\n";
+    std::cerr << "Saved accumulated_PET: "
+              << state->lgar_mass_balance.accumulated_PET << " cm\n";
+    std::cerr << "Saved accumulated_free_drainage: "
+              << state->lgar_mass_balance.accumulated_free_drainage << " cm\n";
+    std::cerr << "Saved model time: "
+              << state->lgar_bmi_params.time_s << " s\n";
+    std::cerr << "Saved model timesteps: "
+              << state->lgar_bmi_params.timesteps << "\n";
+  }
+
+  if (is_giuh_state_path_set) {
+    std::cerr << "GIUH runoff queue requested from: "
+              << state->lgar_bmi_params.init_giuh_state_path << "\n";
+    std::cerr << "Expected no. of GIUH ordinates: "
+              << state->lgar_bmi_params.num_giuh_ordinates << "\n";
+  }
+
+  std::cerr.flags(old_flags);
+  std::cerr.precision(old_precision);
+  std::cerr << "          *****         \n";
+}
+
 
 // ############################################################################################
 /*
@@ -84,11 +170,10 @@ extern void lgar_initialize(string config_file, struct model_state *state)
   if (!state->lgar_bmi_params.is_invalid_soil_type){
     int soil;
     
+    state->lgar_bmi_params.num_wetting_fronts = listLength(state->head);
     state->lgar_bmi_params.shape[0] = state->lgar_bmi_params.num_layers;
     state->lgar_bmi_params.shape[1] = state->lgar_bmi_params.num_wetting_fronts;
 
-    // initial number of wetting fronts are same are number of layers
-    state->lgar_bmi_params.num_wetting_fronts           = state->lgar_bmi_params.num_layers;
     state->lgar_bmi_params.soil_depth_wetting_fronts    = new double[state->lgar_bmi_params.num_wetting_fronts];
     state->lgar_bmi_params.soil_moisture_wetting_fronts = new double[state->lgar_bmi_params.num_wetting_fronts];
 
@@ -115,10 +200,10 @@ extern void lgar_initialize(string config_file, struct model_state *state)
     state->lgar_calib_params.spf_factor = state->lgar_bmi_params.spf_factor;
 
     struct wetting_front *current = state->head;
-    for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) { // note that this only works because at init there is 1 WF per layer, otherwise get soil type from current
+    for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) {
       assert (current != NULL);
       
-      soil = state->lgar_bmi_params.layer_soil_type[i+1];
+      soil = state->lgar_bmi_params.layer_soil_type[current->layer_num];
 
       state->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
       state->lgar_bmi_params.soil_depth_wetting_fronts[i]    = current->depth_cm * state->units.cm_to_m;
@@ -130,7 +215,7 @@ extern void lgar_initialize(string config_file, struct model_state *state)
       // state->lgar_calib_params.vg_alpha[i] = state->soil_properties[soil].vg_alpha_per_cm;
       // state->lgar_calib_params.Ksat[i]     = state->soil_properties[soil].Ksat_cm_per_h;
 
-      if (i==0){
+      if (current->layer_num==1){
         state->lgar_calib_params.theta_e_1  = state->soil_properties[soil].theta_e;
         state->lgar_calib_params.theta_r_1  = state->soil_properties[soil].theta_r;
         state->lgar_calib_params.vg_n_1     = state->soil_properties[soil].vg_n;
@@ -138,7 +223,7 @@ extern void lgar_initialize(string config_file, struct model_state *state)
         state->lgar_calib_params.Ksat_1     = state->soil_properties[soil].Ksat_cm_per_h;
       }
 
-      if (i==1){
+      if (current->layer_num==2){
         state->lgar_calib_params.theta_e_2  = state->soil_properties[soil].theta_e;
         state->lgar_calib_params.theta_r_2  = state->soil_properties[soil].theta_r;
         state->lgar_calib_params.vg_n_2     = state->soil_properties[soil].vg_n;
@@ -146,7 +231,7 @@ extern void lgar_initialize(string config_file, struct model_state *state)
         state->lgar_calib_params.Ksat_2     = state->soil_properties[soil].Ksat_cm_per_h;
       }
 
-      if (i==2){
+      if (current->layer_num==3){
         state->lgar_calib_params.theta_e_3  = state->soil_properties[soil].theta_e;
         state->lgar_calib_params.theta_r_3  = state->soil_properties[soil].theta_r;
         state->lgar_calib_params.vg_n_3     = state->soil_properties[soil].vg_n;
@@ -176,25 +261,53 @@ extern void lgar_initialize(string config_file, struct model_state *state)
   state->lgar_bmi_input_params->precipitation_mm_per_h = -1.0;
   state->lgar_bmi_input_params->PET_mm_per_h           = -1.0;
 
-  // initialize all global mass balance variables to zero
-  state->lgar_mass_balance.volprecip_cm              = 0.0;
-  state->lgar_mass_balance.volin_cm                  = 0.0;
-  state->lgar_mass_balance.volend_cm                 = 0.0;
-  state->lgar_mass_balance.volCRend_cm               = 0.0;
-  state->lgar_mass_balance.volAET_cm                 = 0.0;
-  state->lgar_mass_balance.volrech_cm                = 0.0;
+  bool non_vadose_restart_loaded =
+    !state->lgar_bmi_params.is_invalid_soil_type &&
+    !state->lgar_bmi_params.init_state_path.empty() &&
+    !state->lgar_bmi_params.init_non_vadose_state_path.empty();
+
+  state->lgar_mass_balance.volprecip_cm       = 0.0;
+  state->lgar_mass_balance.volin_cm           = 0.0;
+  state->lgar_mass_balance.volend_cm          = 0.0;
+  state->lgar_mass_balance.volAET_cm          = 0.0;
+  state->lgar_mass_balance.volrech_cm         = 0.0;
   state->lgar_mass_balance.volinterflow_timestep_cm = 0.0;
-  state->lgar_mass_balance.volrunoff_cm              = 0.0;
-  state->lgar_mass_balance.volinterflow_cm        = 0.0;
-  state->lgar_mass_balance.volrunoff_giuh_cm         = 0.0;
-  state->lgar_mass_balance.volQ_cm                   = 0.0;
-  state->lgar_mass_balance.volQ_CR_cm                = 0.0;
-  state->lgar_mass_balance.volPET_cm                 = 0.0;
-  state->lgar_mass_balance.volon_cm                  = 0.0;
-  state->lgar_mass_balance.volon_timestep_cm         = 0.0; /* setting volon and precip at the initial time to 0.0
-							       as they determine the creation of surficail wetting front */
-  state->lgar_bmi_params.precip_previous_timestep_cm = 0.0;
-  state->lgar_mass_balance.volchange_calib_cm        = 0.0;
+  state->lgar_mass_balance.volinterflow_cm    = 0.0;
+  state->lgar_mass_balance.volrunoff_cm       = 0.0;
+  state->lgar_mass_balance.volrunoff_giuh_cm  = 0.0;
+  state->lgar_mass_balance.volQ_cm            = 0.0;
+  state->lgar_mass_balance.volQ_CR_cm         = 0.0;
+  state->lgar_mass_balance.volPET_cm          = 0.0;
+  state->lgar_mass_balance.volon_cm           = 0.0;
+  state->lgar_mass_balance.volchange_calib_cm = 0.0;
+
+  if (!non_vadose_restart_loaded) {
+    state->lgar_mass_balance.CR_fast_storage_cm = 0.0;
+    state->lgar_mass_balance.CR_slow_storage_cm = 0.0;
+    state->lgar_mass_balance.volCRend_cm = 0.0;
+    state->lgar_mass_balance.volCRend_timestep_cm = 0.0;
+    state->lgar_mass_balance.volCRstart_cm = 0.0;
+    state->lgar_mass_balance.volon_start_cm = 0.0;
+    state->lgar_mass_balance.volon_timestep_cm = 0.0; /* setting volon and precip at the initial time to 0.0
+							       as they determine the creation of surficial wetting front */
+    state->lgar_bmi_params.precip_previous_timestep_cm = 0.0;
+    state->lgar_bmi_params.runoff_in_prev_step = false;
+  }
+  else {
+    state->lgar_mass_balance.volCRend_cm =
+        state->lgar_mass_balance.CR_fast_storage_cm +
+        state->lgar_mass_balance.CR_slow_storage_cm;
+    state->lgar_mass_balance.volCRend_timestep_cm =
+        state->lgar_mass_balance.CR_fast_storage_cm +
+        state->lgar_mass_balance.CR_slow_storage_cm;
+    state->lgar_mass_balance.volCRstart_cm =
+        state->lgar_mass_balance.CR_fast_storage_cm +
+        state->lgar_mass_balance.CR_slow_storage_cm;
+    // Ponded water restored for the first update is also initial storage for
+    // the restarted run's global mass balance.
+    state->lgar_mass_balance.volon_start_cm =
+        state->lgar_mass_balance.volon_timestep_cm;
+  }
 }
 
 
@@ -309,6 +422,9 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
   bool is_giuh_ordinates_set        = false;
   bool is_soil_z_set                = false;
   bool is_ponded_depth_max_cm_set   = false;
+  bool is_state_path_set            = false;
+  bool is_non_vadose_state_path_set = false;
+  bool is_giuh_state_path_set       = false;
 
   string soil_params_file;
 
@@ -420,11 +536,6 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     else if (param_key == "initial_psi") {
       state->lgar_bmi_params.initial_psi_cm = stod(param_value);
       is_initial_psi_set = true;
-
-      if (verbosity.compare("high") == 0) {
-	std::cerr<<"Initial Psi : "<<state->lgar_bmi_params.initial_psi_cm<<"\n";
-	std::cerr<<"          *****         \n";
-      }
 
       continue;
     }
@@ -577,6 +688,51 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
         abort();
       }
 
+      continue;
+    }
+    else if (param_key == "init_state_path") {
+      size_t first = param_value.find_first_not_of(" \t");
+      size_t last = param_value.find_last_not_of(" \t");
+      param_value = (first == string::npos) ? "" : param_value.substr(first, last - first + 1);
+
+      state->lgar_bmi_params.init_state_path = param_value;
+      is_state_path_set = true;
+
+      if (verbosity.compare("high") == 0) {
+        std::cerr << "init_state_path set to: "
+                  << state->lgar_bmi_params.init_state_path << "\n";
+        std::cerr << "          *****         \n";
+      }
+      continue;
+    }
+    else if (param_key == "init_non_vadose_state_path") {
+      size_t first = param_value.find_first_not_of(" \t");
+      size_t last = param_value.find_last_not_of(" \t");
+      param_value = (first == string::npos) ? "" : param_value.substr(first, last - first + 1);
+
+      state->lgar_bmi_params.init_non_vadose_state_path = param_value;
+      is_non_vadose_state_path_set = true;
+
+      if (verbosity.compare("high") == 0) {
+        std::cerr << "init_non_vadose_state_path set to: "
+                  << state->lgar_bmi_params.init_non_vadose_state_path << "\n";
+        std::cerr << "          *****         \n";
+      }
+      continue;
+    }
+    else if (param_key == "init_giuh_state_path") {
+      size_t first = param_value.find_first_not_of(" \t");
+      size_t last = param_value.find_last_not_of(" \t");
+      param_value = (first == string::npos) ? "" : param_value.substr(first, last - first + 1);
+
+      state->lgar_bmi_params.init_giuh_state_path = param_value;
+      is_giuh_state_path_set = true;
+
+      if (verbosity.compare("high") == 0) {
+        std::cerr << "init_giuh_state_path set to: "
+                  << state->lgar_bmi_params.init_giuh_state_path << "\n";
+        std::cerr << "          *****         \n";
+      }
       continue;
     }
     else if (param_key == "free_drainage_enabled") { 
@@ -927,6 +1083,11 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     throw runtime_error(errMsg.str());
   }
 
+  if (verbosity.compare("high") == 0 && !is_state_path_set) {
+    std::cerr<<"Initial Psi : "<<state->lgar_bmi_params.initial_psi_cm<<"\n";
+    std::cerr<<"          *****         \n";
+  }
+
   if (!is_timestep_set) {
     stringstream errMsg;
     errMsg << "The configuration file \'" << config_file <<"\' does not set timestep. \n";
@@ -968,9 +1129,27 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     throw runtime_error(errMsg.str());
   }
 
+  // Wetting front and non vadose state form one complete valid soil restart;
+  // loading only one can discard ponding, precipitation history, or model time.
+  if (!state->lgar_bmi_params.is_invalid_soil_type &&
+      is_non_vadose_state_path_set != is_state_path_set) {
+    stringstream errMsg;
+    errMsg << "The configuration file \'" << config_file <<"\' sets one of init_non_vadose_state_path or init_state_path but not both. A valid soil restart requires both files. \n";
+    throw runtime_error(errMsg.str());
+  }
+
   if (state->lgar_bmi_params.free_drainage_to_CR && !state->lgar_bmi_params.free_drainage_enabled){
     stringstream errMsg;
     errMsg << "The configuration file \'" << config_file <<"\' sets free_drainage_to_CR as true but sets free_drainage_enabled as false. free_drainage_to_CR being true requires free drainage being enabled \n";
+    throw runtime_error(errMsg.str());
+  }
+
+  if (!state->lgar_bmi_params.is_invalid_soil_type &&
+      is_giuh_ordinates_set &&
+      !is_giuh_state_path_set &&
+      is_state_path_set) {
+    stringstream errMsg;
+    errMsg << "The configuration file \'" << config_file <<"\' sets GIUH ordinates and is loading wetting fronts but is not loading a GIUH queue. Either provide init_giuh_state_path, or do not load a wetting front state. \n";
     throw runtime_error(errMsg.str());
   }
 
@@ -1035,9 +1214,29 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
     state->lgar_bmi_params.frozen_factor[i] = 1.0;
 
   state->head = NULL; //this will be updated if there are only valid soil types, but if there are any invalid soil types, it will remain null
-  InitializeWettingFronts(state->lgar_bmi_params.is_invalid_soil_type, state->lgar_bmi_params.num_layers, state->lgar_bmi_params.initial_psi_cm,
-        state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
-        state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
+  if (!state->lgar_bmi_params.is_invalid_soil_type) {
+    if (!is_state_path_set) {
+      InitializeWettingFronts(state->lgar_bmi_params.is_invalid_soil_type, state->lgar_bmi_params.num_layers, state->lgar_bmi_params.initial_psi_cm,
+            state->lgar_bmi_params.layer_soil_type, state->lgar_bmi_params.cum_layer_thickness_cm,
+            state->lgar_bmi_params.frozen_factor, &state->head, state->soil_properties);
+    }
+    else {
+      InitializeWettingFrontsFromCSV(
+          state->lgar_bmi_params.num_layers,
+          state->lgar_bmi_params.init_state_path.c_str(),
+          state->lgar_bmi_params.layer_soil_type,
+          state->lgar_bmi_params.cum_layer_thickness_cm,
+          state->lgar_bmi_params.frozen_factor,
+          &state->head,
+          state->soil_properties);
+
+      if (!state->lgar_bmi_params.init_non_vadose_state_path.empty()) {
+        InitializenonvadoseStateFromCSV(
+            state->lgar_bmi_params.init_non_vadose_state_path.c_str(),
+            state);
+      }
+    }
+  }
   
   if (verbosity.compare("none") != 0) {
     std::cerr<<"--- Initial state/conditions --- \n";
@@ -1055,23 +1254,33 @@ extern void InitFromConfigFile(string config_file, struct model_state *state)
 
   state->lgar_bmi_params.ponded_depth_cm    = 0.0; // initially we start with a dry surface (no surface ponding)
   state->lgar_bmi_params.nint               = 120; // hacked, not needed to be an input option
-  state->lgar_bmi_params.num_wetting_fronts = state->lgar_bmi_params.num_layers;
   if (state->lgar_bmi_params.is_invalid_soil_type){
     state->lgar_bmi_params.num_wetting_fronts = 0;
   }
   else {
-    assert (state->lgar_bmi_params.num_layers == listLength(state->head));
+    state->lgar_bmi_params.num_wetting_fronts = listLength(state->head);
+    if (!is_state_path_set) {
+      assert (state->lgar_bmi_params.num_layers == state->lgar_bmi_params.num_wetting_fronts);
+    }
   }
   
+  PrintSavedStateInitializationDetails(
+      state,
+      is_state_path_set,
+      is_non_vadose_state_path_set,
+      is_giuh_state_path_set);
 
-  if (verbosity.compare("high") == 0) {
-    std::cerr<<"Initial ponded depth is set to zero. \n";
-    std::cerr<<"No. of spatial intervals used in trapezoidal integration to compute G : "<<state->lgar_bmi_params.nint<<"\n";
+  state->lgar_bmi_input_params = new lgar_bmi_input_parameters;
+  if (state->lgar_bmi_params.is_invalid_soil_type ||
+      !is_state_path_set || !is_non_vadose_state_path_set) {
+    state->lgar_bmi_params.time_s = 0.0;
+    state->lgar_bmi_params.timesteps = 0;
   }
-
-  state->lgar_bmi_input_params     = new lgar_bmi_input_parameters;
-  state->lgar_bmi_params.time_s    = 0.0;
-  state->lgar_bmi_params.timesteps = 0.0;
+  else {
+    // endtime is the duration requested for this invocation.  Convert it to
+    // an absolute model end time after restoring the saved model clock.
+    state->lgar_bmi_params.endtime_s += state->lgar_bmi_params.time_s;
+  }
 
   if (verbosity.compare("none") != 0) {
     std::cerr<<"------------- Initialization done! ---------------------- \n";
@@ -1227,6 +1436,7 @@ extern void lgar_update(struct model_state *state)
 extern void lgar_global_mass_balance(struct model_state *state, double *giuh_runoff_queue_cm)
 {
   double volstart           = state->lgar_mass_balance.volstart_cm;
+  double volon_start        = state->lgar_mass_balance.volon_start_cm;
   double volprecip          = state->lgar_mass_balance.volprecip_cm;
   double volrunoff          = state->lgar_mass_balance.volrunoff_cm;
   double volrunoff_CR       = state->lgar_mass_balance.volrunoff_CR_cm;
@@ -1238,6 +1448,7 @@ extern void lgar_global_mass_balance(struct model_state *state, double *giuh_run
   double volrech            = state->lgar_mass_balance.volrech_cm;
   double volend             = state->lgar_mass_balance.volend_cm;
   double volCRend           = state->lgar_mass_balance.volCRend_cm;
+  double volCRstart         = state->lgar_mass_balance.volCRstart_cm;
   double volrunoff_giuh     = state->lgar_mass_balance.volrunoff_giuh_cm;
   double volend_giuh_cm     = 0.0;
   double total_Q_cm         = state->lgar_mass_balance.volQ_cm;
@@ -1248,7 +1459,9 @@ extern void lgar_global_mass_balance(struct model_state *state, double *giuh_run
   for(int i=0; i <= state->lgar_bmi_params.num_giuh_ordinates; i++)
     volend_giuh_cm += giuh_runoff_queue_cm[i];
 
-  double global_error_cm = volstart + volprecip - volrunoff - volAET - volon - volrech - volinterflow - volend + volchange_calib_cm - volrunoff_CR - volCRend;
+  double global_error_cm = volstart + volCRstart + volon_start + volprecip - volrunoff - volAET - volon -
+                           volrech - volinterflow - volend + volchange_calib_cm -
+                           volrunoff_CR - volCRend;
   
   printf("\n********************************************************* \n");
   printf("-------------------- Simulation Summary ----------------- \n");

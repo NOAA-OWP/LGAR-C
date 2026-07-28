@@ -149,6 +149,8 @@ public:
   void global_mass_balance();
   double update_calibratable_parameters();
   struct model_state* get_model();
+  double* get_giuh_runoff_queue();
+  int get_num_giuh_ordinates();
   
 private:
   void realloc_soil();

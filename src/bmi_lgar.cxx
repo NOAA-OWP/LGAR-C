@@ -9,6 +9,7 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
+#include <iomanip>
 #include "../bmi/bmi.hxx"
 #include "../include/bmi_lgar.hxx"
 #include "../include/all.hxx"
@@ -116,8 +117,35 @@ Initialize (std::string config_file)
     giuh_ordinates[i] = state->lgar_bmi_params.giuh_ordinates[i+1]; // note lgar uses 1-indexing
   }
 
-  for (int i=0; i<=num_giuh_ordinates;i++){
-    giuh_runoff_queue[i] = 0.0;
+  if (!state->lgar_bmi_params.is_invalid_soil_type &&
+      !state->lgar_bmi_params.init_giuh_state_path.empty()) {
+    InitializeGIUHRunoffQueueFromCSV(
+        state->lgar_bmi_params.init_giuh_state_path.c_str(),
+        giuh_runoff_queue,
+        num_giuh_ordinates);
+
+    if (verbosity.compare("high") == 0) {
+      streamsize old_precision = std::cerr.precision();
+      ios::fmtflags old_flags = std::cerr.flags();
+
+      std::cerr << "GIUH runoff queue initialized from saved state file: "
+                << state->lgar_bmi_params.init_giuh_state_path << "\n";
+      std::cerr << "GIUH runoff queue values: [";
+      std::cerr << std::fixed << std::setprecision(12);
+      for (int i = 0; i <= num_giuh_ordinates; i++) {
+        std::cerr << giuh_runoff_queue[i];
+        if (i < num_giuh_ordinates) std::cerr << ",";
+      }
+      std::cerr << "]\n";
+      std::cerr.flags(old_flags);
+      std::cerr.precision(old_precision);
+      std::cerr << "          *****         \n";
+    }
+  }
+  else {
+    for (int i=0; i<=num_giuh_ordinates;i++){
+      giuh_runoff_queue[i] = 0.0;
+    }
   }
 
 }
@@ -281,6 +309,10 @@ Update()
     }
     subtimestep_h = fmin(subtimestep_h, state->lgar_bmi_params.forcing_resolution_h);  //just in case the user has specified a minimum time step that would make the subtimestep_h greater than the forcing resolution 
     state->lgar_bmi_params.timestep_h = subtimestep_h;
+  }
+
+  if (!state->lgar_bmi_params.allow_flux_caching) {
+    state->lgar_mass_balance.cache_fluxes = FALSE;
   }
 
   bool caching_at_start = state->lgar_mass_balance.cache_fluxes;
@@ -1707,6 +1739,16 @@ GetGridNodesPerFace(const int grid, int *nodes_per_face)
   // this is not needed but printing here to avoid compiler warnings
   std::cerr<<"GetGridNodesPerFace: "<<grid<<" "<<nodes_per_face[0]<<"\n";
   throw bmi_lgar::NotImplemented();
+}
+
+double* BmiLGAR::get_giuh_runoff_queue()
+{
+  return giuh_runoff_queue;
+}
+
+int BmiLGAR::get_num_giuh_ordinates()
+{
+  return num_giuh_ordinates;
 }
 
 #endif
