@@ -48,6 +48,7 @@ Initialize (std::string config_file)
   LOG("Inside BmiLGAR::Initialize \n", LogLevel::INFO);  
   if (config_file.compare("") != 0 ) {
     this->state = static_cast<model_state *>(calloc(1, sizeof(model_state)));
+    this->state->units = unit_conversion{};
     lgar_initialize(config_file, state);
   }
 
