@@ -184,10 +184,6 @@ private:
 
   template<class Archive>
   void serialize(Archive& ar, const unsigned int version);
-  template<class Archive>
-  void serialize_wetting_front_list(Archive &ar, wetting_front **head, int &count);
-  template<class Archive>
-  void serialize_c_array(Archive &ar, double **array, int *size);
 
   void new_serialized();
   void load_serialized(char* data);
