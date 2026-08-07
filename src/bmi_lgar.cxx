@@ -1425,8 +1425,8 @@ serialize(Archive& ar, const unsigned int version) {
   ar & state->lgar_bmi_params.num_giuh_ordinates;
   if (Archive::is_loading::value && num_giuh_copy != state->lgar_bmi_params.num_giuh_ordinates) {
     std::string msg = "Deserialization Error: the number of giuh ordinates in the serialized data ("
-      + std::to_string(state->lgar_bmi_params.num_layers) + ") is different from the number initialized ("
-      + std::to_string(num_layers_copy) + ")";
+      + std::to_string(state->lgar_bmi_params.num_giuh_ordinates) + ") is different from the number initialized ("
+      + std::to_string(num_giuh_copy) + ")";
     LOG(LogLevel::FATAL, msg);
     throw std::runtime_error(msg);
   }
