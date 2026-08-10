@@ -1400,15 +1400,42 @@ serialize(Archive& ar, const unsigned int version) {
   ar & state->lgar_mass_balance.volrunoff_giuh_cm;
   ar & state->lgar_mass_balance.volchange_calib_cm;
 
-  this->serialize_c_array(ar, &state->lgar_bmi_params.cum_layer_thickness_cm, &state->lgar_bmi_params.num_layers);
+  int num_layers_copy = state->lgar_bmi_params.num_layers;
+  ar & state->lgar_bmi_params.num_layers;
+  if (Archive::is_loading::value && num_layers_copy != state->lgar_bmi_params.num_layers) {
+    std::string msg = "Deserialization Error: Unable to load data from this state. "
+      "The number of layers in the serialized data ("
+      + std::to_string(state->lgar_bmi_params.num_layers) + ") is different from the number initialized ("
+      + std::to_string(num_layers_copy) + ")";
+    LOG(LogLevel::FATAL, msg);
+    throw std::runtime_error(msg);
+  }
+  ar & boost::serialization::make_array(
+    state->lgar_bmi_params.cum_layer_thickness_cm,
+    state->lgar_bmi_params.num_layers
+  );
+  if (state->lgar_bmi_params.sft_coupled) { // in frozen_factor_hydraulic_conductivity
+    ar & boost::serialization::make_array(
+      state->lgar_bmi_params.cum_layer_thickness_cm,
+      state->lgar_bmi_params.num_layers
+    );
+  }
 
   // giuh state
-  this->serialize_c_array(ar, &this->giuh_runoff_queue, &state->lgar_bmi_params.num_giuh_ordinates);
-
-  // in frozen_factor_hydraulic_conductivity
-  if (state->lgar_bmi_params.sft_coupled) {
-    this->serialize_c_array(ar, &state->lgar_bmi_params.frozen_factor, &state->lgar_bmi_params.num_layers);
+  int num_giuh_copy = state->lgar_bmi_params.num_giuh_ordinates;
+  ar & state->lgar_bmi_params.num_giuh_ordinates;
+  if (Archive::is_loading::value && num_giuh_copy != state->lgar_bmi_params.num_giuh_ordinates) {
+    std::string msg = "Deserialization Error: Unable to load data from this state. "
+      "The number of giuh ordinates in the serialized data ("
+      + std::to_string(state->lgar_bmi_params.num_giuh_ordinates) + ") is different from the number initialized ("
+      + std::to_string(num_giuh_copy) + ")";
+    LOG(LogLevel::FATAL, msg);
+    throw std::runtime_error(msg);
   }
+  ar & boost::serialization::make_array(
+    this->giuh_runoff_queue,
+    state->lgar_bmi_params.num_giuh_ordinates + 1  // 1 indexed array...
+  );
 
   // update_calibratable_parameters
   ar & state->lgar_bmi_params.field_capacity_psi_cm;
@@ -1425,69 +1452,58 @@ serialize(Archive& ar, const unsigned int version) {
 
   // serialization of arbitrarily-lengthed linked-lists
   int num_fronts = state->lgar_bmi_params.num_wetting_fronts;
-  this->serialize_wetting_front_list(ar, &state->head, state->lgar_bmi_params.num_wetting_fronts);
-  int num_previous = 0; // 0 forces a recalculation in the serialize_wetting_front_list function
-  this->serialize_wetting_front_list(ar, &state->state_previous, num_previous);
-
-  if (Archive::is_loading::value && num_fronts != state->lgar_bmi_params.num_wetting_fronts) {
-    // reallocate arrays based on new num_wetting_fronts
-    this->realloc_soil();
-  }
-  // size of wetting fronts controlled above, so no need for overhead of serialize_c_array
-  ar & boost::serialization::make_array(
-    state->lgar_bmi_params.soil_moisture_wetting_fronts, state->lgar_bmi_params.num_wetting_fronts
-  );
-  ar & boost::serialization::make_array(
-    state->lgar_bmi_params.soil_depth_wetting_fronts, state->lgar_bmi_params.num_wetting_fronts
-  );
-}
-
-template <class Archive>
-void BmiLGAR::serialize_c_array(Archive &ar, double **array, int *size) {
-  // store and check the size of the stored array to ensure loading doesn't start writing to out-of-bounds addresses
-  int size_copy = *size;
-  ar & *size;
-  if (Archive::is_loading::value) {
-    if (size_copy != *size) {
-      delete[] *array;
-      *array = new double[*size];
-    }
-  }
-  ar & boost::serialization::make_array(*array, *size);
-}
-
-template <class Archive>
-void BmiLGAR::serialize_wetting_front_list(Archive &ar, wetting_front **head, int &count) {
+  ar & state->lgar_bmi_params.num_wetting_fronts;
   wetting_front *current;
   if (Archive::is_saving::value) {
-    if (count == 0) // assume recalculation needed if 0
-      count = listLength(*head);
-    ar & count;
-    current = *head;
-    while (current != NULL) {
+    current = state->head;
+    for (int i = 0; i < num_fronts; ++i) {
+      if (current == NULL) {
+        std::string msg = "Attempted to serialize NULL wetting_front at position " + std::to_string(i);
+        LOG(LogLevel::FATAL, msg);
+        throw std::runtime_error(msg);
+      }
       ar & (*current);
       current = current->next;
     }
   } else { // loading
-    ar & count;
-    listDelete(*head);
-    *head = NULL;
+    listDelete(state->head);
+    state->head = NULL;
     wetting_front *prior;
-    for (int i = 0; i < count; ++i) {
+    for (int i = 0; i < state->lgar_bmi_params.num_wetting_fronts; ++i) {
       current = new wetting_front();
       current->next = NULL;
       ar & (*current);
       if (i == 0) {
-        *head = current;
+        state->head = current;
       } else {
         prior->next = current;
       }
       prior = current;
     }
   }
+  // clear previous state since it gets reset each update
+  if (Archive::is_loading::value && state->state_previous != NULL) {
+    listDelete(state->state_previous);
+    state->state_previous = NULL;
+  }
+
+  if (Archive::is_loading::value && num_fronts != state->lgar_bmi_params.num_wetting_fronts) {
+    // reallocate arrays based on new num_wetting_fronts
+    this->realloc_soil();
+  }
+
+  ar & boost::serialization::make_array(
+    state->lgar_bmi_params.soil_moisture_wetting_fronts,
+    state->lgar_bmi_params.num_layers
+  );
+  ar & boost::serialization::make_array(
+    state->lgar_bmi_params.soil_depth_wetting_fronts,
+    state->lgar_bmi_params.num_layers
+  );
 }
 
 void BmiLGAR::new_serialized() {
+  LOG(LogLevel::DEBUG, "Saving LASAM state");
   // resize with reserved space for storing size
   this->m_serialized.resize(sizeof(uint64_t));
   boost::archive::binary_oarchive archive(this->m_serialized);
@@ -1505,6 +1521,7 @@ void BmiLGAR::new_serialized() {
 }
 
 void BmiLGAR::load_serialized(char* data) {
+  LOG(LogLevel::DEBUG, "Loading LASAM state");
   // copy size from the start of data
   uint64_t size;
   memcpy(&size, data, sizeof(uint64_t));
