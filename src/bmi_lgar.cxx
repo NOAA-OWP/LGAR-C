@@ -1403,7 +1403,8 @@ serialize(Archive& ar, const unsigned int version) {
   int num_layers_copy = state->lgar_bmi_params.num_layers;
   ar & state->lgar_bmi_params.num_layers;
   if (Archive::is_loading::value && num_layers_copy != state->lgar_bmi_params.num_layers) {
-    std::string msg = "Deserialization Error: the number of layers in the serialized data ("
+    std::string msg = "Deserialization Error: Unable to load data from this state. "
+      "The number of layers in the serialized data ("
       + std::to_string(state->lgar_bmi_params.num_layers) + ") is different from the number initialized ("
       + std::to_string(num_layers_copy) + ")";
     LOG(LogLevel::FATAL, msg);
@@ -1424,7 +1425,8 @@ serialize(Archive& ar, const unsigned int version) {
   int num_giuh_copy = state->lgar_bmi_params.num_giuh_ordinates;
   ar & state->lgar_bmi_params.num_giuh_ordinates;
   if (Archive::is_loading::value && num_giuh_copy != state->lgar_bmi_params.num_giuh_ordinates) {
-    std::string msg = "Deserialization Error: the number of giuh ordinates in the serialized data ("
+    std::string msg = "Deserialization Error: Unable to load data from this state. "
+      "The number of giuh ordinates in the serialized data ("
       + std::to_string(state->lgar_bmi_params.num_giuh_ordinates) + ") is different from the number initialized ("
       + std::to_string(num_giuh_copy) + ")";
     LOG(LogLevel::FATAL, msg);
@@ -1456,7 +1458,7 @@ serialize(Archive& ar, const unsigned int version) {
     current = state->head;
     for (int i = 0; i < num_fronts; ++i) {
       if (current == NULL) {
-        std::string msg = "Attempted to serialize wetting_front at position " + std::to_string(i);
+        std::string msg = "Attempted to serialize NULL wetting_front at position " + std::to_string(i);
         LOG(LogLevel::FATAL, msg);
         throw std::runtime_error(msg);
       }
