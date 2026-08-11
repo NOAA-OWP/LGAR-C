@@ -1442,9 +1442,7 @@ serialize(Archive& ar, const unsigned int version) {
   ar & state->lgar_bmi_params.calib_params_flag;
 
   // may be set in adapative timesteps
-  if (state->lgar_bmi_params.adaptive_timestep){
-    ar & state->lgar_bmi_params.timestep_h;
-  }
+  ar & state->lgar_bmi_params.timestep_h;
 
   // how much time has passed since instantiation
   ar & state->lgar_bmi_params.time_s;
@@ -1466,40 +1464,32 @@ serialize(Archive& ar, const unsigned int version) {
       current = current->next;
     }
   } else { // loading
+    // clear previous state since it gets reset each update
+    if (state->state_previous != NULL) {
+      listDelete(state->state_previous);
+      state->state_previous = NULL;
+    }
+    if (num_fronts != state->lgar_bmi_params.num_wetting_fronts) {
+      // reallocate arrays based on new num_wetting_fronts
+      this->realloc_soil();
+    }
     listDelete(state->head);
     state->head = NULL;
     wetting_front *prior;
     for (int i = 0; i < state->lgar_bmi_params.num_wetting_fronts; ++i) {
       current = new wetting_front();
-      current->next = NULL;
       ar & (*current);
+      current->next = NULL;
       if (i == 0) {
         state->head = current;
       } else {
         prior->next = current;
       }
+      state->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
+      state->lgar_bmi_params.soil_depth_wetting_fronts[i] = current->depth_cm * state->units.cm_to_m;
       prior = current;
     }
   }
-  // clear previous state since it gets reset each update
-  if (Archive::is_loading::value && state->state_previous != NULL) {
-    listDelete(state->state_previous);
-    state->state_previous = NULL;
-  }
-
-  if (Archive::is_loading::value && num_fronts != state->lgar_bmi_params.num_wetting_fronts) {
-    // reallocate arrays based on new num_wetting_fronts
-    this->realloc_soil();
-  }
-
-  ar & boost::serialization::make_array(
-    state->lgar_bmi_params.soil_moisture_wetting_fronts,
-    state->lgar_bmi_params.num_layers
-  );
-  ar & boost::serialization::make_array(
-    state->lgar_bmi_params.soil_depth_wetting_fronts,
-    state->lgar_bmi_params.num_layers
-  );
 }
 
 void BmiLGAR::new_serialized() {
