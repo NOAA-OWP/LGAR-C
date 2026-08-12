@@ -1371,6 +1371,7 @@ serialize(Archive& ar, const unsigned int version) {
   ar & this->bmi_unit_conv.mass_balance_m;
   ar & this->bmi_unit_conv.volrunoff_timestep_m;
   ar & this->bmi_unit_conv.volrunoff_giuh_ponded_m;
+  ar & this->bmi_unit_conv.volQ_gw_timestep_m3_per_s;
   ar & state->lgar_calib_params.ponded_depth_max;
   ar & state->lgar_calib_params.field_capacity_psi;
 
@@ -1412,14 +1413,12 @@ serialize(Archive& ar, const unsigned int version) {
   }
   ar & boost::serialization::make_array(
     state->lgar_bmi_params.cum_layer_thickness_cm,
-    state->lgar_bmi_params.num_layers
+    state->lgar_bmi_params.num_layers + 1 // 1 indexed array
   );
-  if (state->lgar_bmi_params.sft_coupled) { // in frozen_factor_hydraulic_conductivity
-    ar & boost::serialization::make_array(
-      state->lgar_bmi_params.cum_layer_thickness_cm,
-      state->lgar_bmi_params.num_layers
-    );
-  }
+  ar & boost::serialization::make_array(
+    state->lgar_bmi_params.frozen_factor,
+    state->lgar_bmi_params.num_layers + 1 // 1 indexed array
+  );
 
   // giuh state
   int num_giuh_copy = state->lgar_bmi_params.num_giuh_ordinates;
