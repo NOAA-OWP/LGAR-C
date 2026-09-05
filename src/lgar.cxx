@@ -216,8 +216,8 @@ extern void lgar_initialize(string config_file, struct model_state *state)
   @param num_soil_types         : number of soil types; must be less than or equal to MAX_NUM_SOIL_TYPES
   @param AET_cm                 : actual evapotranspiration in cm
   @param soil_temperature       : 1D (double) array of soil temperature [K]; bmi input for coupling lasam to soil freeze thaw model
-  @param soil_temperature_z     : 1D (double) array of soil discretization associated with temperature profile [m];
-                                  depth from the surface in meters
+  @param soil_temperature_z     : 1D (double) array of soil discretization associated with temperature profile [cm];
+                                  depth from the surface in centimeters
   @param frozen_factor          : frozen factor causing the hydraulic conductivity to decrease due to frozen soil
                                   (when coupled to soil freeze thaw model)
   @param wilting_point_psi_cm   : wilting point (the amount of water not available for plants or not accessible by plants)
@@ -1177,23 +1177,25 @@ extern void frozen_factor_hydraulic_conductivity(struct lgar_bmi_parameters lgar
   int c = 0, count;
   double layer_temp;
   double factor;
+  // Layer averaging assumes monotonically increasing temperature-cell depths.
+  for (int i=1; i<lgar_bmi_params.num_cells_temp; i++) {
+    if (lgar_bmi_params.soil_temperature_z[i] <= lgar_bmi_params.soil_temperature_z[i-1])
+      throw runtime_error("soil_z depths must be strictly increasing [cm].");
+  }
 
   for (int layer=1; layer<=lgar_bmi_params.num_layers; layer++) {
     layer_temp = 0.0;
     count = 0;
 
-    while (lgar_bmi_params.soil_temperature_z[c] <= lgar_bmi_params.cum_layer_thickness_cm[layer]) {
+    while (c < lgar_bmi_params.num_cells_temp &&
+           lgar_bmi_params.soil_temperature_z[c] <= lgar_bmi_params.cum_layer_thickness_cm[layer]) {
       layer_temp +=lgar_bmi_params.soil_temperature[c];
       c++;
       count++;
-
-      if (c == lgar_bmi_params.num_cells_temp) // to ensure we don't access out of bound values
-	break;
     }
 
-
-    // assert (layer_temp > 100.0); // just a check to ensure the while loop executes at least once
-    assert (count > 0); // just a check to ensure the while loop executes at least once
+    if (count == 0)
+      throw runtime_error("soil_z must provide at least one temperature cell in every soil layer [cm].");
 
     layer_temp /= count;  // layer-averaged temperature
 
@@ -1210,7 +1212,6 @@ extern void frozen_factor_hydraulic_conductivity(struct lgar_bmi_parameters lgar
     for (int i=1; i <= lgar_bmi_params.num_layers; i++)
       std::cerr<<"frozen factor = "<< lgar_bmi_params.frozen_factor[i]<<"\n";
   }
-
 }
 
 /*
@@ -2001,7 +2002,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
         //the idea here is that in some cases, the reduction in theta via WF movement or AET will be intense enough such that theta goes below theta_r.
         //it requires a fairly unusual soil, which I encountered during random parameter sampling.
         double mass_before_theta_went_below_theta_r = lgar_calc_mass_bal(cum_layer_thickness_cm, *head) - current->depth_cm*(current->theta - (prior_mass/current->depth_cm + next->theta));
-        current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
+        current = listDeleteFront(current->front_num, head, soil_type, frozen_factor, soil_properties);
         current = next;
         double mass_after_theta_went_below_theta_r = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
         // Reduce free drainage first so deleting this tiny front does not force negative AET.
@@ -2299,7 +2300,7 @@ extern double lgar_move_wetting_fronts(double timestep_h, double *free_drainage_
 
     if (correction_type_surf==4){
       mass_change = 0.0;
-      lgar_fix_dry_over_wet_wetting_fronts(&mass_change, cum_layer_thickness_cm, soil_type, head, soil_properties);
+      lgar_fix_dry_over_wet_wetting_fronts(&mass_change, cum_layer_thickness_cm, soil_type, frozen_factor, head, soil_properties);
       *AET_demand_cm = *AET_demand_cm - mass_change;
     }
 
@@ -2463,7 +2464,7 @@ extern void lgar_merge_wetting_fronts(int *soil_type, double *frozen_factor, str
         listPrint(*head);
       }
       
-      next = listDeleteFront(next->front_num, head, soil_type, soil_properties);;
+      next = listDeleteFront(next->front_num, head, soil_type, frozen_factor, soil_properties);
       
       if (verbosity.compare("high") == 0) {
         printf ("Deleting wetting front (after) ... \n");
@@ -2601,7 +2602,7 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
         double vg_m_k      = soil_properties[soil_num_k1].vg_m;
         double vg_n_k      = soil_properties[soil_num_k1].vg_n;
         current_temp->theta = calc_theta_from_h(current_temp->psi_cm, vg_a_k, vg_m_k, vg_n_k,theta_e_k,theta_r_k);
-        double Ksat_cm_per_h_k  = soil_properties[soil_num_k1].Ksat_cm_per_h;
+        double Ksat_cm_per_h_k  = soil_properties[soil_num_k1].Ksat_cm_per_h * frozen_factor[current_temp->layer_num];
         double Se = calc_Se_from_theta(current_temp->theta,theta_e_k, theta_r_k);
         current_temp->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h_k, vg_m_k);
       }
@@ -2610,7 +2611,7 @@ extern void lgar_wetting_fronts_cross_layer_boundary(int num_layers,
         double theta_e_k   = soil_properties[soil_num_k1].theta_e;
         double theta_r_k   = soil_properties[soil_num_k1].theta_r;
         double vg_m_k      = soil_properties[soil_num_k1].vg_m;
-        double Ksat_cm_per_h_k  = soil_properties[soil_num_k1].Ksat_cm_per_h;
+        double Ksat_cm_per_h_k  = soil_properties[soil_num_k1].Ksat_cm_per_h * frozen_factor[current_temp->layer_num];
         double Se = calc_Se_from_theta(current_temp->theta,theta_e_k, theta_r_k);
         current_temp->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h_k, vg_m_k);
       }
@@ -2761,7 +2762,7 @@ extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, i
       double Se_k = calc_Se_from_theta(current->theta,theta_e,theta_r);
       next->psi_cm = calc_h_from_Se(Se_k, vg_a, vg_m, vg_n);
       next->K_cm_per_h = calc_K_from_Se(Se_k, Ksat_cm_per_h, vg_m);
-      current = listDeleteFront(current->front_num, head, soil_type, soil_properties);
+      current = listDeleteFront(current->front_num, head, soil_type, frozen_factor, soil_properties);
       bottom_flux_cm += bottom_flux_cm_temp; 
       break;
     }
@@ -2791,7 +2792,7 @@ extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, i
   drainage is enabled it can do the same thing */
 // ############################################################################################
 extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
-					 struct wetting_front** head, struct soil_properties_ *soil_properties)
+					 double *frozen_factor, struct wetting_front** head, struct soil_properties_ *soil_properties)
 {
   // This function will delete the wetting front that is drier than the WF below it that is in the same layer, and then it will 
   // iteratively adjust the psi and theta values of the region of the soil column that should have just 1 psi value now that a WF was deleted.
@@ -2816,7 +2817,7 @@ extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cu
       if ( (current->theta <= next->theta) && (current->layer_num == next->layer_num) ) {
 
         double prior_mass = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
-        current = listDeleteFront(current->front_num, head, soil_type, soil_properties); //current will be the WF directly after the one that got deleted
+        current = listDeleteFront(current->front_num, head, soil_type, frozen_factor, soil_properties); //current will be the WF directly after the one that got deleted
         int front_num_correction = current->front_num;
         lgar_theta_mass_balance_correction(true, front_num_correction, prior_mass, head, cum_layer_thickness_cm, soil_type, soil_properties);
         double mass_after = lgar_calc_mass_bal(cum_layer_thickness_cm, *head);
@@ -2891,7 +2892,6 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
   double theta_e, theta_r;
   double vg_a, vg_m, vg_n,Ksat_cm_per_h;
   double h_min_cm;
-  struct wetting_front *current;
   struct wetting_front *current_free_drainage;
   struct wetting_front *current_free_drainage_next;
   int soil_num;
@@ -2900,7 +2900,6 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
 
   double h_p = fmax(*ponded_depth_cm - precip_timestep_cm * timestep_h, 0.0); // water ponded on the surface
 
-  current = head;
   current_free_drainage      = listFindFront(wf_that_supplies_free_drainage_demand, head, NULL);
   current_free_drainage_next = listFindFront(wf_that_supplies_free_drainage_demand+1, head, NULL);
 
@@ -2915,7 +2914,8 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
   if (number_of_wetting_fronts == num_layers) {
     Geff = 0.0; // i.e., case of no capillary suction, dz/dt is also zero for all wetting fronts
     soil_num = soil_type[layer_num_fp];
-    Ksat_cm_per_h = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[current->layer_num]; //23 feb 2024
+    // Use the frozen factor for the front controlling infiltration.
+    Ksat_cm_per_h = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[layer_num_fp];
   }
   else {
 
@@ -2932,7 +2932,7 @@ extern double lgar_insert_water(bool use_closed_form_G, int nint, double timeste
     vg_n     = soil_properties[soil_num].vg_n;
     double lambda = soil_properties[soil_num].bc_lambda;
     double bc_psib_cm = soil_properties[soil_num].bc_psib_cm;
-    Ksat_cm_per_h = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[current->layer_num];
+    Ksat_cm_per_h = soil_properties[soil_num].Ksat_cm_per_h * frozen_factor[layer_num_fp];
 
     // Se = calc_Se_from_theta(theta,theta_e,theta_r);
     // psi_cm = calc_h_from_Se(Se, vg_a, vg_m, vg_n);
@@ -3078,7 +3078,7 @@ extern void lgar_create_surficial_front(int num_layers, double *ponded_depth_cm,
   Se = calc_Se_from_theta(theta_new,theta_e,theta_r);
   current->psi_cm = calc_h_from_Se(Se, vg_alpha_per_cm , vg_m, vg_n);
 
-  current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m) * frozen_factor[layer_num]; // AJ - K_temp in python version for 1st layer
+  current->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h, vg_m); // Ksat already includes the layer's frozen factor.
 
   current->dzdt_cm_per_h = 0.0; //for now assign 0 to dzdt as it will be computed/updated in lgar_dzdt_calc function
 
@@ -3730,7 +3730,8 @@ extern int lgarto_correction_type_surf(int num_layers, double* cum_layer_thickne
   return correction_type_surf;
 }
 
-extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties){
+extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_type, double *frozen_factor,
+					struct soil_properties_ *soil_properties){
   if (verbosity.compare("high") == 0) {
     printf("before lgar_clean_redundant_fronts: \n");
     listPrint(*head);
@@ -3742,7 +3743,7 @@ extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_t
   for (int wf = 1; wf != (listLength(*head)); wf++) {
     if ( ((current->layer_num==next->layer_num) && (fabs(current->theta - next->theta)<THRESHOLD_NO_MOISTURE_DIFF)) ){ // here, we only delete wetting fronts if they are very close in moisture. 
                                                                                                                        // Theta can become extremely sensitive with respect to psi for small psi. This approach avoids errors due to that sensitivity. 
-      current = listDeleteFront(current->front_num, head, soil_type, soil_properties); 
+      current = listDeleteFront(current->front_num, head, soil_type, frozen_factor, soil_properties);
       break;
     }
 

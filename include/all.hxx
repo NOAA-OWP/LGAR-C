@@ -125,8 +125,8 @@ struct lgar_bmi_parameters
   double *soil_depth_wetting_fronts;    /* 1D array of absolute depths of the wetting fronts [meters];
 					    output to other models (e.g. soil freeze-thaw) */
   double *soil_temperature;              // 1D array of soil temperature [K]; bmi input for coupling lasam to soil freeze thaw model
-  double *soil_temperature_z;            /* 1D array of soil discretization associated with temperature profile [m];
-					    depth from the surface in meters */
+  double *soil_temperature_z;            /* 1D array of soil discretization associated with temperature profile [cm];
+					    depth from the surface in centimeters */
   double *frozen_factor;                 // frozen factor added to the hydraulic conductivity due to coupling to soil freeze-thaw
   double  wilting_point_psi_cm;          // wilting point (the amount of water not available for plants or not accessible by plants)
   double  field_capacity_psi_cm;          // field capacity represented as a capillary head. Note that both wilting point and field capacity are specified for the whole model domain with single values
@@ -300,7 +300,8 @@ extern int                      listLength(struct wetting_front* head);
 extern bool                     listIsEmpty();
 extern struct wetting_front*    listDeleteFirst(struct wetting_front** head);
 extern struct wetting_front*    listFindFront(int i, struct wetting_front* head, struct wetting_front* head_old);
-extern struct wetting_front*    listDeleteFront(int front_num, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
+extern struct wetting_front*    listDeleteFront(int front_num, struct wetting_front** head, int *soil_type, double *frozen_factor,
+						struct soil_properties_ *soil_properties);
 extern void                     listSortFrontsByDepth(struct wetting_front *head);
 extern void                     listInsertFirst(double d, double t, int f, int l, bool b, struct wetting_front** head);
 extern struct wetting_front*    listInsertFront(double d, double t, int f, int l, bool b, struct wetting_front** head);
@@ -332,7 +333,8 @@ extern double calc_Geff(bool use_closed_form_G, double theta1, double theta2, do
 // computed mass balance
 extern double lgar_calc_mass_bal(double *cum_layer_thickness, struct wetting_front* head);
 
-extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties);
+extern void lgar_clean_redundant_fronts(struct wetting_front** head, int *soil_type, double *frozen_factor,
+					struct soil_properties_ *soil_properties);
 
 // computes derivatives; called derivs() in Python code
 extern void lgar_dzdt_calc(bool use_closed_form_G, int nint, int num_layers, double h_p, double subtimestep_h, int *soil_type, double *cum_layer_thickness,
@@ -382,7 +384,7 @@ extern double lgar_wetting_front_cross_domain_boundary(double domain_depth_cm, i
 
 // subroutine to handle wet over dry wetting fronts condtions
 extern void lgar_fix_dry_over_wet_wetting_fronts(double *mass_change, double* cum_layer_thickness_cm, int *soil_type,
-						 struct wetting_front** head, struct soil_properties_ *soil_properties);
+					 double *frozen_factor, struct wetting_front** head, struct soil_properties_ *soil_properties);
 
 // checks if dry over wet wetting front exists or not
 extern bool lgar_check_dry_over_wet_wetting_fronts(struct wetting_front* head);

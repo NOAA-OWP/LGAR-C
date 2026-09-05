@@ -205,7 +205,8 @@ extern struct wetting_front* listFindFront(int key, struct wetting_front* head, 
 /*##############################################################*/
 /* listDeleteFront -delete the front with a particular front number */
 /*##############################################################*/
-extern struct wetting_front* listDeleteFront(int front_num, struct wetting_front** head, int *soil_type, struct soil_properties_ *soil_properties)
+extern struct wetting_front* listDeleteFront(int front_num, struct wetting_front** head, int *soil_type, double *frozen_factor,
+					     struct soil_properties_ *soil_properties)
 {
   //start from the first link
   struct wetting_front* current = *head;
@@ -280,7 +281,8 @@ extern struct wetting_front* listDeleteFront(int front_num, struct wetting_front
         double vg_m_k      = soil_properties[soil_num_k1].vg_m;
         double vg_n_k      = soil_properties[soil_num_k1].vg_n;
         current_temp->theta = calc_theta_from_h(current_temp->psi_cm, vg_a_k, vg_m_k, vg_n_k,theta_e_k,theta_r_k);
-        double Ksat_cm_per_h_k  = soil_properties[soil_num_k1].Ksat_cm_per_h;
+        // Preserve the deleted stack's frozen-soil conductivity reduction when theta changes.
+        double Ksat_cm_per_h_k  = soil_properties[soil_num_k1].Ksat_cm_per_h * frozen_factor[current_temp->layer_num];
         double Se = calc_Se_from_theta(current_temp->theta,theta_e_k, theta_r_k);
         current_temp->K_cm_per_h = calc_K_from_Se(Se, Ksat_cm_per_h_k, vg_m_k);
       }
