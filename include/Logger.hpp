@@ -1,66 +1,150 @@
-#ifndef LOGGER_HPP
-#define LOGGER_HPP
+#ifndef LASAM_LOGGER_HPP
+#define LASAM_LOGGER_HPP
 
+#ifdef LASAM_USE_EWTS
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+// Using EWTS
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+#include "ewts/module_constants.hpp"
+#include "ewts/logger.hpp"
+#include "ewts/log_levels.hpp"
+
+#define LOG(...) ::ewts::GetLogger(::ewts::modules::EWTS_ID_LASAM).Log(__VA_ARGS__)
+#define GetLogLevel() ::ewts::GetLogger(::ewts::modules::EWTS_ID_LASAM).GetLogLevel()
+#define IsLoggingEnabled() ::ewts::GetLogger(::ewts::modules::EWTS_ID_LASAM).IsLoggingEnabled()
+
+using ewts::EwtsInit;
+using ewts::LogLevel;
+
+inline constexpr const char* LASAM_MODULE_ID = ewts::modules::EWTS_ID_LASAM;
+
+#else
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+// Log messages written to STDOUT
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+#include <chrono>
+#include <cstdarg>
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
 #include <ctime>
-#include <fstream>
+#include <iomanip>
 #include <iostream>
-#include <memory>
 #include <sstream>
-#include <stdlib.h>
 #include <string>
+#include <string_view>
 
-#define LOG Logger::Log
+inline constexpr const char* LASAM_MODULE_ID = "LASAM";
 
+// Minimal LogLevel enum (match EWTS values if possible)
 enum class LogLevel {
-    NONE    = 0,
-    DEBUG   = 1,
-    INFO    = 2,
-    WARNING = 3,
-    SEVERE  = 4,
-    FATAL   = 5,
+    NOTSET = 0,
+    DEBUG = 10,
+    INFO = 20,
+    WARNING = 30,
+    SEVERE = 40,
+    FATAL = 50
 };
 
-/**
- * Logger Class Used to Output Details of Current Application Flow
-   All methods and variables are static so instantiating an object is unnecessary.
- */
-class Logger {
-  public:
-    // Methods
-    static void Log(LogLevel messageLevel, const char* message, ...);
-    static void Log(LogLevel messageLevel, std::string message);
-    static void Log(std::string message, LogLevel messageLevel = LogLevel::INFO);
-    static bool IsLoggingEnabled(void);
-    static LogLevel GetLogLevel(void);
+#define LASAM_FALLBACK_LOGGING_ENABLED   1
+#define LASAM_FALLBACK_LOG_LEVEL         LogLevel::INFO
 
-  private:
-    // Methods
-    static std::string CreateDateString(void);
-    static std::string CreateTimestamp(bool appendMS = true, bool iso = true);
-    static bool CreateDirectory(const std::string& path);
-    static std::string ConvertLogLevelToString(LogLevel level);
-    static LogLevel ConvertStringToLogLevel(const std::string& logLevel);
-    static bool DirectoryExists(const std::string& path);
-    static std::string GetLogFilePath(void);
-    static bool LogFileReady(bool appendMode=true);
-    static void SetLogFilePath(void);
-    static void SetLoggingFlag(void);
-    static void SetLogLevel(void);
-    static void SetLogModuleName(void);
-    static void SetLogPreferences(void);
-    static std::string ToUpper(const std::string& input);
-    static std::string TrimString(const std::string& str);
+inline std::string lasam_utc_timestamp() {
+    using clock = std::chrono::system_clock;
+    auto now = clock::now();
+    auto tt = clock::to_time_t(now);
 
-    // Variables
-    // Declaring these static so they exist in the class without needing to instantiate it. 
-    static bool         loggerInitialized;
-    static std::string  logFilePath;
-    static bool         loggingEnabled;
-    static std::fstream logFile;
-    static LogLevel     logLevel;
-    static std::string  moduleName;
+    std::tm tm{};
+    gmtime_r(&tt, &tm);
 
-    static std::shared_ptr<Logger> loggerInstance;
-};
+    auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+        now.time_since_epoch()) % 1000;
 
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%S")
+        << '.' << std::setw(3) << std::setfill('0') << ms.count()
+        << 'Z';
+
+    return oss.str();
+}
+
+inline std::string_view lasam_rstrip_newline(std::string_view s) {
+    while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) {
+        s.remove_suffix(1);
+    }
+    return s;
+}
+
+inline const char* lasam_level_to_string(LogLevel level) {
+    switch (level) {
+        case LogLevel::DEBUG:   return "DEBUG";
+        case LogLevel::INFO:    return "INFO";
+        case LogLevel::WARNING: return "WARN";
+        case LogLevel::SEVERE:  return "ERROR";
+        case LogLevel::FATAL:   return "FATAL";
+        default:                return "LOG";
+    }
+}
+
+inline bool IsLoggingEnabled() {
+    return LASAM_FALLBACK_LOGGING_ENABLED;
+}
+
+inline LogLevel GetLogLevel() {
+    return LASAM_FALLBACK_LOG_LEVEL;  // simple default
+}
+
+inline void Log(LogLevel level, std::string_view message) {
+
+    if (message.empty()) return;
+    if (!IsLoggingEnabled()) return;
+    if (level < GetLogLevel()) return;
+
+    std::ostringstream oss;
+
+    message = lasam_rstrip_newline(message);
+
+    oss << lasam_utc_timestamp() << " "
+        << LASAM_MODULE_ID << " "
+        << lasam_level_to_string(level) << " "
+        << message << '\n';
+
+    std::cout << oss.str() << std::flush;   
+}
+
+inline void Log(std::string_view message, LogLevel level) {
+    Log(level, message);
+}
+
+inline void Log(LogLevel level, const char* fmt, ...) {
+    if (!fmt) return;
+    if (!IsLoggingEnabled()) return;
+    if (level < GetLogLevel()) return;
+
+    va_list args;
+    va_start(args, fmt);
+
+    va_list args_copy;
+    va_copy(args_copy, args);
+    int len = std::vsnprintf(nullptr, 0, fmt, args_copy);
+    va_end(args_copy);
+
+    if (len < 0) {
+        va_end(args);
+        return;
+    }
+
+    std::string buffer(static_cast<std::size_t>(len) + 1, '\0');
+    std::vsnprintf(buffer.data(), buffer.size(), fmt, args);
+    va_end(args);
+
+    buffer.resize(static_cast<std::size_t>(len));
+
+    Log(level, buffer);
+}
+
+#define LOG(...) Log(__VA_ARGS__)
 #endif
+#endif /* LASAM_LOGGER_HPP */

@@ -37,7 +37,7 @@ extern string verbosity;
 #define use_bmi_flag FALSE       // TODO set to TRUE to run in BMI environment
 
 #define MAX_NUM_SOIL_LAYERS 4
-#define MAX_NUM_SOIL_TYPES 15
+#define MAX_NUM_SOIL_TYPES 16
 #define MAX_SOIL_NAME_CHARS 25
 #define MAX_NUM_WETTING_FRONTS 300
 
@@ -53,7 +53,7 @@ struct wetting_front
   int    front_num;        // the wetting front number (might be irrelevant), but useful to debug
   bool   to_bottom;        // TRUE iff this wetting front is in contact with the layer bottom
   double dzdt_cm_per_h;    // use to store the calculated wetting front speed
-  struct wetting_front *next;  // pointer to the next wetting front.
+  struct wetting_front *next = NULL;  // pointer to the next wetting front.
 
   template <class Archive>
   void serialize(Archive &ar, const unsigned int version) {

@@ -1,6 +1,10 @@
+#
+# LASAM (aka lgar-c, CASAM) CMakeLists.txt
+#
+
 cmake_minimum_required(VERSION 3.10)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_C_COMPILER $ENV{CC})
@@ -69,13 +73,13 @@ ENDIF((NOT ${NGEN}) AND (NOT ${STANDALONE}))
 
 if(STANDALONE)
   add_executable(${exe_name} ./src/bmi_main_lgar.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx
-  			     ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./src/Logger.cpp ./include/Logger.hpp 
+  			     ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx
 			     ./giuh/giuh.h ./giuh/giuh.c)
   target_link_libraries(${exe_name} PRIVATE m)
   target_link_libraries(${exe_name} PRIVATE Boost::serialization)
 elseif(UNITTEST)
   add_executable(${exe_name} ./tests/main_unit_test_bmi.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx
-  			     ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./src/Logger.cpp ./include/Logger.hpp ./giuh/giuh.h
+  			     ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.h
 			     ./giuh/giuh.c)
   target_link_libraries(${exe_name} PRIVATE m)
   target_link_libraries(${exe_name} PRIVATE Boost::serialization)
@@ -91,10 +95,10 @@ add_compile_definitions(BMI_ACTIVE)
 
 if(WIN32)
   add_library(lasambmi SHARED src/bmi_lgar.cxx src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx
-  		       ./src/util_funcs.cxx ./src/aet.cxx ./src/Logger.cpp ./include/Logger.hpp ./giuh/giuh.c include/all.hxx ./giuh/giuh.h)
+  		       ./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.c include/all.hxx ./giuh/giuh.h)
 else()
    add_library(lasambmi SHARED src/bmi_lgar.cxx src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx
-   			./src/util_funcs.cxx ./src/aet.cxx ./src/Logger.cpp ./include/Logger.hpp ./giuh/giuh.c include/all.hxx ./giuh/giuh.h)
+   			./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.c include/all.hxx ./giuh/giuh.h)
 endif()
 
 
@@ -105,6 +109,25 @@ set_target_properties(lasambmi PROPERTIES VERSION ${PROJECT_VERSION})
 set_target_properties(lasambmi PROPERTIES PUBLIC_HEADER ./include/bmi_lgar.hxx)
 
 target_link_libraries(lasambmi PRIVATE Boost::serialization)
+
+option(USE_EWTS "Build LASAM with EWTS logging" ON)
+message("-- LASAM CMakeLists USE_EWTS = ${USE_EWTS}")
+if(USE_EWTS)
+    message("-- LASAM compiled with EWTS logging")
+
+    # --- EWTS (installed from nwm-ewts) ---
+    find_package(ewts CONFIG REQUIRED)
+
+    # Always use EWTS runtime logger for CPP
+    target_link_libraries(lasambmi PRIVATE ewts::ewts_cpp)
+
+    # Built with ngen bridge
+    target_link_libraries(lasambmi PRIVATE 
+        "-Wl,--no-as-needed" ewts::ewts_ngen_bridge "-Wl,--as-needed")
+    target_compile_definitions(lasambmi PRIVATE LASAM_USE_EWTS)
+else()
+    message("-- LASAM compiled with stdout fallback logging")
+endif()
 
 include(GNUInstallDirs)
 
