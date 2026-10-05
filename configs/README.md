@@ -44,3 +44,50 @@ The interflow parameters `interflow_psi_threshold` and `interflow_factor` are mo
 | a_con_res_slow | double (scalar) | 1E-8 < a_con_res_slow < 1E-1 | cm^(1-b_con_res_slow) h^-1 | parameter for second nonlinear reservoir | storage that contributes directly to streamflow | This is exactly like the parameter a_con_res, except it corresponds to a second nonlinear reservoir, which was added to simulate cases where receding limbs have behaviors that can not easily be captured by one reservoir. Defaults to 0. The legacy name `a_slow` is still accepted.|
 | b_con_res_slow | double (scalar) | 0.01 < b_con_res_slow < 5 | - | parameter for second nonlinear reservoir | storage that contributes directly to streamflow | This is exactly like the parameter b_con_res, except it corresponds to a second nonlinear reservoir, which was added to simulate cases where receding limbs have behaviors that can not easily be captured by one reservoir. Defaults to 0. The legacy name `b_slow` is still accepted.|
 | frac_slow | double (scalar) | 0.0 < frac_slow <= 1 | - | parameter for second nonlinear reservoir | storage that contributes directly to streamflow | This describes the partitioning of water to the two reservoris, where the the input to the slow reservoir is equal to the total input for the nonlinear reservoirs times frac_slow. Note that either all or none of a_con_res_slow, b_con_res_slow, and frac_slow must be specified. If none are specified then the model will not simulate a second nonlinear reservoir. Defaults to 0.|
+| init_state_path | string | - | - | filename | optional initialization | If set, CASAM will initialize by loading the wetting fronts from the last data row in this file. The expected format is the standalone-mode `data_layers.csv` restart file. |
+| init_non_vadose_state_path | string | - | - | filename | optional initialization | If set, CASAM will initialize non-vadose restart variables from the last data row in this file, including conceptual reservoir storage, `volon_timestep_cm`, `runoff_in_prev_step`, `precip_previous_timestep_cm`, and flux-caching state. The expected format is the standalone-mode `data_non_vadose_state.csv` restart file. If `allow_flux_caching=false`, saved flux-cache fields are ignored. |
+| init_giuh_state_path | string | - | - | filename | optional initialization | If set, CASAM will initialize the saved GIUH runoff queue from the last data row in this file. The expected format is the standalone-mode `data_giuh_state.csv` restart file. |
+
+### Restart Files
+
+Restart files are currently written only by standalone mode. Restart initialization reads the last data row from each requested restart file. For valid soil restarts, `init_state_path` and `init_non_vadose_state_path` must either both be set or both be omitted. Saved model time and timestep count are restored, while the configured `endtime` remains the duration of the new standalone invocation. If an invalid soil type is specified, restart files are ignored because CASAM returns input precipitation as output discharge for invalid soil types.
+
+The standalone `data_layers.csv` restart file saves and loads the following wetting front variables:
+
+| Variable | Units | Description |
+| -------- | ----- | ----------- |
+| depth_cm | cm | wetting front depth |
+| theta | - | volumetric water content |
+| layer_num | - | 1-based soil layer number |
+| front_num | - | 1-based wetting front number |
+| to_bottom | - | whether the wetting front is in contact with a layer bottom |
+| psi_cm | cm | capillary pressure head |
+| dzdt_cm_per_h | cm/h | wetting front velocity |
+
+The standalone `data_non_vadose_state.csv` restart file saves and loads the following non-vadose and conceptual reservoir variables:
+
+| Variable | Units | Description |
+| -------- | ----- | ----------- |
+| CR_fast_storage_cm | cm | fast conceptual reservoir storage |
+| CR_slow_storage_cm | cm | slow conceptual reservoir storage |
+| volon_timestep_cm | cm | surface water available at the previous timestep |
+| runoff_in_prev_step | - | whether runoff occurred in the previous timestep |
+| precip_previous_timestep_cm | cm | precipitation from the previous timestep |
+| cache_fluxes | - | whether cached fluxes were active |
+| cache_count | - | number of timesteps using cached fluxes |
+| previous_AET | cm | cached actual evapotranspiration |
+| previous_PET | cm | cached potential evapotranspiration |
+| previous_recharge | cm | cached recharge |
+| accumulated_PET | cm | accumulated PET while using cached fluxes |
+| accumulated_free_drainage | cm | accumulated free drainage while using cached fluxes |
+| time_s | s | elapsed model time restored across standalone invocations |
+| timesteps | - | elapsed internal model timestep count |
+
+If `allow_flux_caching=false`, saved values for `cache_fluxes`, `cache_count`, `previous_AET`, `previous_PET`, `previous_recharge`, `accumulated_PET`, and `accumulated_free_drainage` are ignored and initialized as inactive cache state.
+
+The standalone `data_giuh_state.csv` restart file saves and loads the following GIUH variables:
+
+| Variable | Units | Description |
+| -------- | ----- | ----------- |
+| num_giuh_ordinates | - | number of GIUH ordinates expected by the saved queue |
+| queue | cm | GIUH runoff queue values from index 0 through `num_giuh_ordinates` |

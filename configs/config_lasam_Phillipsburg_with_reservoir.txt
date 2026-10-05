@@ -19,3 +19,6 @@ a=0.001
 b=2.5
 spf_factor=0.9
 frac_to_CR=0.2
+#init_state_path=./data_layers.csv
+#init_non_vadose_state_path=./data_non_vadose_state.csv
+#init_giuh_state_path=./data_giuh_state.csv

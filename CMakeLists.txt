@@ -20,13 +20,13 @@ message(CMAKE_C_COMPILER " ${CMAKE_C_COMPILER}")
 message("CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}")
 
 # standalone
-add_executable(lasam_standalone ./src/bmi_main_lgar.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx ./src/conceptual_reservoir.cxx
+add_executable(lasam_standalone ./src/bmi_main_lgar.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx ./src/conceptual_reservoir.cxx ./src/init_from_state.cxx
              ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx
              ./giuh/giuh.h ./giuh/giuh.c)
 target_link_libraries(lasam_standalone PRIVATE m)
 
 # unittest
-add_executable(lasam_unitest ./tests/main_unit_test_bmi.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx ./src/conceptual_reservoir.cxx
+add_executable(lasam_unitest ./tests/main_unit_test_bmi.cxx ./src/bmi_lgar.cxx ./src/lgar.cxx ./src/soil_funcs.cxx ./src/conceptual_reservoir.cxx ./src/init_from_state.cxx
              ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.h
              ./giuh/giuh.c)
 target_link_libraries(lasam_unitest PRIVATE m)
@@ -34,7 +34,7 @@ target_link_libraries(lasam_unitest PRIVATE m)
 # Make sure these are compiled with this directive
 add_compile_definitions(BMI_ACTIVE)
 
-add_library(lasambmi SHARED src/bmi_lgar.cxx src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/conceptual_reservoir.cxx
+add_library(lasambmi SHARED src/bmi_lgar.cxx src/lgar.cxx ./src/soil_funcs.cxx ./src/linked_list.cxx ./src/mem_funcs.cxx ./src/conceptual_reservoir.cxx ./src/init_from_state.cxx
         ./src/util_funcs.cxx ./src/aet.cxx ./giuh/giuh.c include/all.hxx ./giuh/giuh.h)
 
 target_compile_definitions(lasambmi PRIVATE NGEN)
