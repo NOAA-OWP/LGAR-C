@@ -1183,9 +1183,9 @@ GetVarGrid(std::string name)
 	   || name.compare("van_genuchten_m_2") == 0 || name.compare("van_genuchten_alpha_2") == 0 || name.compare("van_genuchten_n_2") == 0 
 	   || name.compare("hydraulic_conductivity_2") == 0)
     return 1;
-  else if (name.compare("smcmax_2") == 0 || name.compare("smcmin_2") == 0 // per layer parameters are now handled with scalars and not arrays
-	   || name.compare("van_genuchten_m_2") == 0 || name.compare("van_genuchten_alpha_2") == 0 || name.compare("van_genuchten_n_2") == 0 
-	   || name.compare("hydraulic_conductivity_2") == 0)
+  else if (name.compare("smcmax_3") == 0 || name.compare("smcmin_3") == 0
+	   || name.compare("van_genuchten_alpha_3") == 0 || name.compare("van_genuchten_n_3") == 0
+	   || name.compare("hydraulic_conductivity_3") == 0)
     return 1;
   // else if (name.compare("soil_depth_layers") == 0  || name.compare("smcmax") == 0 || name.compare("smcmin") == 0
 	//    || name.compare("van_genuchten_m") == 0 || name.compare("van_genuchten_alpha") == 0 || name.compare("van_genuchten_n") == 0 

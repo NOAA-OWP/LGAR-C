@@ -114,11 +114,30 @@ extern void lgar_initialize(string config_file, struct model_state *state)
     state->lgar_calib_params.interflow_factor = state->lgar_bmi_params.interflow_factor;
     state->lgar_calib_params.spf_factor = state->lgar_bmi_params.spf_factor;
 
+    // Calibration buffers use the same input representation as BMI SetValue.
+    // Preserve initialized physical values when calibration omits a parameter.
+    if (state->lgar_bmi_params.log_mode) {
+      state->lgar_calib_params.a_con_res = log10(state->lgar_calib_params.a_con_res);
+      if (state->lgar_bmi_params.frac_slow)
+        state->lgar_calib_params.a_con_res_slow = log10(state->lgar_calib_params.a_con_res_slow);
+      if (state->lgar_bmi_params.interflow_enabled) {
+        state->lgar_calib_params.interflow_psi_threshold_cm = log10(state->lgar_calib_params.interflow_psi_threshold_cm);
+        state->lgar_calib_params.interflow_factor = log10(state->lgar_calib_params.interflow_factor);
+      }
+    }
+
     struct wetting_front *current = state->head;
     for (int i=0; i<state->lgar_bmi_params.num_wetting_fronts; i++) { // note that this only works because at init there is 1 WF per layer, otherwise get soil type from current
       assert (current != NULL);
       
       soil = state->lgar_bmi_params.layer_soil_type[i+1];
+
+      double calib_alpha = state->soil_properties[soil].vg_alpha_per_cm;
+      double calib_Ksat = state->soil_properties[soil].Ksat_cm_per_h;
+      if (state->lgar_bmi_params.log_mode) {
+        calib_alpha = log10(calib_alpha);
+        calib_Ksat = log10(calib_Ksat);
+      }
 
       state->lgar_bmi_params.soil_moisture_wetting_fronts[i] = current->theta;
       state->lgar_bmi_params.soil_depth_wetting_fronts[i]    = current->depth_cm * state->units.cm_to_m;
@@ -134,24 +153,24 @@ extern void lgar_initialize(string config_file, struct model_state *state)
         state->lgar_calib_params.theta_e_1  = state->soil_properties[soil].theta_e;
         state->lgar_calib_params.theta_r_1  = state->soil_properties[soil].theta_r;
         state->lgar_calib_params.vg_n_1     = state->soil_properties[soil].vg_n;
-        state->lgar_calib_params.vg_alpha_1 = state->soil_properties[soil].vg_alpha_per_cm;
-        state->lgar_calib_params.Ksat_1     = state->soil_properties[soil].Ksat_cm_per_h;
+        state->lgar_calib_params.vg_alpha_1 = calib_alpha;
+        state->lgar_calib_params.Ksat_1     = calib_Ksat;
       }
 
       if (i==1){
         state->lgar_calib_params.theta_e_2  = state->soil_properties[soil].theta_e;
         state->lgar_calib_params.theta_r_2  = state->soil_properties[soil].theta_r;
         state->lgar_calib_params.vg_n_2     = state->soil_properties[soil].vg_n;
-        state->lgar_calib_params.vg_alpha_2 = state->soil_properties[soil].vg_alpha_per_cm;
-        state->lgar_calib_params.Ksat_2     = state->soil_properties[soil].Ksat_cm_per_h;
+        state->lgar_calib_params.vg_alpha_2 = calib_alpha;
+        state->lgar_calib_params.Ksat_2     = calib_Ksat;
       }
 
       if (i==2){
         state->lgar_calib_params.theta_e_3  = state->soil_properties[soil].theta_e;
         state->lgar_calib_params.theta_r_3  = state->soil_properties[soil].theta_r;
         state->lgar_calib_params.vg_n_3     = state->soil_properties[soil].vg_n;
-        state->lgar_calib_params.vg_alpha_3 = state->soil_properties[soil].vg_alpha_per_cm;
-        state->lgar_calib_params.Ksat_3     = state->soil_properties[soil].Ksat_cm_per_h;
+        state->lgar_calib_params.vg_alpha_3 = calib_alpha;
+        state->lgar_calib_params.Ksat_3     = calib_Ksat;
       }
       
       current = current->next;
