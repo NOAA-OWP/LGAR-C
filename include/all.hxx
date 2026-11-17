@@ -346,6 +346,7 @@ extern double lgar_calc_dry_depth(bool use_closed_form_G, int nint, double times
 // reads van Genuchten parameters from a file
 extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_types, double wilting_point_psi_cm,
                                     struct soil_properties_ *soil_properties, bool log_mode);
+extern void lgar_update_derived_soil_properties(struct soil_properties_& soil, double wilting_point_psi_cm);
 
 // creates a surficial front (new top most wetting front)
 extern void lgar_create_surficial_front(int num_layers, double *ponded_depth_cm, double *volin, double dry_depth,

@@ -3202,6 +3202,32 @@ double lgar_calc_mass_bal(double *cum_layer_thickness, struct wetting_front* hea
   return sum;
 }
 
+// Rebuild derived hydraulic properties from physical (not log-encoded) parameters.
+// Used both when reading a soil table and after applying BMI calibration values.
+extern void lgar_update_derived_soil_properties(struct soil_properties_& soil, double wilting_point_psi_cm)
+{
+  soil.vg_m = 1.0 - 1.0 / soil.vg_n;
+  soil.theta_wp = calc_theta_from_h(wilting_point_psi_cm, soil.vg_alpha_per_cm,
+                                  soil.vg_m, soil.vg_n, soil.theta_e, soil.theta_r);
+
+  // Given van Genuchten parameters calculate estimates of Brooks & Corey bc_lambda and bc_psib.
+  if (1.0 < soil.vg_n) {
+    double m = 1.0 - 1.0 / soil.vg_n;
+    double p = 1.0 + 2.0 / m;
+    soil.bc_lambda = 2.0 / (p - 3.0);
+    soil.bc_psib_cm = (p + 3.0) * (147.8 + 8.1 * p + 0.092 * p * p) /
+      (2.0 * soil.vg_alpha_per_cm * p * (p - 1.0) * (55.6 + 7.4 * p + p * p));
+    assert(0.0 < soil.bc_psib_cm);
+  }
+  else {
+    fprintf(stderr, "ERROR: van Genuchten parameter n must be greater than 1\n");
+  }
+
+  // Effective capillary drive, Morel-Seytoux et al. (1996), eqn. 13 or 15.
+  double lambda = soil.bc_lambda;
+  soil.h_min_cm = soil.bc_psib_cm * (2.0 + 3.0 / lambda) / (1.0 + 3.0 / lambda);
+}
+
 // ############################################################################################
 /* The module reads the soil parameters.
    Open file to read in the van Genuchten parameters for standard soil types*/
@@ -3222,8 +3248,7 @@ extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_
   int length;
   int num_soils_in_file = 0;             // soil counter
   int soil = 1;
-  double theta_e,theta_r,vg_n,vg_m,vg_alpha_per_cm,Ksat_cm_per_h;  // shorthand variable names
-  double m,p,lambda;
+  double theta_e,theta_r,vg_n,vg_alpha_per_cm,Ksat_cm_per_h;  // shorthand variable names
 
   // open the file
   if((in_vG_params_fptr=fopen(vG_param_file_name,"r"))==NULL) {
@@ -3270,35 +3295,12 @@ extern int lgar_read_vG_param_file(char const* vG_param_file_name, int num_soil_
       vg_alpha_per_cm = pow(10.0, vg_alpha_per_cm);
       Ksat_cm_per_h   = pow(10.0, Ksat_cm_per_h);
     }
-    vg_m = 1-1/vg_n;
     soil_properties[soil].theta_r         = theta_r;
     soil_properties[soil].theta_e         = theta_e;
     soil_properties[soil].vg_alpha_per_cm = vg_alpha_per_cm; // cm^(-1)
     soil_properties[soil].vg_n            = vg_n;
-    soil_properties[soil].vg_m            = vg_m;
     soil_properties[soil].Ksat_cm_per_h   = Ksat_cm_per_h;
-    soil_properties[soil].theta_wp = calc_theta_from_h(wilting_point_psi_cm, vg_alpha_per_cm,
-						       vg_m, vg_n, theta_e, theta_r);
-
-    // Given van Genuchten parameters calculate estimates of Brooks & Corey bc_lambda and bc_psib
-    if (1.0 < vg_n) {
-      m = 1.0 - 1.0 / vg_n;
-      p = 1.0 + 2.0 / m;
-      soil_properties[soil].bc_lambda  = 2.0 / (p - 3.0);
-      soil_properties[soil].bc_psib_cm = (p + 3.0) * (147.8 + 8.1 * p + 0.092 * p * p) /
-	(2.0 * vg_alpha_per_cm * p * (p - 1.0) * (55.6 + 7.4 * p + p * p));
-      assert(0.0 < soil_properties[soil].bc_psib_cm);
-    }
-    else {
-      fprintf(stderr, "ERROR: van Genuchten parameter n must be greater than 1\n");
-      //error = TRUE;  // TODO FIXME - what todo in this ccase?
-    }
-
-    /* this is the effective capillary drive after */
-    /* Morel-Seytoux et al. (1996) eqn. 13 or 15 */
-    /* psi should not be less than this value.  */
-    lambda=soil_properties[soil].bc_lambda;
-    soil_properties[soil].h_min_cm = soil_properties[soil].bc_psib_cm*(2.0+3.0/lambda)/(1.0+3.0/lambda);
+    lgar_update_derived_soil_properties(soil_properties[soil], wilting_point_psi_cm);
     num_soils_in_file++;
     soil++;
 
