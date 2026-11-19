@@ -189,7 +189,7 @@ Update()
     return;
   }
   
-  // if lasam is coupled to soil freeze-thaw, frozen fraction module is called
+  // If LASAM is coupled to soil freeze-thaw, update each layer's conductivity reduction.
   if (state->lgar_bmi_params.sft_coupled)
     frozen_factor_hydraulic_conductivity(state->lgar_bmi_params);
 
@@ -674,7 +674,8 @@ Update()
         volin_subtimestep_cm = volin_subtimestep_cm_temp;
       }
 
-      lgar_clean_redundant_fronts(&state->head, state->lgar_bmi_params.layer_soil_type, state->soil_properties); //deletes WFs that are very close in capillary head value
+      lgar_clean_redundant_fronts(&state->head, state->lgar_bmi_params.layer_soil_type,
+        state->lgar_bmi_params.frozen_factor, state->soil_properties); //deletes WFs that are very close in capillary head value
 
       /*----------------------------------------------------------------------*/
       // calculate derivative (dz/dt) for all wetting fronts
